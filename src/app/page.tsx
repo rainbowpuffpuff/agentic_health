@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Video, Upload, Camera } from 'lucide-react';
+import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload } from 'lucide-react';
 import DewDropIcon from '@/components/icons/DewDropIcon';
 import FlowerIcon from '@/components/icons/FlowerIcon';
 import { cn } from '@/lib/utils';
@@ -393,18 +393,18 @@ export default function Home() {
   return (
     <div className="min-h-screen w-full bg-background text-foreground fade-in">
       <header className="sticky top-0 z-10 border-b border-border/50 bg-background/80 backdrop-blur-sm">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <h1 className="font-headline text-2xl text-primary">think2earn</h1>
-          <div className="flex items-center gap-4 rounded-full border border-border/50 bg-card px-4 py-2 text-sm shadow-sm">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+          <h1 className="font-headline text-xl md:text-2xl text-primary">think2earn</h1>
+          <div className="flex items-center gap-2 md:gap-4 rounded-full border border-border/50 bg-card px-3 md:px-4 py-2 text-sm shadow-sm">
             <div className="flex items-center gap-2">
               <DewDropIcon className="h-5 w-5 text-accent" />
-              <span className="font-bold text-lg">{dreamDew}</span>
-              <span className="text-muted-foreground">Dream Dew</span>
+              <span className="font-bold text-base md:text-lg">{dreamDew}</span>
+              <span className="text-muted-foreground hidden sm:inline">Dream Dew</span>
             </div>
-            <div className="h-6 w-px bg-border" />
+            <div className="h-6 w-px bg-border hidden sm:block" />
             <div className="flex items-center gap-2">
               <Wallet className="h-5 w-5 text-primary" />
-              <span className="font-mono text-muted-foreground">think2earn.near</span>
+              <span className="font-mono text-muted-foreground text-xs md:text-sm truncate">think2earn.near</span>
             </div>
           </div>
         </div>
@@ -642,6 +642,7 @@ export default function Home() {
                             <h3 className="font-headline text-lg">Ready to Contribute</h3>
                         </div>
                         <p className="text-sm text-muted-foreground mt-2">You have both devices. Start pairing your data to help train the glucose prediction model and earn proportional rewards.</p>
+
                         <Button className="mt-3 w-full">Begin Data Pairing</Button>
                     </Card>
                 </CardFooter>
