@@ -1,1 +1,1 @@
-export const CONTRACT_ID = "staking_contract.near-examples.testnet";
+export const CONTRACT_ID = "staking.factory.testnet";
