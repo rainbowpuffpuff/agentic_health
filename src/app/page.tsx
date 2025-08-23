@@ -128,11 +128,6 @@ export default function Home() {
       } catch (error) {
         console.error('Error accessing camera:', error);
         setHasCameraPermission(false);
-        toast({
-          variant: 'destructive',
-          title: 'Camera Access Denied',
-          description: 'Please enable camera permissions in your browser settings to use this app.',
-        });
         return false;
       }
     };
@@ -505,11 +500,11 @@ export default function Home() {
                     )}
                    </div>
                     {hasCameraPermission === false && !uploadedImage && (
-                        <Alert variant="destructive">
+                        <Alert>
                             <AlertTriangle className="h-4 w-4" />
-                            <AlertTitle>Camera Access Denied</AlertTitle>
+                            <AlertTitle>Camera Unavailable</AlertTitle>
                             <AlertDescription>
-                                To take a photo, please allow camera access in your browser settings. You can still upload from your gallery.
+                                Please upload a photo from your gallery instead. Manual uploads may take longer to process for verification.
                             </AlertDescription>
                         </Alert>
                     )}
@@ -754,5 +749,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
