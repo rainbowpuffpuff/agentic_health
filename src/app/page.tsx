@@ -164,7 +164,7 @@ export default function Home() {
             <div className="h-6 w-px bg-border" />
             <div className="flex items-center gap-2">
               <Wallet className="h-5 w-5 text-primary" />
-              <span className="font-mono">0x1a2b...c3d4</span>
+              <span className="font-mono">think2earn.near</span>
             </div>
           </div>
         </div>
