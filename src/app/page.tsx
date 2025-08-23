@@ -54,6 +54,7 @@ const chartConfig = {
 } satisfies ChartConfig
 
 const THIRTY_TGAS = "30000000000000";
+const CIVIC_ACTION_STAKE = "0.1"; // 0.1 NEAR for civic action stake
 
 export default function Home() {
   const [dreamDew, setDreamDew] = useState(200); // Start with enough dew to test
@@ -72,8 +73,9 @@ export default function Home() {
   const walletConnected = !!signedAccountId;
 
   // Staking state
-  const [isStaked, setIsStaked] = useState(false);
-  const [stakeAmount, setStakeAmount] = useState("1"); // In NEAR
+  const [isRestStaked, setIsRestStaked] = useState(false);
+  const [isActionStaked, setIsActionStaked] = useState(false);
+  const [stakeAmount, setStakeAmount] = useState("1"); // In NEAR for sleep
   const [stakedBalance, setStakedBalance] = useState("0");
 
 
@@ -107,7 +109,7 @@ export default function Home() {
     const provider = new utils.JsonRpcProvider({ url: network.nodeUrl });
 
     try {
-        const balance = await provider.query({
+        const balanceResult = await provider.query({
         request_type: "call_function",
         finality: "final",
         account_id: CONTRACT_ID,
@@ -115,10 +117,24 @@ export default function Home() {
         args_base64: btoa(JSON.stringify({ account_id: signedAccountId })),
       });
       
-      const staked = JSON.parse(Buffer.from((balance as any).result).toString());
+      const staked = JSON.parse(Buffer.from((balanceResult as any).result).toString());
       const formattedBalance = utils.format.formatNearAmount(staked);
       setStakedBalance(formattedBalance);
-      setIsStaked(Number(formattedBalance) > 0);
+
+      // Simple logic to check if staked for rest or action.
+      // A more robust solution might involve checking different staking pools in the contract.
+      const numericBalance = Number(formattedBalance);
+      if (numericBalance > 0) {
+        if (numericBalance >= 1) { // Assuming sleep stake is >= 1
+             setIsRestStaked(true);
+        } else {
+             setIsActionStaked(true);
+        }
+      } else {
+        setIsRestStaked(false);
+        setIsActionStaked(false);
+      }
+
 
     } catch (error) {
       console.error("Failed to get staked balance:", error);
@@ -157,7 +173,7 @@ export default function Home() {
     await new Promise(resolve => setTimeout(resolve, duration));
   };
 
-  const handleStake = async () => {
+  const handleStake = async (amount: string, stakeType: 'rest' | 'action') => {
     if (!selector) {
       toast({ variant: "destructive", title: "Wallet not connected" });
       return;
@@ -169,7 +185,7 @@ export default function Home() {
     }
 
     try {
-      const result = await wallet.signAndSendTransaction({
+      await wallet.signAndSendTransaction({
         receiverId: CONTRACT_ID,
         actions: [
           {
@@ -178,17 +194,23 @@ export default function Home() {
               methodName: 'stake',
               args: {},
               gas: THIRTY_TGAS,
-              deposit: utils.format.parseNearAmount(stakeAmount) || "0",
+              deposit: utils.format.parseNearAmount(amount) || "0",
             },
           },
         ],
       });
-      console.log("Stake successful:", result);
+      
       toast({
-        title: "Stake Successful",
-        description: `You have staked ${stakeAmount} NEAR.`,
+        title: "Commitment Successful",
+        description: `You have staked ${amount} NEAR.`,
       });
-      getStakedBalance();
+      await getStakedBalance();
+      
+      if(stakeType === 'rest') {
+          handleBeginSleepRitual();
+      } else {
+          handleCivicAction();
+      }
 
     } catch (error) {
       console.error("Stake failed:", error);
@@ -200,7 +222,7 @@ export default function Home() {
     }
   };
   
-    const handleUnstake = async () => {
+    const handleUnstake = async (amountToUnstake: string) => {
         if (!selector) {
             toast({ variant: "destructive", title: "Wallet not connected" });
             return;
@@ -212,13 +234,13 @@ export default function Home() {
         }
 
         try {
-            const amountInYocto = utils.format.parseNearAmount(stakedBalance);
+            const amountInYocto = utils.format.parseNearAmount(amountToUnstake);
             if(!amountInYocto) {
-                toast({ variant: "destructive", title: "Error", description: "Invalid staked balance" });
+                toast({ variant: "destructive", title: "Error", description: "Invalid unstake amount" });
                 return;
             }
 
-            const result = await wallet.signAndSendTransaction({
+            await wallet.signAndSendTransaction({
                 receiverId: CONTRACT_ID,
                 actions: [
                     {
@@ -232,12 +254,11 @@ export default function Home() {
                     },
                 ],
             });
-            console.log("Unstake successful:", result);
             toast({
                 title: "Unstake Successful",
-                description: `You have unstaked your ${stakedBalance} NEAR plus rewards.`,
+                description: `You have unstaked ${amountToUnstake} NEAR plus rewards.`,
             });
-            getStakedBalance();
+            await getStakedBalance();
         } catch (error) {
             console.error("Unstake failed:", error);
             toast({
@@ -415,9 +436,9 @@ export default function Home() {
             await runProgress(2500);
             
             setAppState('minting_dew');
-            await runProgress(2000, () => {
+            await runProgress(2000, async () => {
                 // Only unstake if the sleep ritual is successful
-                handleUnstake();
+                await handleUnstake(stakeAmount);
             });
 
             const newDew = Math.floor(Math.random() * 5) + 5;
@@ -468,9 +489,10 @@ export default function Home() {
     await runProgress(3000);
     
     setAppState('planting_seed');
-    await runProgress(1500, () => {
+    await runProgress(1500, async () => {
         setGardenFlowers(prev => prev + 1);
         setDreamDew(prev => Math.max(0, prev - 10));
+        await handleUnstake(CIVIC_ACTION_STAKE);
     });
 
     setAppState('idle');
@@ -532,7 +554,7 @@ export default function Home() {
       case 'generating_sleep_proof':
         return { icon: <KeyRound className="animate-spin text-primary" />, text: 'Generating ZK-Proof of Rest...' };
       case 'minting_dew':
-        return { icon: <Zap className="futuristic-glow text-primary" />, text: 'Unstaking NEAR...' };
+        return { icon: <Zap className="futuristic-glow text-primary" />, text: 'Returning your stake...' };
       case 'taking_action':
         return { icon: <Mail className="text-primary" />, text: 'Sending secure email...' };
       case 'generating_action_proof':
@@ -589,7 +611,7 @@ export default function Home() {
             <div className="h-6 w-px bg-border hidden sm:block" />
             <div className="flex items-center gap-2">
               <Wallet className="h-5 w-5 text-primary" />
-              <span className="font-mono text-muted-foreground text-xs md:text-sm truncate">{signedAccountId || "think2earn.near"}</span>
+              <span className="font-mono text-muted-foreground text-xs md:text-sm truncate max-w-[100px] sm:max-w-none">{signedAccountId || "think2earn.near"}</span>
             </div>
             {walletConnected && <Button variant="ghost" size="sm" onClick={logOut}>Logout</Button>}
           </div>
@@ -600,35 +622,13 @@ export default function Home() {
       <Input type="file" accept=".csv" ref={whoopInputRef} onChange={handleWhoopImport} className="hidden" />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
             
-            {/* Staking and Rituals Column */}
+            {/* Main Column */}
             <div className="lg:col-span-2 space-y-6">
-                {!isStaked && appState === 'idle' && (
-                    <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5">
-                    <CardHeader>
-                        <CardTitle className="font-headline text-2xl flex items-center gap-3">
-                        <ShieldCheck className="text-primary"/> Secure Your Stake
-                        </CardTitle>
-                        <CardDescription>Commit NEAR to a contract to participate in sleep rituals.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <p className="text-sm text-muted-foreground">To ensure commitment and data integrity, a stake is required before you can begin verifying your sleep. This stake is refundable with a reward upon successful verification.</p>
-                        <div className="flex items-center space-x-2">
-                            <Label htmlFor="stake-amount">Stake Amount (NEAR)</Label>
-                            <Input id="stake-amount" type="number" value={stakeAmount} onChange={(e) => setStakeAmount(e.target.value)} className="w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                        </div>
-                    </CardContent>
-                    <CardFooter>
-                        <Button onClick={handleStake} disabled={!walletConnected || Number(stakeAmount) <= 0} className="w-full">
-                            Stake {stakeAmount} NEAR
-                        </Button>
-                    </CardFooter>
-                    </Card>
-                )}
-
+                
                 {appState === 'taking_photo' && (
                     <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5">
                         <CardHeader>
-                            <CardTitle className="font-headline text-2xl">Begin Sleep Ritual</CardTitle>
+                            <CardTitle className="font-headline text-2xl">Provide Evidence of Rest</CardTitle>
                             <CardDescription>Take a photo of your bed or upload one from your gallery.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -644,11 +644,11 @@ export default function Home() {
                                 )}
                             </div>
                             {hasCameraPermission === false && !uploadedImage && (
-                                <Alert>
+                                 <Alert variant="default">
                                     <AlertTriangle className="h-4 w-4" />
                                     <AlertTitle>Camera Unavailable</AlertTitle>
                                     <AlertDescription>
-                                        Please upload a photo from your gallery instead. Manual uploads may take longer to process for verification.
+                                        No problem. Please upload a photo from your gallery instead. Note that manual uploads may take longer to process for verification.
                                     </AlertDescription>
                                 </Alert>
                             )}
@@ -682,11 +682,11 @@ export default function Home() {
                     </Card>
                 )}
 
-                {isStaked && appState !== 'taking_photo' && appState !== 'analyzing_photo' && (
+                {appState !== 'taking_photo' && (
                     <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5">
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl">Daily Rituals</CardTitle>
-                        <CardDescription>Generate proofs of your positive actions.</CardDescription>
+                        <CardDescription>Generate proofs of your positive actions by making a commitment.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div className="space-y-4 rounded-lg border p-4 hover:border-primary/20 transition-colors">
@@ -694,10 +694,27 @@ export default function Home() {
                                 <Bed className="h-6 w-6 text-primary" />
                                 <h3 className="font-headline text-lg">Proof of Rest</h3>
                             </div>
-                            <p className="text-sm text-muted-foreground">You have staked <span className="font-bold text-primary">{stakedBalance} NEAR</span>. Complete the sleep ritual to verify your rest and get your stake back with a reward.</p>
-                            <Button onClick={handleBeginSleepRitual} disabled={appState !== 'idle'} className="w-full">
-                                {appState === 'idle' ? 'Begin Sleep Ritual' : 'Ritual in Progress...'}
-                            </Button>
+                            <p className="text-sm text-muted-foreground">Commit NEAR as a pledge to your sleep ritual. Your stake is returned with a reward upon successful verification.</p>
+                            
+                            {isRestStaked ? (
+                                <div className='p-4 bg-secondary rounded-md'>
+                                    <p className='text-sm font-semibold'>You have <span className="font-bold text-primary">{stakedBalance} NEAR</span> staked.</p>
+                                    <p className="text-xs text-muted-foreground mt-1">Complete the sleep ritual to get it back with a reward.</p>
+                                    <Button onClick={handleBeginSleepRitual} disabled={appState !== 'idle'} className="w-full mt-3">
+                                        Verify Sleep
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div className="flex items-end gap-2">
+                                    <div className="flex-grow">
+                                        <Label htmlFor="stake-amount">Commitment (NEAR)</Label>
+                                        <Input id="stake-amount" type="number" value={stakeAmount} onChange={(e) => setStakeAmount(e.target.value)} className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                                    </div>
+                                    <Button onClick={() => handleStake(stakeAmount, 'rest')} disabled={appState !== 'idle' || !walletConnected || Number(stakeAmount) <= 0}>
+                                        Commit & Begin
+                                    </Button>
+                                </div>
+                            )}
                         </div>
 
                         <div className="space-y-4 rounded-lg border p-4 hover:border-primary/20 transition-colors">
@@ -705,10 +722,20 @@ export default function Home() {
                                 <Mail className="h-6 w-6 text-primary" />
                                 <h3 className="font-headline text-lg">Proof of Action</h3>
                             </div>
-                            <p className="text-sm text-muted-foreground">Spend 10 Dream Dew to plant a flower in your garden. Use ZK-Email to prove you've contacted a representative, and your anonymous action will be added to the public registry.</p>
-                            <Button onClick={handleCivicAction} disabled={appState !== 'idle' || dreamDew < 10} variant="outline" className="w-full">
-                                {dreamDew < 10 ? 'Need 10 Dream Dew' : 'Plant a Seed of Action'}
-                            </Button>
+                            <p className="text-sm text-muted-foreground">Commit a small stake of {CIVIC_ACTION_STAKE} NEAR and spend 10 Dream Dew to prove you've contacted a representative. Your anonymous action will be added to the public registry, and your stake returned.</p>
+
+                            {isActionStaked ? (
+                                <div className='p-4 bg-secondary rounded-md'>
+                                    <p className='text-sm font-semibold'>You have a civic action commitment active.</p>
+                                    <Button onClick={handleCivicAction} disabled={appState !== 'idle'} className="w-full mt-3">
+                                        Verify Action
+                                    </Button>
+                                </div>
+                            ) : (
+                                <Button onClick={() => handleStake(CIVIC_ACTION_STAKE, 'action')} disabled={appState !== 'idle' || dreamDew < 10} variant="outline" className="w-full">
+                                    {dreamDew < 10 ? 'Need 10 Dream Dew' : `Commit ${CIVIC_ACTION_STAKE} NEAR & Plant Seed`}
+                                </Button>
+                            )}
                         </div>
 
                         {appState !== 'idle' && appState !== 'taking_photo' && (
@@ -724,23 +751,6 @@ export default function Home() {
                     </Card>
                 )}
 
-                {(appState === 'analyzing_photo') && (
-                    <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5">
-                        <CardHeader>
-                            <CardTitle className="font-headline text-2xl">Daily Rituals</CardTitle>
-                            <CardDescription>Generate proofs of your positive actions.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="mt-4 space-y-3 p-4 bg-secondary/50 rounded-lg fade-in">
-                                <div className="flex items-center gap-3 text-sm font-medium">
-                                {getStateDescription().icon}
-                                <span>{getStateDescription().text}</span>
-                                </div>
-                                <Progress value={progress} className="w-full h-2" />
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
                  <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '100ms'}}>
                     <CardHeader>
                     <CardTitle className="font-headline text-2xl">My Action Garden</CardTitle>
@@ -754,56 +764,6 @@ export default function Home() {
                         {gardenFlowers === 0 && <p className="col-span-full text-center text-muted-foreground self-center">Your garden awaits. Plant a seed by taking civic action.</p>}
                     </div>
                     </CardContent>
-                </Card>
-
-                <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '400ms'}}>
-                    <CardHeader>
-                        <CardTitle className="font-headline text-2xl flex items-center gap-3"><ShoppingCart className="text-primary"/> Device Store</CardTitle>
-                        <CardDescription>Acquire the tools to contribute to glucose monitoring research.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid sm:grid-cols-2 gap-4">
-                        <Card className="p-4 flex flex-col items-start gap-4 hover:bg-secondary/50 transition-colors">
-                            <Image src="https://placehold.co/100x100.png" alt="fNIRS Armband" width={100} height={100} className="rounded-lg self-center" data-ai-hint="wearable technology"/>
-                            <div className="flex-grow space-y-2">
-                                <h3 className="font-headline text-lg">fNIRS Armband</h3>
-                                <p className="text-sm text-muted-foreground">Open-hardware fNIRS device for continuous, non-invasive data collection.</p>
-                                <div className="flex items-center gap-2 text-accent font-bold">
-                                    <DewDropIcon className="h-5 w-5"/>
-                                    <span>100 Dream Dew</span>
-                                </div>
-                            </div>
-                            <Button onClick={() => handleAcquireDevice(100, setHasFnirsDevice)} disabled={dreamDew < 100 || hasFnirsDevice} className="w-full">
-                            {hasFnirsDevice ? 'Acquired' : 'Acquire'}
-                            </Button>
-                        </Card>
-                        <Card className="p-4 flex flex-col items-start gap-4 hover:bg-secondary/50 transition-colors">
-                            <Image src="https://placehold.co/100x100.png" alt="Abbott Glucose Monitor" width={100} height={100} className="rounded-lg self-center" data-ai-hint="medical device"/>
-                            <div className="flex-grow space-y-2">
-                                <h3 className="font-headline text-lg">Abbott Glucose Monitor</h3>
-                                <p className="text-sm text-muted-foreground">Certified medical device for providing baseline glucose data to train the model.</p>
-                                <div className="flex items-center gap-2 text-accent font-bold">
-                                <DewDropIcon className="h-5 w-5"/>
-                                <span>150 Dream Dew</span>
-                                </div>
-                            </div>
-                            <Button onClick={() => handleAcquireDevice(150, setHasAbbottDevice)} disabled={dreamDew < 150 || hasAbbottDevice} className="w-full">
-                                {hasAbbottDevice ? 'Acquired' : 'Acquire'}
-                            </Button>
-                        </Card>
-                    </CardContent>
-                    {(hasFnirsDevice && hasAbbottDevice) &&
-                        <CardFooter>
-                            <Card className="p-4 w-full bg-secondary/50 border-primary/30">
-                                <div className="flex items-center gap-3">
-                                    <BrainCircuit className="h-6 w-6 text-primary" />
-                                    <h3 className="font-headline text-lg">Ready to Contribute</h3>
-                                </div>
-                                <p className="text-sm text-muted-foreground mt-2">You have both devices. Start pairing your data to help train the glucose prediction model and earn proportional rewards.</p>
-
-                                <Button className="mt-3 w-full">Begin Data Pairing</Button>
-                            </Card>
-                        </CardFooter>
-                    }
                 </Card>
 
                 {hasFnirsDevice && (
@@ -902,11 +862,60 @@ export default function Home() {
                     </CardContent>
                     </Card>
                 )}
+                 <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '400ms'}}>
+                    <CardHeader>
+                        <CardTitle className="font-headline text-2xl flex items-center gap-3"><ShoppingCart className="text-primary"/> Device Store</CardTitle>
+                        <CardDescription>Acquire the tools to contribute to glucose monitoring research.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid sm:grid-cols-2 gap-4">
+                        <Card className="p-4 flex flex-col items-start gap-4 hover:bg-secondary/50 transition-colors">
+                            <Image src="https://placehold.co/100x100.png" alt="fNIRS Armband" width={100} height={100} className="rounded-lg self-center" data-ai-hint="wearable technology"/>
+                            <div className="flex-grow space-y-2">
+                                <h3 className="font-headline text-lg">fNIRS Armband</h3>
+                                <p className="text-sm text-muted-foreground">Open-hardware fNIRS device for continuous, non-invasive data collection.</p>
+                                <div className="flex items-center gap-2 text-accent font-bold">
+                                    <DewDropIcon className="h-5 w-5"/>
+                                    <span>100 Dream Dew</span>
+                                </div>
+                            </div>
+                            <Button onClick={() => handleAcquireDevice(100, setHasFnirsDevice)} disabled={dreamDew < 100 || hasFnirsDevice} className="w-full">
+                            {hasFnirsDevice ? 'Acquired' : 'Acquire'}
+                            </Button>
+                        </Card>
+                        <Card className="p-4 flex flex-col items-start gap-4 hover:bg-secondary/50 transition-colors">
+                            <Image src="https://placehold.co/100x100.png" alt="Abbott Glucose Monitor" width={100} height={100} className="rounded-lg self-center" data-ai-hint="medical device"/>
+                            <div className="flex-grow space-y-2">
+                                <h3 className="font-headline text-lg">Abbott Glucose Monitor</h3>
+                                <p className="text-sm text-muted-foreground">Certified medical device for providing baseline glucose data to train the model.</p>
+                                <div className="flex items-center gap-2 text-accent font-bold">
+                                <DewDropIcon className="h-5 w-5"/>
+                                <span>150 Dream Dew</span>
+                                </div>
+                            </div>
+                            <Button onClick={() => handleAcquireDevice(150, setHasAbbottDevice)} disabled={dreamDew < 150 || hasAbbottDevice} className="w-full">
+                                {hasAbbottDevice ? 'Acquired' : 'Acquire'}
+                            </Button>
+                        </Card>
+                    </CardContent>
+                    {(hasFnirsDevice && hasAbbottDevice) &&
+                        <CardFooter>
+                            <Card className="p-4 w-full bg-secondary/50 border-primary/30">
+                                <div className="flex items-center gap-3">
+                                    <BrainCircuit className="h-6 w-6 text-primary" />
+                                    <h3 className="font-headline text-lg">Ready to Contribute</h3>
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-2">You have both devices. Start pairing your data to help train the glucose prediction model and earn proportional rewards.</p>
+
+                                <Button className="mt-3 w-full">Begin Data Pairing</Button>
+                            </Card>
+                        </CardFooter>
+                    }
+                </Card>
             </div>
             
-            {/* Sleep Log Column */}
+            {/* Side Column */}
             <div className="lg:col-span-1 space-y-6">
-                <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '300ms'}}>
+                 <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '300ms'}}>
                     <CardHeader>
                         <div className='flex items-start justify-between gap-4'>
                             <div>
@@ -959,3 +968,5 @@ export default function Home() {
   );
 }
 
+
+    
