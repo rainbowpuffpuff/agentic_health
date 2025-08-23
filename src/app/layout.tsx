@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { WalletProvider } from '@/components/WalletProvider';
+import "@near-wallet-selector/modal-ui/styles.css";
 
 export const metadata: Metadata = {
   title: 'think2earn: Sovereign Edition',

@@ -7,7 +7,6 @@ import { setupBitteWallet } from "@near-wallet-selector/bitte-wallet";
 import { setupLedger } from "@near-wallet-selector/ledger";
 import { setupMeteorWallet } from "@near-wallet-selector/meteor-wallet";
 import { setupNightly } from "@near-wallet-selector/nightly";
-import { Near } from "near-api-js";
 import { setupMyNearWallet } from "@near-wallet-selector/my-near-wallet";
 import { CONTRACT_ID } from "@/lib/constants";
 import React from "react";
