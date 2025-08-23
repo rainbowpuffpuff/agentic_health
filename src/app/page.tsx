@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy } from 'lucide-react';
+import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud } from 'lucide-react';
 import DewDropIcon from '@/components/icons/DewDropIcon';
 import FlowerIcon from '@/components/icons/FlowerIcon';
 import { cn } from '@/lib/utils';
@@ -40,6 +40,10 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [appState, setAppState] = useState<'idle' | 'sleeping' | 'generating_sleep_proof' | 'minting_dew' | 'taking_action' | 'generating_action_proof' | 'planting_seed'>('idle');
   const [progress, setProgress] = useState(0);
+
+  // Staking state
+  const [isStaked, setIsStaked] = useState(false);
+  const [stakeAmount, setStakeAmount] = useState(50);
 
   // Swarm State
   const [swarmState, setSwarmState] = useState<'idle' | 'generating_keys' | 'keys_generated' | 'funding' | 'buying_stamps' | 'ready_to_upload'>('idle');
@@ -77,6 +81,13 @@ export default function Home() {
     };
     requestAnimationFrame(animate);
     await new Promise(resolve => setTimeout(resolve, duration));
+  };
+
+  const handleStake = () => {
+    if (dreamDew >= stakeAmount) {
+      setDreamDew(prev => prev - stakeAmount);
+      setIsStaked(true);
+    }
   };
 
   const handleSleepRitual = async () => {
@@ -253,9 +264,15 @@ export default function Home() {
           </Card>
           
           <Card className="lg:row-span-3 slide-in-from-bottom" style={{'--delay': '300ms'}}>
-            <CardHeader>
-              <CardTitle className="font-headline text-2xl">Dream Journal</CardTitle>
-              <CardDescription>Your private, encrypted memories of rest.</CardDescription>
+             <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="font-headline text-2xl">Sleep Log</CardTitle>
+                <CardDescription>Your private, encrypted memories of rest.</CardDescription>
+              </div>
+              <Button variant="outline" size="sm">
+                <UploadCloud className="mr-2 h-4 w-4" />
+                Import Whoop CSV
+              </Button>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[720px] pr-4">
@@ -269,51 +286,77 @@ export default function Home() {
                       </div>
                     </div>
                   ))}
-                  {journalEntries.length === 0 && <p className="text-center text-muted-foreground pt-16">Complete a Sleep Ritual to start your journal.</p>}
+                  {journalEntries.length === 0 && <p className="text-center text-muted-foreground pt-16">Complete a Sleep Ritual to start your log.</p>}
                 </div>
               </ScrollArea>
             </CardContent>
           </Card>
 
-          <Card className="lg:col-span-2 slide-in-from-bottom" style={{'--delay': '200ms'}}>
-            <CardHeader>
-              <CardTitle className="font-headline text-2xl">Daily Rituals</CardTitle>
-              <CardDescription>Generate proofs of your positive actions.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4 rounded-lg border p-4">
-                  <div className="flex items-center gap-3">
-                    <Bed className="h-6 w-6 text-primary" />
-                    <h3 className="font-headline text-lg">Proof of Rest</h3>
-                  </div>
-                  <p className="text-sm text-muted-foreground">Commit to rest. Place your phone by your bed, and we'll generate a ZK-Proof of your sleep, minting 'Dream Dew' tokens without compromising your data.</p>
-                  <Button onClick={handleSleepRitual} disabled={appState !== 'idle'} className="w-full">
-                    {appState === 'idle' ? 'Begin Sleep Ritual' : 'Ritual in Progress...'}
-                  </Button>
-              </div>
+          {!isStaked && (
+            <Card className="lg:col-span-2 slide-in-from-bottom" style={{'--delay': '200ms'}}>
+              <CardHeader>
+                <CardTitle className="font-headline text-2xl flex items-center gap-3">
+                  <ShieldCheck/> Secure Your Stake
+                </CardTitle>
+                <CardDescription>Commit funds to a NEAR contract to participate in sleep rituals.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                 <p className="text-sm text-muted-foreground">To ensure commitment and data integrity, a stake of {stakeAmount} Dream Dew is required before you can begin verifying your sleep. This stake is refundable.</p>
+                 <div className="flex items-center space-x-2">
+                    <Label htmlFor="stake-amount">Stake Amount</Label>
+                    <Input id="stake-amount" type="number" value={stakeAmount} onChange={(e) => setStakeAmount(Number(e.target.value))} className="w-24" />
+                    <DewDropIcon className="h-5 w-5 text-accent"/>
+                 </div>
+              </CardContent>
+              <CardFooter>
+                 <Button onClick={handleStake} disabled={dreamDew < stakeAmount} className="w-full">
+                    Stake {stakeAmount} Dream Dew
+                 </Button>
+              </CardFooter>
+            </Card>
+          )}
 
-              <div className="space-y-4 rounded-lg border p-4">
-                  <div className="flex items-center gap-3">
-                    <Mail className="h-6 w-6 text-accent" />
-                    <h3 className="font-headline text-lg">Proof of Action</h3>
-                  </div>
-                  <p className="text-sm text-muted-foreground">Spend 10 Dream Dew to plant a flower in your garden. Use ZK-Email to prove you've contacted a representative, and your anonymous action will be added to the public registry.</p>
-                  <Button onClick={handleCivicAction} disabled={appState !== 'idle' || dreamDew < 10} variant="outline" className="w-full">
-                    {dreamDew < 10 ? 'Need 10 Dream Dew' : 'Plant a Seed of Action'}
-                  </Button>
-              </div>
-
-              {appState !== 'idle' && (
-                <div className="mt-4 space-y-3 p-4 bg-secondary/50 rounded-lg fade-in">
-                  <div className="flex items-center gap-3 text-sm font-medium">
-                    {getStateDescription().icon}
-                    <span>{getStateDescription().text}</span>
-                  </div>
-                  <Progress value={progress} className="w-full h-2" />
+          {isStaked && (
+            <Card className="lg:col-span-2 slide-in-from-bottom" style={{'--delay': '200ms'}}>
+              <CardHeader>
+                <CardTitle className="font-headline text-2xl">Daily Rituals</CardTitle>
+                <CardDescription>Generate proofs of your positive actions.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4 rounded-lg border p-4">
+                    <div className="flex items-center gap-3">
+                      <Bed className="h-6 w-6 text-primary" />
+                      <h3 className="font-headline text-lg">Proof of Rest</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground">Commit to rest. Place your phone by your bed, and we'll generate a ZK-Proof of your sleep, minting 'Dream Dew' tokens without compromising your data.</p>
+                    <Button onClick={handleSleepRitual} disabled={appState !== 'idle'} className="w-full">
+                      {appState === 'idle' ? 'Begin Sleep Ritual' : 'Ritual in Progress...'}
+                    </Button>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+
+                <div className="space-y-4 rounded-lg border p-4">
+                    <div className="flex items-center gap-3">
+                      <Mail className="h-6 w-6 text-accent" />
+                      <h3 className="font-headline text-lg">Proof of Action</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground">Spend 10 Dream Dew to plant a flower in your garden. Use ZK-Email to prove you've contacted a representative, and your anonymous action will be added to the public registry.</p>
+                    <Button onClick={handleCivicAction} disabled={appState !== 'idle' || dreamDew < 10} variant="outline" className="w-full">
+                      {dreamDew < 10 ? 'Need 10 Dream Dew' : 'Plant a Seed of Action'}
+                    </Button>
+                </div>
+
+                {appState !== 'idle' && (
+                  <div className="mt-4 space-y-3 p-4 bg-secondary/50 rounded-lg fade-in">
+                    <div className="flex items-center gap-3 text-sm font-medium">
+                      {getStateDescription().icon}
+                      <span>{getStateDescription().text}</span>
+                    </div>
+                    <Progress value={progress} className="w-full h-2" />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
           
           <Card className="lg:col-span-2 slide-in-from-bottom" style={{'--delay': '400ms'}}>
             <CardHeader>
@@ -362,105 +405,104 @@ export default function Home() {
             </CardContent>
           </Card>
            
-          <Card className="lg:col-span-2 slide-in-from-bottom" style={{'--delay': '500ms'}}>
-             <CardHeader>
-                <CardTitle className="font-headline text-2xl flex items-center gap-3"><HardDrive/> Sovereign Storage on Swarm</CardTitle>
-                <CardDescription>Securely store your encrypted fNIRS data on a decentralized network.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {swarmState === 'idle' && (
-                <>
-                  <p className="text-sm text-muted-foreground">Set up your personal, decentralized storage to own and control your health data. This involves creating a new Swarm account.</p>
-                  <Button onClick={handleSetupSwarm} className="w-full">
-                    Setup Swarm Storage
-                  </Button>
-                </>
-              )}
+          {hasFnirsDevice && (
+            <Card className="lg:col-span-2 slide-in-from-bottom" style={{'--delay': '500ms'}}>
+               <CardHeader>
+                  <CardTitle className="font-headline text-2xl flex items-center gap-3"><HardDrive/> Sovereign Storage on Swarm</CardTitle>
+                  <CardDescription>Securely store your encrypted fNIRS data on a decentralized network.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {swarmState === 'idle' && (
+                  <>
+                    <p className="text-sm text-muted-foreground">Set up your personal, decentralized storage to own and control your health data. This involves creating a new Swarm account.</p>
+                    <Button onClick={handleSetupSwarm} className="w-full">
+                      Setup Swarm Storage
+                    </Button>
+                  </>
+                )}
 
-              {swarmState === 'generating_keys' && (
-                <div className="flex items-center justify-center p-8">
-                  <Loader className="h-8 w-8 animate-spin text-primary" />
-                  <p className="ml-4">Generating your secure Swarm credentials...</p>
-                </div>
-              )}
-              
-              {swarmState === 'keys_generated' && swarmKeys && (
-                <div className="space-y-4">
-                  <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/50 text-destructive-foreground">
-                    <div className="flex items-start">
-                      <AlertTriangle className="h-5 w-5 mr-3 mt-1 text-destructive" />
-                      <div>
-                        <h4 className="font-bold">Save These Credentials!</h4>
-                        <p className="text-sm">This is the only time you will see your password. We do not store it. Keep it safe.</p>
+                {swarmState === 'generating_keys' && (
+                  <div className="flex items-center justify-center p-8">
+                    <Loader className="h-8 w-8 animate-spin text-primary" />
+                    <p className="ml-4">Generating your secure Swarm credentials...</p>
+                  </div>
+                )}
+                
+                {swarmState === 'keys_generated' && swarmKeys && (
+                  <div className="space-y-4">
+                    <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/50 text-destructive-foreground">
+                      <div className="flex items-start">
+                        <AlertTriangle className="h-5 w-5 mr-3 mt-1 text-destructive" />
+                        <div>
+                          <h4 className="font-bold">Save These Credentials!</h4>
+                          <p className="text-sm">This is the only time you will see your password. We do not store it. Keep it safe.</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ethAddress">Gnosis Chain Address</Label>
-                    <div className="flex items-center gap-2">
-                      <Input id="ethAddress" value={swarmKeys.ethereumAddress} readOnly />
-                      <Button variant="ghost" size="icon" onClick={() => copyToClipboard(swarmKeys.ethereumAddress)}><Copy/></Button>
+                    <div className="space-y-2">
+                      <Label htmlFor="ethAddress">Gnosis Chain Address</Label>
+                      <div className="flex items-center gap-2">
+                        <Input id="ethAddress" value={swarmKeys.ethereumAddress} readOnly />
+                        <Button variant="ghost" size="icon" onClick={() => copyToClipboard(swarmKeys.ethereumAddress)}><Copy/></Button>
+                      </div>
                     </div>
-                  </div>
-                   <div className="space-y-2">
-                    <Label htmlFor="publicKey">Swarm Public Key</Label>
-                     <div className="flex items-center gap-2">
-                      <Input id="publicKey" value={swarmKeys.publicKey} readOnly />
-                       <Button variant="ghost" size="icon" onClick={() => copyToClipboard(swarmKeys.publicKey)}><Copy/></Button>
+                     <div className="space-y-2">
+                      <Label htmlFor="publicKey">Swarm Public Key</Label>
+                       <div className="flex items-center gap-2">
+                        <Input id="publicKey" value={swarmKeys.publicKey} readOnly />
+                         <Button variant="ghost" size="icon" onClick={() => copyToClipboard(swarmKeys.publicKey)}><Copy/></Button>
+                      </div>
                     </div>
-                  </div>
-                   <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                     <div className="flex items-center gap-2">
-                      <Input id="password" value={swarmKeys.password} readOnly />
-                      <Button variant="ghost" size="icon" onClick={() => copyToClipboard(swarmKeys.password)}><Copy/></Button>
+                     <div className="space-y-2">
+                      <Label htmlFor="password">Password</Label>
+                       <div className="flex items-center gap-2">
+                        <Input id="password" value={swarmKeys.password} readOnly />
+                        <Button variant="ghost" size="icon" onClick={() => copyToClipboard(swarmKeys.password)}><Copy/></Button>
+                      </div>
                     </div>
+                    <div className="flex items-center space-x-2 pt-2">
+                      <Checkbox id="terms" onCheckedChange={(checked) => setCredentialsSaved(checked as boolean)} />
+                      <label
+                        htmlFor="terms"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        I have saved my credentials in a secure place.
+                      </label>
+                    </div>
+                    <Button onClick={handleContinueFromKeys} disabled={!credentialsSaved} className="w-full">Continue</Button>
                   </div>
-                  <div className="flex items-center space-x-2 pt-2">
-                    <Checkbox id="terms" onCheckedChange={(checked) => setCredentialsSaved(checked as boolean)} />
-                    <label
-                      htmlFor="terms"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      I have saved my credentials in a secure place.
-                    </label>
-                  </div>
-                  <Button onClick={handleContinueFromKeys} disabled={!credentialsSaved} className="w-full">Continue</Button>
-                </div>
-              )}
+                )}
 
-              {swarmState === 'funding' && (
-                 <div className="space-y-4 rounded-lg border p-4">
-                    <h3 className="font-headline text-lg">1. Fund Your Account</h3>
-                    <p className="text-sm text-muted-foreground">To use Swarm, your Gnosis Chain address needs funds. Send ~0.01 xDAI (for gas fees) and ~0.2 xBZZ (for storage) to your address shown in the previous step.</p>
-                    <Button onClick={handleFunded} disabled={accountFunded} className="w-full">
-                      {accountFunded ? 'Account Funded' : 'I Have Funded My Account'}
-                    </Button>
-                 </div>
-              )}
-               {(swarmState === 'buying_stamps' || swarmState === 'ready_to_upload') && (
-                 <div className="space-y-4 rounded-lg border p-4">
-                    <h3 className="font-headline text-lg">2. Buy Postage Stamps</h3>
-                    <p className="text-sm text-muted-foreground">Postage stamps are required to upload data to Swarm. They cover the cost of storage for a specific duration.</p>
-                     <Button onClick={handleBuyStamps} disabled={stampsPurchased || swarmState !== 'buying_stamps'} className="w-full">
-                       {swarmState === 'ready_to_upload' ? 'Stamps Purchased!' : 'Purchase Postage Stamps'}
-                    </Button>
-                 </div>
-              )}
-               {swarmState === 'ready_to_upload' && (
-                 <div className="space-y-4 rounded-lg border p-4 bg-primary/10">
-                    <h3 className="font-headline text-lg flex items-center gap-3"><FileUp/> Ready to Upload</h3>
-                    <p className="text-sm text-muted-foreground">Your Swarm storage is set up. You can now upload your encrypted fNIRS data sessions.</p>
-                    <Button className="w-full">Upload fNIRS Data</Button>
-                 </div>
-              )}
-            </CardContent>
-          </Card>
-
+                {swarmState === 'funding' && (
+                   <div className="space-y-4 rounded-lg border p-4">
+                      <h3 className="font-headline text-lg">1. Fund Your Account</h3>
+                      <p className="text-sm text-muted-foreground">To use Swarm, your Gnosis Chain address needs funds. Send ~0.01 xDAI (for gas fees) and ~0.2 xBZZ (for storage) to your address shown in the previous step.</p>
+                      <Button onClick={handleFunded} disabled={accountFunded} className="w-full">
+                        {accountFunded ? 'Account Funded' : 'I Have Funded My Account'}
+                      </Button>
+                   </div>
+                )}
+                 {(swarmState === 'buying_stamps' || swarmState === 'ready_to_upload') && (
+                   <div className="space-y-4 rounded-lg border p-4">
+                      <h3 className="font-headline text-lg">2. Buy Postage Stamps</h3>
+                      <p className="text-sm text-muted-foreground">Postage stamps are required to upload data to Swarm. They cover the cost of storage for a specific duration.</p>
+                       <Button onClick={handleBuyStamps} disabled={stampsPurchased || swarmState !== 'buying_stamps'} className="w-full">
+                         {swarmState === 'ready_to_upload' ? 'Stamps Purchased!' : 'Purchase Postage Stamps'}
+                      </Button>
+                   </div>
+                )}
+                 {swarmState === 'ready_to_upload' && (
+                   <div className="space-y-4 rounded-lg border p-4 bg-primary/10">
+                      <h3 className="font-headline text-lg flex items-center gap-3"><FileUp/> Ready to Upload</h3>
+                      <p className="text-sm text-muted-foreground">Your Swarm storage is set up. You can now upload your encrypted fNIRS data sessions.</p>
+                      <Button className="w-full">Upload fNIRS Data</Button>
+                   </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </main>
     </div>
   );
 }
-
-    
