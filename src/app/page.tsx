@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { detectSleepingSurface } from '@/ai/flows/detect-sleeping-surface-flow';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useWalletSelector } from '@/components/WalletProvider';
 
 type JournalEntry = {
   id: number;
@@ -51,7 +52,6 @@ const chartConfig = {
 } satisfies ChartConfig
 
 export default function Home() {
-  const [walletConnected, setWalletConnected] = useState(false);
   const [dreamDew, setDreamDew] = useState(200); // Start with enough dew to test
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [gardenFlowers, setGardenFlowers] = useState(0);
@@ -63,6 +63,9 @@ export default function Home() {
   const [appState, setAppState] = useState<'idle' | 'sleeping' | 'generating_sleep_proof' | 'minting_dew' | 'taking_action' | 'generating_action_proof' | 'planting_seed' | 'taking_photo' | 'analyzing_photo'>('idle');
   const [progress, setProgress] = useState(0);
   const { toast } = useToast();
+
+  const { signedAccountId, logOut, logIn, isLoggingIn } = useWalletSelector();
+  const walletConnected = !!signedAccountId;
 
   // Staking state
   const [isStaked, setIsStaked] = useState(false);
@@ -91,14 +94,6 @@ export default function Home() {
     // Simulate initial loading
     setTimeout(() => setIsLoading(false), 1000);
   }, []);
-
-  const handleConnectWallet = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setWalletConnected(true);
-      setIsLoading(false);
-    }, 1500);
-  };
   
   const runProgress = async (duration: number, onComplete?: () => void) => {
     let startTime: number | null = null;
@@ -140,7 +135,7 @@ export default function Home() {
     setAppState('taking_photo');
   };
 
-  const getCameraPermission = async () => {
+  const getCameraPermission = useCallback(async () => {
       if(hasCameraPermission === true) return true;
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -154,13 +149,13 @@ export default function Home() {
         setHasCameraPermission(false);
         return false;
       }
-    };
+    },[hasCameraPermission]);
 
   useEffect(() => {
     if(appState === 'taking_photo' && !uploadedImage) {
         getCameraPermission();
     }
-  }, [appState, uploadedImage]);
+  }, [appState, uploadedImage, getCameraPermission]);
   
   
   const takePhoto = () => {
@@ -428,11 +423,11 @@ export default function Home() {
     }
   };
 
-  if (isLoading && !walletConnected) {
+  if (isLoading) {
     return <div className="flex h-screen w-full items-center justify-center bg-background"><Loader className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
-  if (!walletConnected) {
+  if (!walletConnected && process.env.NODE_ENV !== 'development') {
     return (
       <main className="flex min-h-screen w-full items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md fade-in shadow-2xl shadow-primary/10 border-primary/20 bg-card">
@@ -449,9 +444,9 @@ export default function Home() {
             </div>
           </CardContent>
           <CardFooter>
-            <Button className="w-full futuristic-glow" onClick={handleConnectWallet} disabled={isLoading}>
+            <Button className="w-full futuristic-glow" onClick={logIn} disabled={isLoggingIn}>
               <Wallet className="mr-2 h-4 w-4" />
-              {isLoading ? 'Connecting...' : 'Connect NEAR Wallet'}
+              {isLoggingIn ? 'Connecting...' : 'Connect NEAR Wallet'}
             </Button>
           </CardFooter>
         </Card>
@@ -473,8 +468,9 @@ export default function Home() {
             <div className="h-6 w-px bg-border hidden sm:block" />
             <div className="flex items-center gap-2">
               <Wallet className="h-5 w-5 text-primary" />
-              <span className="font-mono text-muted-foreground text-xs md:text-sm truncate">think2earn.near</span>
+              <span className="font-mono text-muted-foreground text-xs md:text-sm truncate">{signedAccountId || "think2earn.near"}</span>
             </div>
+            {walletConnected && <Button variant="ghost" size="sm" onClick={logOut}>Logout</Button>}
           </div>
         </div>
       </header>
@@ -842,5 +838,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
