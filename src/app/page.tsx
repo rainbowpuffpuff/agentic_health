@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Video } from 'lucide-react';
+import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Video, Upload } from 'lucide-react';
 import DewDropIcon from '@/components/icons/DewDropIcon';
 import FlowerIcon from '@/components/icons/FlowerIcon';
 import { cn } from '@/lib/utils';
@@ -59,6 +59,8 @@ export default function Home() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadedImage, setUploadedImage] = useState<{url: string, date: string} | null>(null);
 
   useEffect(() => {
     // Simulate initial loading
@@ -109,6 +111,7 @@ export default function Home() {
   };
 
   const handleBeginSleepRitual = () => {
+    setUploadedImage(null);
     setAppState('taking_photo');
   };
 
@@ -129,7 +132,6 @@ export default function Home() {
           title: 'Camera Access Denied',
           description: 'Please enable camera permissions in your browser settings to use this app.',
         });
-        setAppState('idle');
         return false;
       }
     };
@@ -166,8 +168,37 @@ export default function Home() {
     return 'https://placehold.co/400x300.png';
   }
 
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const imageUrl = e.target?.result as string;
+        const lastModifiedDate = new Date(file.lastModified);
+        const formattedDate = lastModifiedDate.toLocaleString('en-US', {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: 'numeric',
+            hour12: true
+        });
+        setUploadedImage({ url: imageUrl, date: `Timestamp: ${formattedDate}`});
+        
+        // Stop camera if it's on
+        if(videoRef.current?.srcObject) {
+            const stream = videoRef.current.srcObject as MediaStream;
+            stream.getTracks().forEach(track => track.stop());
+            videoRef.current.srcObject = null;
+            setHasCameraPermission(null);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleConfirmPhoto = async () => {
-    const photoUrl = takePhoto();
+    const photoUrl = uploadedImage?.url || takePhoto();
     
     setAppState('sleeping');
     await runProgress(3000);
@@ -183,13 +214,14 @@ export default function Home() {
     
     const newEntry: JournalEntry = {
       id: Date.now(),
-      date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' }),
+      date: uploadedImage?.date || new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' }),
       sleep: `${(newDew - 0.5).toFixed(1)} hours verified`,
       imageUrl: photoUrl,
     };
     setJournalEntries(prev => [newEntry, ...prev]);
 
     setAppState('idle');
+    setUploadedImage(null);
     setProgress(0);
   };
 
@@ -400,15 +432,21 @@ export default function Home() {
           {appState === 'taking_photo' && (
              <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '200ms'}}>
                <CardHeader>
-                  <CardTitle className="font-headline text-2xl">Take a Photo</CardTitle>
-                  <CardDescription>Capture a timestamped photo of your bed to begin.</CardDescription>
+                  <CardTitle className="font-headline text-2xl">Begin Sleep Ritual</CardTitle>
+                  <CardDescription>Take a photo of your bed or upload one from your gallery.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                   <div className="w-full aspect-video bg-secondary rounded-md overflow-hidden flex items-center justify-center">
-                    <video ref={videoRef} className={cn("h-full w-full object-cover", { 'hidden': hasCameraPermission === false })} autoPlay muted playsInline />
-                    {hasCameraPermission === false && <p className='text-muted-foreground'>Camera not available.</p>}
+                   <div className="w-full aspect-video bg-secondary rounded-md overflow-hidden flex items-center justify-center relative">
+                    {uploadedImage ? (
+                        <Image src={uploadedImage.url} alt="Uploaded bed photo" layout="fill" objectFit="cover" />
+                    ) : (
+                        <>
+                            <video ref={videoRef} className={cn("h-full w-full object-cover", { 'hidden': hasCameraPermission === false })} autoPlay muted playsInline />
+                            {hasCameraPermission === false && <p className='text-muted-foreground'>Camera not available.</p>}
+                        </>
+                    )}
                    </div>
-                    {hasCameraPermission === false && (
+                    {hasCameraPermission === false && !uploadedImage && (
                         <Alert variant="destructive">
                             <AlertTriangle className="h-4 w-4" />
                             <AlertTitle>Camera Access Required</AlertTitle>
@@ -417,11 +455,28 @@ export default function Home() {
                             </AlertDescription>
                         </Alert>
                     )}
+                    {uploadedImage && (
+                        <Alert variant="default">
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertTitle>Image Uploaded</AlertTitle>
+                            <AlertDescription>
+                                {uploadedImage.date}
+                            </AlertDescription>
+                        </Alert>
+                    )}
                    <canvas ref={canvasRef} className="hidden" />
+                   <Input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
                 </CardContent>
-                <CardFooter className="flex gap-2">
-                    <Button variant="outline" onClick={() => setAppState('idle')} className="w-full">Cancel</Button>
-                    <Button onClick={handleConfirmPhoto} disabled={!hasCameraPermission} className="w-full">Confirm Photo</Button>
+                <CardFooter className="flex flex-col sm:flex-row gap-2">
+                    <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="w-full">
+                        <Upload className="mr-2 h-4 w-4"/>
+                        Upload from Gallery
+                    </Button>
+                    <Button onClick={handleConfirmPhoto} disabled={!hasCameraPermission && !uploadedImage} className="w-full">
+                      <Video className="mr-2 h-4 w-4"/>
+                      Confirm Photo
+                    </Button>
+                    <Button variant="ghost" onClick={() => setAppState('idle')} className="w-full sm:w-auto">Cancel</Button>
                 </CardFooter>
              </Card>
           )}
@@ -620,4 +675,3 @@ export default function Home() {
   );
 }
 
-    
