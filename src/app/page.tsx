@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network } from 'lucide-react';
+import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit } from 'lucide-react';
 import DewDropIcon from '@/components/icons/DewDropIcon';
 import FlowerIcon from '@/components/icons/FlowerIcon';
 import { cn } from '@/lib/utils';
@@ -20,9 +21,12 @@ type JournalEntry = {
 
 export default function Home() {
   const [walletConnected, setWalletConnected] = useState(false);
-  const [dreamDew, setDreamDew] = useState(0);
+  const [dreamDew, setDreamDew] = useState(200); // Start with enough dew to test
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [gardenFlowers, setGardenFlowers] = useState(0);
+  const [hasFnirsDevice, setHasFnirsDevice] = useState(false);
+  const [hasAbbottDevice, setHasAbbottDevice] = useState(false);
+
 
   const [isLoading, setIsLoading] = useState(true);
   const [appState, setAppState] = useState<'idle' | 'sleeping' | 'generating_sleep_proof' | 'minting_dew' | 'taking_action' | 'generating_action_proof' | 'planting_seed'>('idle');
@@ -98,6 +102,13 @@ export default function Home() {
 
     setAppState('idle');
     setProgress(0);
+  };
+
+  const handleAcquireDevice = (cost: number, setHasDevice: (has: boolean) => void) => {
+    if (dreamDew >= cost) {
+      setDreamDew(prev => prev - cost);
+      setHasDevice(true);
+    }
   };
   
   const getStateDescription = () => {
@@ -188,17 +199,17 @@ export default function Home() {
             </CardContent>
           </Card>
           
-          <Card className="lg:row-span-2 slide-in-from-bottom" style={{'--delay': '300ms'}}>
+          <Card className="lg:row-span-3 slide-in-from-bottom" style={{'--delay': '300ms'}}>
             <CardHeader>
               <CardTitle className="font-headline text-2xl">Dream Journal</CardTitle>
               <CardDescription>Your private, encrypted memories of rest.</CardDescription>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[460px] pr-4">
+              <ScrollArea className="h-[720px] pr-4">
                 <div className="space-y-4">
                   {journalEntries.map(entry => (
                     <div key={entry.id} className="flex items-center gap-4 rounded-lg border p-3 bg-card" data-ai-hint="bed bedroom">
-                      <Image src={entry.imageUrl} alt="A photo of a bed" width={80} height={60} className="rounded-md" />
+                      <Image src={entry.imageUrl} alt="A photo of a bed" width={80} height={60} className="rounded-md" data-ai-hint="night sleep" />
                       <div className="flex-grow">
                         <p className="font-semibold">{entry.date}</p>
                         <p className="text-sm text-accent">{entry.sleep}</p>
@@ -250,6 +261,54 @@ export default function Home() {
               )}
             </CardContent>
           </Card>
+          
+          <Card className="lg:col-span-2 slide-in-from-bottom" style={{'--delay': '400ms'}}>
+            <CardHeader>
+                <CardTitle className="font-headline text-2xl flex items-center gap-3"><ShoppingCart/> Device Store</CardTitle>
+                <CardDescription>Acquire the tools to contribute to glucose monitoring research.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <Card className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <Image src="https://placehold.co/100x100.png" alt="fNIRS Armband" width={100} height={100} className="rounded-lg" data-ai-hint="wearable technology"/>
+                    <div className="flex-grow space-y-2">
+                        <h3 className="font-headline text-lg">fNIRS Armband</h3>
+                        <p className="text-sm text-muted-foreground">Open-hardware fNIRS device for continuous, non-invasive data collection.</p>
+                        <div className="flex items-center gap-2 text-primary font-bold">
+                            <DewDropIcon className="h-5 w-5 text-accent"/>
+                            <span>100 Dream Dew</span>
+                        </div>
+                    </div>
+                    <Button onClick={() => handleAcquireDevice(100, setHasFnirsDevice)} disabled={dreamDew < 100 || hasFnirsDevice} className="w-full sm:w-auto">
+                      {hasFnirsDevice ? 'Acquired' : 'Acquire'}
+                    </Button>
+                </Card>
+                <Card className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <Image src="https://placehold.co/100x100.png" alt="Abbott Glucose Monitor" width={100} height={100} className="rounded-lg" data-ai-hint="medical device"/>
+                    <div className="flex-grow space-y-2">
+                        <h3 className="font-headline text-lg">Abbott Glucose Monitor</h3>
+                        <p className="text-sm text-muted-foreground">Certified medical device for providing baseline glucose data to train the model.</p>
+                        <div className="flex items-center gap-2 text-primary font-bold">
+                           <DewDropIcon className="h-5 w-5 text-accent"/>
+                           <span>150 Dream Dew</span>
+                        </div>
+                    </div>
+                    <Button onClick={() => handleAcquireDevice(150, setHasAbbottDevice)} disabled={dreamDew < 150 || hasAbbottDevice} className="w-full sm:w-auto">
+                        {hasAbbottDevice ? 'Acquired' : 'Acquire'}
+                    </Button>
+                </Card>
+                 {(hasFnirsDevice && hasAbbottDevice) &&
+                    <Card className="p-4 mt-4 bg-secondary/50">
+                        <div className="flex items-center gap-3">
+                            <BrainCircuit className="h-6 w-6 text-primary" />
+                            <h3 className="font-headline text-lg">Ready to Contribute</h3>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-2">You have both devices. Start pairing your data to help train the glucose prediction model and earn proportional rewards.</p>
+                        <Button className="mt-3 w-full">Begin Data Pairing</Button>
+                    </Card>
+                }
+            </CardContent>
+          </Card>
+
         </div>
       </main>
     </div>
