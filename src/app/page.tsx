@@ -117,7 +117,7 @@ export default function Home() {
   };
 
   const getCameraPermission = async () => {
-      if(hasCameraPermission) return true;
+      if(hasCameraPermission === true) return true;
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         if (videoRef.current) {
@@ -228,7 +228,7 @@ export default function Home() {
 
     try {
         const result = await detectSleepingSurface({ photoDataUri: photoUrl });
-        await runProgress(2000);
+        await runProgress(1000);
 
         if (result.isSleepingSurface) {
             setAppState('sleeping');
@@ -498,17 +498,18 @@ export default function Home() {
                         <Image src={uploadedImage.url} alt="Uploaded bed photo" layout="fill" objectFit="cover" />
                     ) : (
                         <>
-                            <video ref={videoRef} className={cn("h-full w-full object-cover", { 'hidden': hasCameraPermission === false })} autoPlay muted playsInline />
+                            <video ref={videoRef} className={cn("h-full w-full object-cover", { 'hidden': hasCameraPermission !== true })} autoPlay muted playsInline />
                             {hasCameraPermission === false && <p className='text-muted-foreground'>Camera not available.</p>}
+                            {hasCameraPermission === null && !videoRef.current?.srcObject && <Loader className="h-8 w-8 animate-spin text-primary" />}
                         </>
                     )}
                    </div>
                     {hasCameraPermission === false && !uploadedImage && (
                         <Alert variant="destructive">
                             <AlertTriangle className="h-4 w-4" />
-                            <AlertTitle>Camera Access Required</AlertTitle>
+                            <AlertTitle>Camera Access Denied</AlertTitle>
                             <AlertDescription>
-                                Please allow camera access in your browser settings to use this feature.
+                                To take a photo, please allow camera access in your browser settings. You can still upload from your gallery.
                             </AlertDescription>
                         </Alert>
                     )}
@@ -534,8 +535,8 @@ export default function Home() {
                         Upload from Gallery
                     </Button>
                     <Button onClick={handleConfirmPhoto} disabled={!uploadedImage} className="w-full">
-                      <Video className="mr-2 h-4 w-4"/>
-                      Confirm Photo
+                      <ShieldCheck className="mr-2 h-4 w-4"/>
+                      Confirm and Verify
                     </Button>
                     <Button variant="ghost" onClick={() => { setAppState('idle'); setUploadedImage(null); }} className="w-full sm:w-auto">Cancel</Button>
                 </CardFooter>
@@ -543,7 +544,7 @@ export default function Home() {
           )}
 
 
-          {isStaked && appState !== 'taking_photo' && (
+          {isStaked && appState !== 'taking_photo' && appState !== 'analyzing_photo' && (
             <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '200ms'}}>
               <CardHeader>
                 <CardTitle className="font-headline text-2xl">Daily Rituals</CardTitle>
@@ -584,6 +585,24 @@ export default function Home() {
               </CardContent>
             </Card>
           )}
+
+           {(appState === 'analyzing_photo') && (
+                 <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '200ms'}}>
+                    <CardHeader>
+                        <CardTitle className="font-headline text-2xl">Daily Rituals</CardTitle>
+                        <CardDescription>Generate proofs of your positive actions.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="mt-4 space-y-3 p-4 bg-secondary/50 rounded-lg fade-in">
+                            <div className="flex items-center gap-3 text-sm font-medium">
+                            {getStateDescription().icon}
+                            <span>{getStateDescription().text}</span>
+                            </div>
+                            <Progress value={progress} className="w-full h-2" />
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
           
           <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '400ms'}}>
             <CardHeader>
@@ -735,3 +754,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
