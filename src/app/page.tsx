@@ -20,6 +20,8 @@ import { detectSleepingSurface } from '@/ai/flows/detect-sleeping-surface-flow';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useWalletSelector } from '@/components/WalletProvider';
+import { CONTRACT_ID } from '@/lib/constants';
+import { utils } from 'near-api-js';
 
 type JournalEntry = {
   id: number;
@@ -51,6 +53,8 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
+const THIRTY_TGAS = "30000000000000";
+
 export default function Home() {
   const [dreamDew, setDreamDew] = useState(200); // Start with enough dew to test
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
@@ -64,12 +68,14 @@ export default function Home() {
   const [progress, setProgress] = useState(0);
   const { toast } = useToast();
 
-  const { signedAccountId, logOut, logIn, isLoggingIn } = useWalletSelector();
+  const { selector, signedAccountId, logOut, logIn, isLoggingIn } = useWalletSelector();
   const walletConnected = !!signedAccountId;
 
   // Staking state
   const [isStaked, setIsStaked] = useState(false);
-  const [stakeAmount, setStakeAmount] = useState(50);
+  const [stakeAmount, setStakeAmount] = useState("1"); // In NEAR
+  const [stakedBalance, setStakedBalance] = useState("0");
+
 
   // Swarm State
   const [swarmState, setSwarmState] = useState<'idle' | 'generating_keys' | 'keys_generated' | 'funding' | 'buying_stamps' | 'ready_to_upload'>('idle');
@@ -94,6 +100,44 @@ export default function Home() {
     // Simulate initial loading
     setTimeout(() => setIsLoading(false), 1000);
   }, []);
+
+  const getStakedBalance = useCallback(async () => {
+    if (!selector || !signedAccountId) return;
+    const { network } = selector.options;
+    const provider = new utils.JsonRpcProvider({ url: network.nodeUrl });
+
+    try {
+        const balance = await provider.query({
+        request_type: "call_function",
+        finality: "final",
+        account_id: CONTRACT_ID,
+        method_name: "get_staked_balance",
+        args_base64: btoa(JSON.stringify({ account_id: signedAccountId })),
+      });
+      
+      const staked = JSON.parse(Buffer.from((balance as any).result).toString());
+      const formattedBalance = utils.format.formatNearAmount(staked);
+      setStakedBalance(formattedBalance);
+      setIsStaked(Number(formattedBalance) > 0);
+
+    } catch (error) {
+      console.error("Failed to get staked balance:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to fetch staked balance.",
+      });
+    }
+
+  }, [selector, signedAccountId, toast]);
+
+
+  useEffect(() => {
+    if(walletConnected) {
+        getStakedBalance();
+    }
+  }, [walletConnected, getStakedBalance]);
+
   
   const runProgress = async (duration: number, onComplete?: () => void) => {
     let startTime: number | null = null;
@@ -113,22 +157,96 @@ export default function Home() {
     await new Promise(resolve => setTimeout(resolve, duration));
   };
 
-  const handleStake = () => {
-    if (dreamDew >= stakeAmount) {
-      setDreamDew(prev => prev - stakeAmount);
-      setIsStaked(true);
+  const handleStake = async () => {
+    if (!selector) {
+      toast({ variant: "destructive", title: "Wallet not connected" });
+      return;
+    }
+    const wallet = await selector.wallet();
+    if (!wallet) {
+      toast({ variant: "destructive", title: "Wallet not connected" });
+      return;
+    }
+
+    try {
+      const result = await wallet.signAndSendTransaction({
+        receiverId: CONTRACT_ID,
+        actions: [
+          {
+            type: 'FunctionCall',
+            params: {
+              methodName: 'stake',
+              args: {},
+              gas: THIRTY_TGAS,
+              deposit: utils.format.parseNearAmount(stakeAmount) || "0",
+            },
+          },
+        ],
+      });
+      console.log("Stake successful:", result);
       toast({
-          title: "Stake Successful",
-          description: `You have staked ${stakeAmount} Dream Dew.`,
-        });
-    } else {
-        toast({
-            variant: "destructive",
-            title: "Insufficient Funds",
-            description: "You don't have enough Dream Dew to stake.",
-        });
+        title: "Stake Successful",
+        description: `You have staked ${stakeAmount} NEAR.`,
+      });
+      getStakedBalance();
+
+    } catch (error) {
+      console.error("Stake failed:", error);
+      toast({
+        variant: "destructive",
+        title: "Stake Failed",
+        description: (error as Error).message,
+      });
     }
   };
+  
+    const handleUnstake = async () => {
+        if (!selector) {
+            toast({ variant: "destructive", title: "Wallet not connected" });
+            return;
+        }
+        const wallet = await selector.wallet();
+        if (!wallet) {
+            toast({ variant: "destructive", title: "Wallet not connected" });
+            return;
+        }
+
+        try {
+            const amountInYocto = utils.format.parseNearAmount(stakedBalance);
+            if(!amountInYocto) {
+                toast({ variant: "destructive", title: "Error", description: "Invalid staked balance" });
+                return;
+            }
+
+            const result = await wallet.signAndSendTransaction({
+                receiverId: CONTRACT_ID,
+                actions: [
+                    {
+                        type: 'FunctionCall',
+                        params: {
+                            methodName: 'unstake',
+                            args: { amount: amountInYocto },
+                            gas: THIRTY_TGAS,
+                            deposit: "0",
+                        },
+                    },
+                ],
+            });
+            console.log("Unstake successful:", result);
+            toast({
+                title: "Unstake Successful",
+                description: `You have unstaked your ${stakedBalance} NEAR plus rewards.`,
+            });
+            getStakedBalance();
+        } catch (error) {
+            console.error("Unstake failed:", error);
+            toast({
+                variant: "destructive",
+                title: "Unstake Failed",
+                description: (error as Error).message,
+            });
+        }
+    };
 
   const handleBeginSleepRitual = () => {
     setUploadedImage(null);
@@ -297,7 +415,10 @@ export default function Home() {
             await runProgress(2500);
             
             setAppState('minting_dew');
-            await runProgress(2000);
+            await runProgress(2000, () => {
+                // Only unstake if the sleep ritual is successful
+                handleUnstake();
+            });
 
             const newDew = Math.floor(Math.random() * 5) + 5;
             setDreamDew(prev => prev + newDew);
@@ -411,7 +532,7 @@ export default function Home() {
       case 'generating_sleep_proof':
         return { icon: <KeyRound className="animate-spin text-primary" />, text: 'Generating ZK-Proof of Rest...' };
       case 'minting_dew':
-        return { icon: <Zap className="futuristic-glow text-primary" />, text: 'Minting Dream Dew on NEAR...' };
+        return { icon: <Zap className="futuristic-glow text-primary" />, text: 'Unstaking NEAR...' };
       case 'taking_action':
         return { icon: <Mail className="text-primary" />, text: 'Sending secure email...' };
       case 'generating_action_proof':
@@ -427,7 +548,7 @@ export default function Home() {
     return <div className="flex h-screen w-full items-center justify-center bg-background"><Loader className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
-  if (!walletConnected && process.env.NODE_ENV !== 'development') {
+  if (!walletConnected) {
     return (
       <main className="flex min-h-screen w-full items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md fade-in shadow-2xl shadow-primary/10 border-primary/20 bg-card">
@@ -487,19 +608,18 @@ export default function Home() {
                         <CardTitle className="font-headline text-2xl flex items-center gap-3">
                         <ShieldCheck className="text-primary"/> Secure Your Stake
                         </CardTitle>
-                        <CardDescription>Commit funds to a NEAR contract to participate in sleep rituals.</CardDescription>
+                        <CardDescription>Commit NEAR to a contract to participate in sleep rituals.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <p className="text-sm text-muted-foreground">To ensure commitment and data integrity, a stake of {stakeAmount} Dream Dew is required before you can begin verifying your sleep. This stake is refundable.</p>
+                        <p className="text-sm text-muted-foreground">To ensure commitment and data integrity, a stake is required before you can begin verifying your sleep. This stake is refundable with a reward upon successful verification.</p>
                         <div className="flex items-center space-x-2">
-                            <Label htmlFor="stake-amount">Stake Amount</Label>
-                            <Input id="stake-amount" type="number" value={stakeAmount} onChange={(e) => setStakeAmount(Number(e.target.value))} className="w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                            <DewDropIcon className="h-5 w-5 text-accent"/>
+                            <Label htmlFor="stake-amount">Stake Amount (NEAR)</Label>
+                            <Input id="stake-amount" type="number" value={stakeAmount} onChange={(e) => setStakeAmount(e.target.value)} className="w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                         </div>
                     </CardContent>
                     <CardFooter>
-                        <Button onClick={handleStake} disabled={dreamDew < stakeAmount} className="w-full">
-                            Stake {stakeAmount} Dream Dew
+                        <Button onClick={handleStake} disabled={!walletConnected || Number(stakeAmount) <= 0} className="w-full">
+                            Stake {stakeAmount} NEAR
                         </Button>
                     </CardFooter>
                     </Card>
@@ -574,7 +694,7 @@ export default function Home() {
                                 <Bed className="h-6 w-6 text-primary" />
                                 <h3 className="font-headline text-lg">Proof of Rest</h3>
                             </div>
-                            <p className="text-sm text-muted-foreground">Commit to rest. Take a photo of your bed, and we'll generate a ZK-Proof of your sleep, minting 'Dream Dew' tokens without compromising your data.</p>
+                            <p className="text-sm text-muted-foreground">You have staked <span className="font-bold text-primary">{stakedBalance} NEAR</span>. Complete the sleep ritual to verify your rest and get your stake back with a reward.</p>
                             <Button onClick={handleBeginSleepRitual} disabled={appState !== 'idle'} className="w-full">
                                 {appState === 'idle' ? 'Begin Sleep Ritual' : 'Ritual in Progress...'}
                             </Button>
@@ -838,3 +958,4 @@ export default function Home() {
     </div>
   );
 }
+
