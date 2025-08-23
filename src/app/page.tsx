@@ -178,44 +178,44 @@ export default function Home() {
   const getStateDescription = () => {
     switch (appState) {
       case 'sleeping':
-        return { icon: <Bed className="animate-pulse" />, text: 'Capturing sleep sensor data...' };
+        return { icon: <Bed className="animate-pulse text-accent" />, text: 'Capturing sleep sensor data...' };
       case 'generating_sleep_proof':
-        return { icon: <KeyRound className="animate-spin" />, text: 'Generating ZK-Proof of Rest...' };
+        return { icon: <KeyRound className="animate-spin text-accent" />, text: 'Generating ZK-Proof of Rest...' };
       case 'minting_dew':
-        return { icon: <Zap className="futuristic-glow" />, text: 'Minting Dream Dew on NEAR...' };
+        return { icon: <Zap className="futuristic-glow text-accent" />, text: 'Minting Dream Dew on NEAR...' };
       case 'taking_action':
-        return { icon: <Mail />, text: 'Sending secure email...' };
+        return { icon: <Mail className="text-accent" />, text: 'Sending secure email...' };
       case 'generating_action_proof':
-        return { icon: <KeyRound className="animate-spin" />, text: 'Generating ZK-Proof of Action...' };
+        return { icon: <KeyRound className="animate-spin text-accent" />, text: 'Generating ZK-Proof of Action...' };
       case 'planting_seed':
-        return { icon: <Sprout className="sprout" />, text: 'Verifying on Civic Action Registry...' };
+        return { icon: <Sprout className="sprout text-accent" />, text: 'Verifying on Civic Action Registry...' };
       default:
         return { icon: null, text: '' };
     }
   };
 
   if (isLoading && !walletConnected) {
-    return <div className="flex h-screen w-full items-center justify-center"><Loader className="h-12 w-12 animate-spin text-primary" /></div>;
+    return <div className="flex h-screen w-full items-center justify-center bg-background"><Loader className="h-12 w-12 animate-spin text-accent" /></div>;
   }
 
   if (!walletConnected) {
     return (
       <main className="flex min-h-screen w-full items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md fade-in shadow-2xl shadow-primary/10">
+        <Card className="w-full max-w-md fade-in shadow-2xl shadow-accent/10 border-accent/20">
           <CardHeader>
             <CardTitle className="font-headline text-3xl text-center">PolliNate: Sovereign Edition</CardTitle>
-            <CardDescription className="text-center pt-2">
+            <CardDescription className="text-center pt-2 text-muted-foreground">
               The app for verifiable rest and provable action. Own your data, own your garden.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center justify-center space-y-4">
             <div className="flex items-center space-x-4 p-4 rounded-lg bg-secondary/50">
-                <Network className="h-8 w-8 text-primary" />
+                <Network className="h-8 w-8 text-accent" />
                 <p>Your garden deed requires a NEAR wallet.</p>
             </div>
           </CardContent>
           <CardFooter>
-            <Button className="w-full" onClick={handleConnectWallet} disabled={isLoading}>
+            <Button className="w-full futuristic-glow" onClick={handleConnectWallet} disabled={isLoading}>
               <Wallet className="mr-2 h-4 w-4" />
               {isLoading ? 'Connecting...' : 'Connect Your Garden Deed'}
             </Button>
@@ -227,19 +227,19 @@ export default function Home() {
 
   return (
     <div className="min-h-screen w-full bg-background text-foreground fade-in">
-      <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur-sm">
+      <header className="sticky top-0 z-10 border-b border-border/50 bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <h1 className="font-headline text-2xl">PolliNate</h1>
-          <div className="flex items-center gap-4 rounded-full border bg-card px-4 py-2 text-sm">
+          <h1 className="font-headline text-2xl text-primary">PolliNate</h1>
+          <div className="flex items-center gap-4 rounded-full border border-border/50 bg-card px-4 py-2 text-sm shadow-sm">
             <div className="flex items-center gap-2">
               <DewDropIcon className="h-5 w-5 text-accent" />
-              <span className="font-bold">{dreamDew}</span>
-              <span>Dream Dew</span>
+              <span className="font-bold text-lg">{dreamDew}</span>
+              <span className="text-muted-foreground">Dream Dew</span>
             </div>
             <div className="h-6 w-px bg-border" />
             <div className="flex items-center gap-2">
               <Wallet className="h-5 w-5 text-primary" />
-              <span className="font-mono">think2earn.near</span>
+              <span className="font-mono text-muted-foreground">think2earn.near</span>
             </div>
           </div>
         </div>
@@ -248,22 +248,22 @@ export default function Home() {
       <main className="container mx-auto p-4">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
           
-          <Card className="lg:col-span-2 slide-in-from-bottom" style={{'--delay': '100ms'}}>
+          <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-accent/10">
             <CardHeader>
               <CardTitle className="font-headline text-2xl">My Sovereign Garden</CardTitle>
               <CardDescription>A testament to your verified positive actions.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-4 p-4 rounded-lg min-h-[200px] bg-secondary/30">
+              <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-4 p-4 rounded-lg min-h-[200px] bg-secondary/30 border border-border/50">
                 {Array.from({ length: gardenFlowers }).map((_, i) => (
-                  <FlowerIcon key={i} className="h-10 w-10 sprout text-primary" style={{ animationDelay: `${i * 50}ms` }}/>
+                  <FlowerIcon key={i} className="h-10 w-10 sprout text-accent" style={{ animationDelay: `${i * 50}ms` }}/>
                 ))}
                  {gardenFlowers === 0 && <p className="col-span-full text-center text-muted-foreground self-center">Your garden awaits. Plant a seed by taking civic action.</p>}
               </div>
             </CardContent>
           </Card>
           
-          <Card className="lg:row-span-3 slide-in-from-bottom" style={{'--delay': '300ms'}}>
+          <Card className="lg:row-span-3 slide-in-from-bottom transition-all hover:shadow-accent/10" style={{animationDelay: '300ms'}}>
              <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="font-headline text-2xl">Sleep Log</CardTitle>
@@ -278,7 +278,7 @@ export default function Home() {
               <ScrollArea className="h-[720px] pr-4">
                 <div className="space-y-4">
                   {journalEntries.map(entry => (
-                    <div key={entry.id} className="flex items-center gap-4 rounded-lg border p-3 bg-card" data-ai-hint="bed bedroom">
+                    <div key={entry.id} className="flex items-center gap-4 rounded-lg border p-3 bg-card hover:bg-secondary/50 transition-colors" data-ai-hint="bed bedroom">
                       <Image src={entry.imageUrl} alt="A photo of a bed" width={80} height={60} className="rounded-md" data-ai-hint="night sleep" />
                       <div className="flex-grow">
                         <p className="font-semibold">{entry.date}</p>
@@ -293,10 +293,10 @@ export default function Home() {
           </Card>
 
           {!isStaked && (
-            <Card className="lg:col-span-2 slide-in-from-bottom" style={{'--delay': '200ms'}}>
+            <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-accent/10" style={{animationDelay: '200ms'}}>
               <CardHeader>
                 <CardTitle className="font-headline text-2xl flex items-center gap-3">
-                  <ShieldCheck/> Secure Your Stake
+                  <ShieldCheck className="text-accent"/> Secure Your Stake
                 </CardTitle>
                 <CardDescription>Commit funds to a NEAR contract to participate in sleep rituals.</CardDescription>
               </CardHeader>
@@ -317,15 +317,15 @@ export default function Home() {
           )}
 
           {isStaked && (
-            <Card className="lg:col-span-2 slide-in-from-bottom" style={{'--delay': '200ms'}}>
+            <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-accent/10" style={{animationDelay: '200ms'}}>
               <CardHeader>
                 <CardTitle className="font-headline text-2xl">Daily Rituals</CardTitle>
                 <CardDescription>Generate proofs of your positive actions.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-4 rounded-lg border p-4">
+                <div className="space-y-4 rounded-lg border p-4 hover:border-accent/50 transition-colors">
                     <div className="flex items-center gap-3">
-                      <Bed className="h-6 w-6 text-primary" />
+                      <Bed className="h-6 w-6 text-accent" />
                       <h3 className="font-headline text-lg">Proof of Rest</h3>
                     </div>
                     <p className="text-sm text-muted-foreground">Commit to rest. Place your phone by your bed, and we'll generate a ZK-Proof of your sleep, minting 'Dream Dew' tokens without compromising your data.</p>
@@ -334,7 +334,7 @@ export default function Home() {
                     </Button>
                 </div>
 
-                <div className="space-y-4 rounded-lg border p-4">
+                <div className="space-y-4 rounded-lg border p-4 hover:border-accent/50 transition-colors">
                     <div className="flex items-center gap-3">
                       <Mail className="h-6 w-6 text-accent" />
                       <h3 className="font-headline text-lg">Proof of Action</h3>
@@ -358,57 +358,59 @@ export default function Home() {
             </Card>
           )}
           
-          <Card className="lg:col-span-2 slide-in-from-bottom" style={{'--delay': '400ms'}}>
+          <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-accent/10" style={{animationDelay: '400ms'}}>
             <CardHeader>
-                <CardTitle className="font-headline text-2xl flex items-center gap-3"><ShoppingCart/> Device Store</CardTitle>
+                <CardTitle className="font-headline text-2xl flex items-center gap-3"><ShoppingCart className="text-accent"/> Device Store</CardTitle>
                 <CardDescription>Acquire the tools to contribute to glucose monitoring research.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-                <Card className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                    <Image src="https://placehold.co/100x100.png" alt="fNIRS Armband" width={100} height={100} className="rounded-lg" data-ai-hint="wearable technology"/>
+            <CardContent className="grid sm:grid-cols-2 gap-4">
+                <Card className="p-4 flex flex-col items-start gap-4 hover:bg-secondary/50 transition-colors">
+                    <Image src="https://placehold.co/100x100.png" alt="fNIRS Armband" width={100} height={100} className="rounded-lg self-center" data-ai-hint="wearable technology"/>
                     <div className="flex-grow space-y-2">
                         <h3 className="font-headline text-lg">fNIRS Armband</h3>
                         <p className="text-sm text-muted-foreground">Open-hardware fNIRS device for continuous, non-invasive data collection.</p>
-                        <div className="flex items-center gap-2 text-primary font-bold">
-                            <DewDropIcon className="h-5 w-5 text-accent"/>
+                        <div className="flex items-center gap-2 text-accent font-bold">
+                            <DewDropIcon className="h-5 w-5"/>
                             <span>100 Dream Dew</span>
                         </div>
                     </div>
-                    <Button onClick={() => handleAcquireDevice(100, setHasFnirsDevice)} disabled={dreamDew < 100 || hasFnirsDevice} className="w-full sm:w-auto">
+                    <Button onClick={() => handleAcquireDevice(100, setHasFnirsDevice)} disabled={dreamDew < 100 || hasFnirsDevice} className="w-full">
                       {hasFnirsDevice ? 'Acquired' : 'Acquire'}
                     </Button>
                 </Card>
-                <Card className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                    <Image src="https://placehold.co/100x100.png" alt="Abbott Glucose Monitor" width={100} height={100} className="rounded-lg" data-ai-hint="medical device"/>
+                <Card className="p-4 flex flex-col items-start gap-4 hover:bg-secondary/50 transition-colors">
+                    <Image src="https://placehold.co/100x100.png" alt="Abbott Glucose Monitor" width={100} height={100} className="rounded-lg self-center" data-ai-hint="medical device"/>
                     <div className="flex-grow space-y-2">
                         <h3 className="font-headline text-lg">Abbott Glucose Monitor</h3>
                         <p className="text-sm text-muted-foreground">Certified medical device for providing baseline glucose data to train the model.</p>
-                        <div className="flex items-center gap-2 text-primary font-bold">
-                           <DewDropIcon className="h-5 w-5 text-accent"/>
+                        <div className="flex items-center gap-2 text-accent font-bold">
+                           <DewDropIcon className="h-5 w-5"/>
                            <span>150 Dream Dew</span>
                         </div>
                     </div>
-                    <Button onClick={() => handleAcquireDevice(150, setHasAbbottDevice)} disabled={dreamDew < 150 || hasAbbottDevice} className="w-full sm:w-auto">
+                    <Button onClick={() => handleAcquireDevice(150, setHasAbbottDevice)} disabled={dreamDew < 150 || hasAbbottDevice} className="w-full">
                         {hasAbbottDevice ? 'Acquired' : 'Acquire'}
                     </Button>
                 </Card>
-                 {(hasFnirsDevice && hasAbbottDevice) &&
-                    <Card className="p-4 mt-4 bg-secondary/50">
+            </CardContent>
+             {(hasFnirsDevice && hasAbbottDevice) &&
+                <CardFooter>
+                    <Card className="p-4 w-full bg-secondary/50 border-accent/30">
                         <div className="flex items-center gap-3">
-                            <BrainCircuit className="h-6 w-6 text-primary" />
+                            <BrainCircuit className="h-6 w-6 text-accent" />
                             <h3 className="font-headline text-lg">Ready to Contribute</h3>
                         </div>
                         <p className="text-sm text-muted-foreground mt-2">You have both devices. Start pairing your data to help train the glucose prediction model and earn proportional rewards.</p>
                         <Button className="mt-3 w-full">Begin Data Pairing</Button>
                     </Card>
-                }
-            </CardContent>
+                </CardFooter>
+            }
           </Card>
            
           {hasFnirsDevice && (
-            <Card className="lg:col-span-2 slide-in-from-bottom" style={{'--delay': '500ms'}}>
+            <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-accent/10" style={{animationDelay: '500ms'}}>
                <CardHeader>
-                  <CardTitle className="font-headline text-2xl flex items-center gap-3"><HardDrive/> Sovereign Storage on Swarm</CardTitle>
+                  <CardTitle className="font-headline text-2xl flex items-center gap-3"><HardDrive className="text-accent"/> Sovereign Storage on Swarm</CardTitle>
                   <CardDescription>Securely store your encrypted fNIRS data on a decentralized network.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -422,9 +424,9 @@ export default function Home() {
                 )}
 
                 {swarmState === 'generating_keys' && (
-                  <div className="flex items-center justify-center p-8">
-                    <Loader className="h-8 w-8 animate-spin text-primary" />
-                    <p className="ml-4">Generating your secure Swarm credentials...</p>
+                  <div className="flex items-center justify-center p-8 space-x-4">
+                    <Loader className="h-8 w-8 animate-spin text-accent" />
+                    <p>Generating your secure Swarm credentials...</p>
                   </div>
                 )}
                 
