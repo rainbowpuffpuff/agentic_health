@@ -154,7 +154,9 @@ export default function Home() {
         
         // Stop camera stream
         const stream = video.srcObject as MediaStream;
-        stream.getTracks().forEach(track => track.stop());
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+        }
         video.srcObject = null;
         setHasCameraPermission(null);
 
@@ -343,7 +345,7 @@ export default function Home() {
           </Card>
           
           <Card className="lg:row-span-3 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '300ms'}}>
-             <CardHeader>
+             <CardHeader className="flex flex-row items-start justify-between">
                 <div className='flex-grow'>
                     <CardTitle className="font-headline text-2xl">Sleep Log</CardTitle>
                     <CardDescription>Your private, encrypted memories of rest.</CardDescription>
@@ -371,7 +373,7 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          {!isStaked && (
+          {!isStaked && appState === 'idle' && (
             <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '200ms'}}>
               <CardHeader>
                 <CardTitle className="font-headline text-2xl flex items-center gap-3">
@@ -408,7 +410,7 @@ export default function Home() {
                    </div>
                     {hasCameraPermission === false && (
                         <Alert variant="destructive">
-                            <AlertTriangle />
+                            <AlertTriangle className="h-4 w-4" />
                             <AlertTitle>Camera Access Required</AlertTitle>
                             <AlertDescription>
                                 Please allow camera access in your browser settings to use this feature.
@@ -617,3 +619,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
