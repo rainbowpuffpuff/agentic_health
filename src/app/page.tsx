@@ -1,13 +1,15 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
+import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Video } from 'lucide-react';
 import DewDropIcon from '@/components/icons/DewDropIcon';
 import FlowerIcon from '@/components/icons/FlowerIcon';
 import { cn } from '@/lib/utils';
@@ -38,8 +40,9 @@ export default function Home() {
 
 
   const [isLoading, setIsLoading] = useState(true);
-  const [appState, setAppState] = useState<'idle' | 'sleeping' | 'generating_sleep_proof' | 'minting_dew' | 'taking_action' | 'generating_action_proof' | 'planting_seed'>('idle');
+  const [appState, setAppState] = useState<'idle' | 'sleeping' | 'generating_sleep_proof' | 'minting_dew' | 'taking_action' | 'generating_action_proof' | 'planting_seed' | 'taking_photo'>('idle');
   const [progress, setProgress] = useState(0);
+  const { toast } = useToast();
 
   // Staking state
   const [isStaked, setIsStaked] = useState(false);
@@ -51,7 +54,11 @@ export default function Home() {
   const [credentialsSaved, setCredentialsSaved] = useState(false);
   const [accountFunded, setAccountFunded] = useState(false);
   const [stampsPurchased, setStampsPurchased] = useState(false);
-
+  
+  // Camera State
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     // Simulate initial loading
@@ -66,7 +73,7 @@ export default function Home() {
     }, 1500);
   };
   
-  const runProgress = async (duration: number) => {
+  const runProgress = async (duration: number, onComplete?: () => void) => {
     let startTime: number | null = null;
     const animate = (time: number) => {
       if (!startTime) startTime = time;
@@ -77,6 +84,7 @@ export default function Home() {
         requestAnimationFrame(animate);
       } else {
         setProgress(100);
+        if(onComplete) onComplete();
       }
     };
     requestAnimationFrame(animate);
@@ -87,10 +95,78 @@ export default function Home() {
     if (dreamDew >= stakeAmount) {
       setDreamDew(prev => prev - stakeAmount);
       setIsStaked(true);
+      toast({
+          title: "Stake Successful",
+          description: `You have staked ${stakeAmount} Dream Dew.`,
+        });
+    } else {
+        toast({
+            variant: "destructive",
+            title: "Insufficient Funds",
+            description: "You don't have enough Dream Dew to stake.",
+        });
     }
   };
 
-  const handleSleepRitual = async () => {
+  const handleBeginSleepRitual = () => {
+    setAppState('taking_photo');
+  };
+
+  const getCameraPermission = async () => {
+      if(hasCameraPermission) return true;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+        setHasCameraPermission(true);
+        return true;
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        setHasCameraPermission(false);
+        toast({
+          variant: 'destructive',
+          title: 'Camera Access Denied',
+          description: 'Please enable camera permissions in your browser settings to use this app.',
+        });
+        setAppState('idle');
+        return false;
+      }
+    };
+
+  useEffect(() => {
+    if(appState === 'taking_photo') {
+        getCameraPermission();
+    }
+  }, [appState]);
+  
+  
+  const takePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      if (context) {
+        context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+        const imageUrl = canvas.toDataURL('image/png');
+        
+        // Stop camera stream
+        const stream = video.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+        video.srcObject = null;
+        setHasCameraPermission(null);
+
+        return imageUrl;
+      }
+    }
+    return 'https://placehold.co/400x300.png';
+  }
+
+  const handleConfirmPhoto = async () => {
+    const photoUrl = takePhoto();
+    
     setAppState('sleeping');
     await runProgress(3000);
 
@@ -107,7 +183,7 @@ export default function Home() {
       id: Date.now(),
       date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' }),
       sleep: `${(newDew - 0.5).toFixed(1)} hours verified`,
-      imageUrl: 'https://placehold.co/400x300.png',
+      imageUrl: photoUrl,
     };
     setJournalEntries(prev => [newEntry, ...prev]);
 
@@ -123,10 +199,10 @@ export default function Home() {
     await runProgress(3000);
     
     setAppState('planting_seed');
-    await runProgress(1500);
-
-    setGardenFlowers(prev => prev + 1);
-    setDreamDew(prev => Math.max(0, prev - 10));
+    await runProgress(1500, () => {
+        setGardenFlowers(prev => prev + 1);
+        setDreamDew(prev => Math.max(0, prev - 10));
+    });
 
     setAppState('idle');
     setProgress(0);
@@ -173,51 +249,54 @@ export default function Home() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
+    toast({ title: 'Copied to clipboard!' });
   }
   
   const getStateDescription = () => {
     switch (appState) {
+      case 'taking_photo':
+        return { icon: <Video className="text-primary" />, text: 'Take a timestamped photo of your bed...' };
       case 'sleeping':
-        return { icon: <Bed className="animate-pulse text-accent" />, text: 'Capturing sleep sensor data...' };
+        return { icon: <Bed className="animate-pulse text-primary" />, text: 'Capturing sleep sensor data...' };
       case 'generating_sleep_proof':
-        return { icon: <KeyRound className="animate-spin text-accent" />, text: 'Generating ZK-Proof of Rest...' };
+        return { icon: <KeyRound className="animate-spin text-primary" />, text: 'Generating ZK-Proof of Rest...' };
       case 'minting_dew':
-        return { icon: <Zap className="futuristic-glow text-accent" />, text: 'Minting Dream Dew on NEAR...' };
+        return { icon: <Zap className="futuristic-glow text-primary" />, text: 'Minting Dream Dew on NEAR...' };
       case 'taking_action':
-        return { icon: <Mail className="text-accent" />, text: 'Sending secure email...' };
+        return { icon: <Mail className="text-primary" />, text: 'Sending secure email...' };
       case 'generating_action_proof':
-        return { icon: <KeyRound className="animate-spin text-accent" />, text: 'Generating ZK-Proof of Action...' };
+        return { icon: <KeyRound className="animate-spin text-primary" />, text: 'Generating ZK-Proof of Action...' };
       case 'planting_seed':
-        return { icon: <Sprout className="sprout text-accent" />, text: 'Verifying on Civic Action Registry...' };
+        return { icon: <Sprout className="sprout text-primary" />, text: 'Verifying on Civic Action Registry...' };
       default:
         return { icon: null, text: '' };
     }
   };
 
   if (isLoading && !walletConnected) {
-    return <div className="flex h-screen w-full items-center justify-center bg-background"><Loader className="h-12 w-12 animate-spin text-accent" /></div>;
+    return <div className="flex h-screen w-full items-center justify-center bg-background"><Loader className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
   if (!walletConnected) {
     return (
       <main className="flex min-h-screen w-full items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md fade-in shadow-2xl shadow-accent/10 border-accent/20">
+        <Card className="w-full max-w-md fade-in shadow-2xl shadow-primary/10 border-primary/20 bg-card">
           <CardHeader>
-            <CardTitle className="font-headline text-3xl text-center">PolliNate: Sovereign Edition</CardTitle>
+            <CardTitle className="font-headline text-3xl text-center">think2earn: Sovereign Edition</CardTitle>
             <CardDescription className="text-center pt-2 text-muted-foreground">
-              The app for verifiable rest and provable action. Own your data, own your garden.
+              Verifiable Rest, Provable Action.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center justify-center space-y-4">
-            <div className="flex items-center space-x-4 p-4 rounded-lg bg-secondary/50">
-                <Network className="h-8 w-8 text-accent" />
-                <p>Your garden deed requires a NEAR wallet.</p>
+            <div className="flex items-center space-x-4 p-4 rounded-lg bg-secondary">
+                <Network className="h-8 w-8 text-primary" />
+                <p>An on-chain identity requires a NEAR wallet.</p>
             </div>
           </CardContent>
           <CardFooter>
             <Button className="w-full futuristic-glow" onClick={handleConnectWallet} disabled={isLoading}>
               <Wallet className="mr-2 h-4 w-4" />
-              {isLoading ? 'Connecting...' : 'Connect Your Garden Deed'}
+              {isLoading ? 'Connecting...' : 'Connect NEAR Wallet'}
             </Button>
           </CardFooter>
         </Card>
@@ -229,7 +308,7 @@ export default function Home() {
     <div className="min-h-screen w-full bg-background text-foreground fade-in">
       <header className="sticky top-0 z-10 border-b border-border/50 bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <h1 className="font-headline text-2xl text-primary">PolliNate</h1>
+          <h1 className="font-headline text-2xl text-primary">think2earn</h1>
           <div className="flex items-center gap-4 rounded-full border border-border/50 bg-card px-4 py-2 text-sm shadow-sm">
             <div className="flex items-center gap-2">
               <DewDropIcon className="h-5 w-5 text-accent" />
@@ -248,41 +327,41 @@ export default function Home() {
       <main className="container mx-auto p-4">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
           
-          <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-accent/10">
+          <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5">
             <CardHeader>
-              <CardTitle className="font-headline text-2xl">My Sovereign Garden</CardTitle>
+              <CardTitle className="font-headline text-2xl">My Action Garden</CardTitle>
               <CardDescription>A testament to your verified positive actions.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-4 p-4 rounded-lg min-h-[200px] bg-secondary/30 border border-border/50">
                 {Array.from({ length: gardenFlowers }).map((_, i) => (
-                  <FlowerIcon key={i} className="h-10 w-10 sprout text-accent" style={{ animationDelay: `${i * 50}ms` }}/>
+                  <FlowerIcon key={i} className="h-10 w-10 sprout text-primary" style={{ animationDelay: `${i * 50}ms` }}/>
                 ))}
                  {gardenFlowers === 0 && <p className="col-span-full text-center text-muted-foreground self-center">Your garden awaits. Plant a seed by taking civic action.</p>}
               </div>
             </CardContent>
           </Card>
           
-          <Card className="lg:row-span-3 slide-in-from-bottom transition-all hover:shadow-accent/10" style={{animationDelay: '300ms'}}>
-             <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="font-headline text-2xl">Sleep Log</CardTitle>
-                <CardDescription>Your private, encrypted memories of rest.</CardDescription>
-              </div>
-              <Button variant="outline" size="sm">
-                <UploadCloud className="mr-2 h-4 w-4" />
-                Import Whoop CSV
-              </Button>
+          <Card className="lg:row-span-3 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '300ms'}}>
+             <CardHeader>
+                <div className='flex-grow'>
+                    <CardTitle className="font-headline text-2xl">Sleep Log</CardTitle>
+                    <CardDescription>Your private, encrypted memories of rest.</CardDescription>
+                </div>
+                <Button variant="outline" size="sm">
+                    <UploadCloud className="mr-2 h-4 w-4" />
+                    Import Whoop CSV
+                </Button>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[720px] pr-4">
                 <div className="space-y-4">
                   {journalEntries.map(entry => (
                     <div key={entry.id} className="flex items-center gap-4 rounded-lg border p-3 bg-card hover:bg-secondary/50 transition-colors" data-ai-hint="bed bedroom">
-                      <Image src={entry.imageUrl} alt="A photo of a bed" width={80} height={60} className="rounded-md" data-ai-hint="night sleep" />
+                      <Image src={entry.imageUrl} alt="A photo of a bed" width={80} height={60} className="rounded-md object-cover aspect-[4/3]" data-ai-hint="night sleep" />
                       <div className="flex-grow">
                         <p className="font-semibold">{entry.date}</p>
-                        <p className="text-sm text-accent">{entry.sleep}</p>
+                        <p className="text-sm text-primary">{entry.sleep}</p>
                       </div>
                     </div>
                   ))}
@@ -293,10 +372,10 @@ export default function Home() {
           </Card>
 
           {!isStaked && (
-            <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-accent/10" style={{animationDelay: '200ms'}}>
+            <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '200ms'}}>
               <CardHeader>
                 <CardTitle className="font-headline text-2xl flex items-center gap-3">
-                  <ShieldCheck className="text-accent"/> Secure Your Stake
+                  <ShieldCheck className="text-primary"/> Secure Your Stake
                 </CardTitle>
                 <CardDescription>Commit funds to a NEAR contract to participate in sleep rituals.</CardDescription>
               </CardHeader>
@@ -304,7 +383,7 @@ export default function Home() {
                  <p className="text-sm text-muted-foreground">To ensure commitment and data integrity, a stake of {stakeAmount} Dream Dew is required before you can begin verifying your sleep. This stake is refundable.</p>
                  <div className="flex items-center space-x-2">
                     <Label htmlFor="stake-amount">Stake Amount</Label>
-                    <Input id="stake-amount" type="number" value={stakeAmount} onChange={(e) => setStakeAmount(Number(e.target.value))} className="w-24" />
+                    <Input id="stake-amount" type="number" value={stakeAmount} onChange={(e) => setStakeAmount(Number(e.target.value))} className="w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                     <DewDropIcon className="h-5 w-5 text-accent"/>
                  </div>
               </CardContent>
@@ -315,28 +394,58 @@ export default function Home() {
               </CardFooter>
             </Card>
           )}
+          
+          {appState === 'taking_photo' && (
+             <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '200ms'}}>
+               <CardHeader>
+                  <CardTitle className="font-headline text-2xl">Take a Photo</CardTitle>
+                  <CardDescription>Capture a timestamped photo of your bed to begin.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                   <div className="w-full aspect-video bg-secondary rounded-md overflow-hidden flex items-center justify-center">
+                    <video ref={videoRef} className={cn("h-full w-full object-cover", { 'hidden': hasCameraPermission === false })} autoPlay muted playsInline />
+                    {hasCameraPermission === false && <p className='text-muted-foreground'>Camera not available.</p>}
+                   </div>
+                    {hasCameraPermission === false && (
+                        <Alert variant="destructive">
+                            <AlertTriangle />
+                            <AlertTitle>Camera Access Required</AlertTitle>
+                            <AlertDescription>
+                                Please allow camera access in your browser settings to use this feature.
+                            </AlertDescription>
+                        </Alert>
+                    )}
+                   <canvas ref={canvasRef} className="hidden" />
+                </CardContent>
+                <CardFooter className="flex gap-2">
+                    <Button variant="outline" onClick={() => setAppState('idle')} className="w-full">Cancel</Button>
+                    <Button onClick={handleConfirmPhoto} disabled={!hasCameraPermission} className="w-full">Confirm Photo</Button>
+                </CardFooter>
+             </Card>
+          )}
 
-          {isStaked && (
-            <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-accent/10" style={{animationDelay: '200ms'}}>
+
+          {isStaked && appState !== 'taking_photo' && (
+            <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '200ms'}}>
               <CardHeader>
                 <CardTitle className="font-headline text-2xl">Daily Rituals</CardTitle>
                 <CardDescription>Generate proofs of your positive actions.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-4 rounded-lg border p-4 hover:border-accent/50 transition-colors">
+                <div className="space-y-4 rounded-lg border p-4 hover:border-primary/20 transition-colors">
                     <div className="flex items-center gap-3">
-                      <Bed className="h-6 w-6 text-accent" />
+                      <Bed className="h-6 w-6 text-primary" />
                       <h3 className="font-headline text-lg">Proof of Rest</h3>
                     </div>
-                    <p className="text-sm text-muted-foreground">Commit to rest. Place your phone by your bed, and we'll generate a ZK-Proof of your sleep, minting 'Dream Dew' tokens without compromising your data.</p>
-                    <Button onClick={handleSleepRitual} disabled={appState !== 'idle'} className="w-full">
+                    <p className="text-sm text-muted-foreground">Commit to rest. Take a photo of your bed, and we'll generate a ZK-Proof of your sleep, minting 'Dream Dew' tokens without compromising your data.</p>
+                    <Button onClick={handleBeginSleepRitual} disabled={appState !== 'idle'} className="w-full">
                       {appState === 'idle' ? 'Begin Sleep Ritual' : 'Ritual in Progress...'}
                     </Button>
                 </div>
 
-                <div className="space-y-4 rounded-lg border p-4 hover:border-accent/50 transition-colors">
+                <div className="space-y-4 rounded-lg border p-4 hover:border-primary/20 transition-colors">
                     <div className="flex items-center gap-3">
-                      <Mail className="h-6 w-6 text-accent" />
+                      <Mail className="h-6 w-6 text-primary" />
                       <h3 className="font-headline text-lg">Proof of Action</h3>
                     </div>
                     <p className="text-sm text-muted-foreground">Spend 10 Dream Dew to plant a flower in your garden. Use ZK-Email to prove you've contacted a representative, and your anonymous action will be added to the public registry.</p>
@@ -345,7 +454,7 @@ export default function Home() {
                     </Button>
                 </div>
 
-                {appState !== 'idle' && (
+                {appState !== 'idle' && appState !== 'taking_photo' && (
                   <div className="mt-4 space-y-3 p-4 bg-secondary/50 rounded-lg fade-in">
                     <div className="flex items-center gap-3 text-sm font-medium">
                       {getStateDescription().icon}
@@ -358,9 +467,9 @@ export default function Home() {
             </Card>
           )}
           
-          <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-accent/10" style={{animationDelay: '400ms'}}>
+          <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '400ms'}}>
             <CardHeader>
-                <CardTitle className="font-headline text-2xl flex items-center gap-3"><ShoppingCart className="text-accent"/> Device Store</CardTitle>
+                <CardTitle className="font-headline text-2xl flex items-center gap-3"><ShoppingCart className="text-primary"/> Device Store</CardTitle>
                 <CardDescription>Acquire the tools to contribute to glucose monitoring research.</CardDescription>
             </CardHeader>
             <CardContent className="grid sm:grid-cols-2 gap-4">
@@ -395,9 +504,9 @@ export default function Home() {
             </CardContent>
              {(hasFnirsDevice && hasAbbottDevice) &&
                 <CardFooter>
-                    <Card className="p-4 w-full bg-secondary/50 border-accent/30">
+                    <Card className="p-4 w-full bg-secondary/50 border-primary/30">
                         <div className="flex items-center gap-3">
-                            <BrainCircuit className="h-6 w-6 text-accent" />
+                            <BrainCircuit className="h-6 w-6 text-primary" />
                             <h3 className="font-headline text-lg">Ready to Contribute</h3>
                         </div>
                         <p className="text-sm text-muted-foreground mt-2">You have both devices. Start pairing your data to help train the glucose prediction model and earn proportional rewards.</p>
@@ -408,9 +517,9 @@ export default function Home() {
           </Card>
            
           {hasFnirsDevice && (
-            <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-accent/10" style={{animationDelay: '500ms'}}>
+            <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '500ms'}}>
                <CardHeader>
-                  <CardTitle className="font-headline text-2xl flex items-center gap-3"><HardDrive className="text-accent"/> Sovereign Storage on Swarm</CardTitle>
+                  <CardTitle className="font-headline text-2xl flex items-center gap-3"><HardDrive className="text-primary"/> Sovereign Storage on Swarm</CardTitle>
                   <CardDescription>Securely store your encrypted fNIRS data on a decentralized network.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -425,7 +534,7 @@ export default function Home() {
 
                 {swarmState === 'generating_keys' && (
                   <div className="flex items-center justify-center p-8 space-x-4">
-                    <Loader className="h-8 w-8 animate-spin text-accent" />
+                    <Loader className="h-8 w-8 animate-spin text-primary" />
                     <p>Generating your secure Swarm credentials...</p>
                   </div>
                 )}
