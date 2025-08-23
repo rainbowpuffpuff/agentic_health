@@ -9,13 +9,14 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Video, Upload } from 'lucide-react';
+import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Video, Upload, Camera } from 'lucide-react';
 import DewDropIcon from '@/components/icons/DewDropIcon';
 import FlowerIcon from '@/components/icons/FlowerIcon';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { detectSleepingSurface } from '@/ai/flows/detect-sleeping-surface-flow';
 
 type JournalEntry = {
   id: number;
@@ -40,7 +41,7 @@ export default function Home() {
 
 
   const [isLoading, setIsLoading] = useState(true);
-  const [appState, setAppState] = useState<'idle' | 'sleeping' | 'generating_sleep_proof' | 'minting_dew' | 'taking_action' | 'generating_action_proof' | 'planting_seed' | 'taking_photo'>('idle');
+  const [appState, setAppState] = useState<'idle' | 'sleeping' | 'generating_sleep_proof' | 'minting_dew' | 'taking_action' | 'generating_action_proof' | 'planting_seed' | 'taking_photo' | 'analyzing_photo'>('idle');
   const [progress, setProgress] = useState(0);
   const { toast } = useToast();
 
@@ -137,10 +138,10 @@ export default function Home() {
     };
 
   useEffect(() => {
-    if(appState === 'taking_photo') {
+    if(appState === 'taking_photo' && !uploadedImage) {
         getCameraPermission();
     }
-  }, [appState]);
+  }, [appState, uploadedImage]);
   
   
   const takePhoto = () => {
@@ -153,6 +154,14 @@ export default function Home() {
       if (context) {
         context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
         const imageUrl = canvas.toDataURL('image/png');
+        const timestamp = `Timestamp: ${new Date().toLocaleString('en-US', {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: 'numeric',
+            hour12: true
+        })}`;
         
         // Stop camera stream
         const stream = video.srcObject as MediaStream;
@@ -162,10 +171,12 @@ export default function Home() {
         video.srcObject = null;
         setHasCameraPermission(null);
 
+        setUploadedImage({url: imageUrl, date: timestamp});
+
         return imageUrl;
       }
     }
-    return 'https://placehold.co/400x300.png';
+    return null;
   }
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -198,32 +209,76 @@ export default function Home() {
   };
 
   const handleConfirmPhoto = async () => {
-    const photoUrl = uploadedImage?.url || takePhoto();
-    
-    setAppState('sleeping');
-    await runProgress(3000);
+    let photoUrl = uploadedImage?.url;
+    if (!photoUrl) {
+      photoUrl = takePhoto();
+    }
+    if (!photoUrl) {
+        toast({
+            variant: "destructive",
+            title: "Photo Error",
+            description: "Could not capture a photo. Please try again.",
+        });
+        return;
+    }
 
-    setAppState('generating_sleep_proof');
-    await runProgress(2500);
-    
-    setAppState('minting_dew');
-    await runProgress(2000);
-
-    const newDew = Math.floor(Math.random() * 5) + 5;
-    setDreamDew(prev => prev + newDew);
-    
-    const newEntry: JournalEntry = {
-      id: Date.now(),
-      date: uploadedImage?.date || new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' }),
-      sleep: `${(newDew - 0.5).toFixed(1)} hours verified`,
-      imageUrl: photoUrl,
-    };
-    setJournalEntries(prev => [newEntry, ...prev]);
-
-    setAppState('idle');
-    setUploadedImage(null);
+    setAppState('analyzing_photo');
     setProgress(0);
+    await runProgress(1000);
+
+    try {
+        const result = await detectSleepingSurface({ photoDataUri: photoUrl });
+        await runProgress(2000);
+
+        if (result.isSleepingSurface) {
+            setAppState('sleeping');
+            await runProgress(3000);
+
+            setAppState('generating_sleep_proof');
+            await runProgress(2500);
+            
+            setAppState('minting_dew');
+            await runProgress(2000);
+
+            const newDew = Math.floor(Math.random() * 5) + 5;
+            setDreamDew(prev => prev + newDew);
+            
+            const newEntry: JournalEntry = {
+              id: Date.now(),
+              date: uploadedImage?.date || new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' }),
+              sleep: `${(newDew - 0.5).toFixed(1)} hours verified`,
+              imageUrl: photoUrl,
+            };
+            setJournalEntries(prev => [newEntry, ...prev]);
+
+            setAppState('idle');
+            setUploadedImage(null);
+            setProgress(0);
+
+        } else {
+            toast({
+                variant: "destructive",
+                title: "Verification Failed",
+                description: result.reason,
+                duration: 5000,
+            });
+            setAppState('taking_photo');
+            setUploadedImage(null); // Allow user to try again
+            setProgress(0);
+        }
+    } catch (error) {
+        console.error("Error analyzing photo:", error);
+        toast({
+            variant: "destructive",
+            title: "Analysis Error",
+            description: "Could not analyze the photo. Please try again.",
+        });
+        setAppState('taking_photo');
+        setUploadedImage(null);
+        setProgress(0);
+    }
   };
+
 
   const handleCivicAction = async () => {
     setAppState('taking_action');
@@ -289,7 +344,9 @@ export default function Home() {
   const getStateDescription = () => {
     switch (appState) {
       case 'taking_photo':
-        return { icon: <Video className="text-primary" />, text: 'Take a timestamped photo of your bed...' };
+        return { icon: <Camera className="text-primary" />, text: 'Take a timestamped photo of your bed...' };
+      case 'analyzing_photo':
+        return { icon: <BrainCircuit className="animate-pulse text-primary" />, text: 'Analyzing photo for sleeping surface...' };
       case 'sleeping':
         return { icon: <Bed className="animate-pulse text-primary" />, text: 'Capturing sleep sensor data...' };
       case 'generating_sleep_proof':
@@ -468,15 +525,19 @@ export default function Home() {
                    <Input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
                 </CardContent>
                 <CardFooter className="flex flex-col sm:flex-row gap-2">
+                    <Button variant="outline" onClick={() => takePhoto()} disabled={!hasCameraPermission} className="w-full">
+                        <Camera className="mr-2 h-4 w-4"/>
+                        Take Photo
+                    </Button>
                     <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="w-full">
                         <Upload className="mr-2 h-4 w-4"/>
                         Upload from Gallery
                     </Button>
-                    <Button onClick={handleConfirmPhoto} disabled={!hasCameraPermission && !uploadedImage} className="w-full">
+                    <Button onClick={handleConfirmPhoto} disabled={!uploadedImage} className="w-full">
                       <Video className="mr-2 h-4 w-4"/>
                       Confirm Photo
                     </Button>
-                    <Button variant="ghost" onClick={() => setAppState('idle')} className="w-full sm:w-auto">Cancel</Button>
+                    <Button variant="ghost" onClick={() => { setAppState('idle'); setUploadedImage(null); }} className="w-full sm:w-auto">Cancel</Button>
                 </CardFooter>
              </Card>
           )}
@@ -674,4 +735,3 @@ export default function Home() {
     </div>
   );
 }
-
