@@ -174,8 +174,8 @@ export default function Home() {
   };
 
   const handleStake = async (amount: string, stakeType: 'rest' | 'action') => {
-    if (!selector) {
-      toast({ variant: "destructive", title: "Wallet not connected" });
+    if (!walletConnected || !selector) {
+      toast({ variant: "destructive", title: "Wallet not connected", description: "Please connect your NEAR wallet to stake." });
       return;
     }
     const wallet = await selector.wallet();
@@ -223,8 +223,8 @@ export default function Home() {
   };
   
     const handleUnstake = async (amountToUnstake: string) => {
-        if (!selector) {
-            toast({ variant: "destructive", title: "Wallet not connected" });
+        if (!walletConnected || !selector) {
+            toast({ variant: "destructive", title: "Wallet not connected", description: "Please connect your wallet to unstake." });
             return;
         }
         const wallet = await selector.wallet();
@@ -438,7 +438,9 @@ export default function Home() {
             setAppState('minting_dew');
             await runProgress(2000, async () => {
                 // Only unstake if the sleep ritual is successful
-                await handleUnstake(stakeAmount);
+                if(walletConnected) {
+                    await handleUnstake(stakeAmount);
+                }
             });
 
             const newDew = Math.floor(Math.random() * 5) + 5;
@@ -492,7 +494,9 @@ export default function Home() {
     await runProgress(1500, async () => {
         setGardenFlowers(prev => prev + 1);
         setDreamDew(prev => Math.max(0, prev - 10));
-        await handleUnstake(CIVIC_ACTION_STAKE);
+        if (walletConnected) {
+            await handleUnstake(CIVIC_ACTION_STAKE);
+        }
     });
 
     setAppState('idle');
@@ -570,50 +574,32 @@ export default function Home() {
     return <div className="flex h-screen w-full items-center justify-center bg-background"><Loader className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
-  if (!walletConnected) {
-    return (
-      <main className="flex min-h-screen w-full items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md fade-in shadow-2xl shadow-primary/10 border-primary/20 bg-card">
-          <CardHeader>
-            <CardTitle className="font-headline text-3xl text-center">think2earn: Sovereign Edition</CardTitle>
-            <CardDescription className="text-center pt-2 text-muted-foreground">
-              Verifiable Rest, Provable Action.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center space-y-4">
-            <div className="flex items-center space-x-4 p-4 rounded-lg bg-secondary">
-                <Network className="h-8 w-8 text-primary" />
-                <p>An on-chain identity requires a NEAR wallet.</p>
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button className="w-full futuristic-glow" onClick={logIn} disabled={isLoggingIn}>
-              <Wallet className="mr-2 h-4 w-4" />
-              {isLoggingIn ? 'Connecting...' : 'Connect NEAR Wallet'}
-            </Button>
-          </CardFooter>
-        </Card>
-      </main>
-    );
-  }
-
   return (
     <div className="min-h-screen w-full bg-background text-foreground fade-in">
       <header className="sticky top-0 z-10 border-b border-border/50 bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
           <h1 className="font-headline text-xl md:text-2xl text-primary">think2earn</h1>
-          <div className="flex items-center gap-2 md:gap-4 rounded-full border border-border/50 bg-card px-3 md:px-4 py-2 text-sm shadow-sm">
-            <div className="flex items-center gap-2">
-              <DewDropIcon className="h-5 w-5 text-accent" />
-              <span className="font-bold text-base md:text-lg">{dreamDew}</span>
-              <span className="text-muted-foreground hidden sm:inline">Dream Dew</span>
+          <div className="flex items-center gap-2 md:gap-4">
+            <div className="flex items-center gap-2 rounded-full border border-border/50 bg-card px-3 md:px-4 py-2 text-sm shadow-sm">
+                <DewDropIcon className="h-5 w-5 text-accent" />
+                <span className="font-bold text-base md:text-lg">{dreamDew}</span>
+                <span className="text-muted-foreground hidden sm:inline">Dream Dew</span>
             </div>
-            <div className="h-6 w-px bg-border hidden sm:block" />
-            <div className="flex items-center gap-2">
-              <Wallet className="h-5 w-5 text-primary" />
-              <span className="font-mono text-muted-foreground text-xs md:text-sm truncate max-w-[100px] sm:max-w-none">{signedAccountId || "think2earn.near"}</span>
-            </div>
-            {walletConnected && <Button variant="ghost" size="sm" onClick={logOut}>Logout</Button>}
+            
+            {walletConnected ? (
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 rounded-full border border-border/50 bg-card px-3 md:px-4 py-2 text-sm shadow-sm">
+                        <Wallet className="h-5 w-5 text-primary" />
+                        <span className="font-mono text-muted-foreground text-xs md:text-sm truncate max-w-[100px] sm:max-w-none">{signedAccountId}</span>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={logOut}>Logout</Button>
+                </div>
+            ) : (
+                <Button onClick={logIn} disabled={isLoggingIn}>
+                    <Wallet className="mr-2 h-4 w-4" />
+                    {isLoggingIn ? 'Connecting...' : 'Connect NEAR Wallet'}
+                </Button>
+            )}
           </div>
         </div>
       </header>
@@ -638,20 +624,20 @@ export default function Home() {
                                 ) : (
                                     <>
                                         <video ref={videoRef} className={cn("h-full w-full object-cover", { 'hidden': hasCameraPermission !== true })} autoPlay muted playsInline />
-                                        {hasCameraPermission === false && <p className='text-muted-foreground'>Camera not available.</p>}
+                                        {hasCameraPermission === false && 
+                                            <Alert variant="default" className='m-4'>
+                                                <AlertTriangle className="h-4 w-4" />
+                                                <AlertTitle>Camera Unavailable</AlertTitle>
+                                                <AlertDescription>
+                                                    No problem. Please upload a photo from your gallery instead. Note that manual uploads may take longer to process for verification.
+                                                </AlertDescription>
+                                            </Alert>
+                                        }
                                         {hasCameraPermission === null && !videoRef.current?.srcObject && <Loader className="h-8 w-8 animate-spin text-primary" />}
                                     </>
                                 )}
                             </div>
-                            {hasCameraPermission === false && !uploadedImage && (
-                                 <Alert variant="default">
-                                    <AlertTriangle className="h-4 w-4" />
-                                    <AlertTitle>Camera Unavailable</AlertTitle>
-                                    <AlertDescription>
-                                        No problem. Please upload a photo from your gallery instead. Note that manual uploads may take longer to process for verification.
-                                    </AlertDescription>
-                                </Alert>
-                            )}
+
                             {uploadedImage && (
                                 <Alert variant="default">
                                     <AlertTriangle className="h-4 w-4" />
@@ -696,7 +682,7 @@ export default function Home() {
                             </div>
                             <p className="text-sm text-muted-foreground">Commit NEAR as a pledge to your sleep ritual. Your stake is returned with a reward upon successful verification.</p>
                             
-                            {isRestStaked ? (
+                            {isRestStaked && walletConnected ? (
                                 <div className='p-4 bg-secondary rounded-md'>
                                     <p className='text-sm font-semibold'>You have <span className="font-bold text-primary">{stakedBalance} NEAR</span> staked.</p>
                                     <p className="text-xs text-muted-foreground mt-1">Complete the sleep ritual to get it back with a reward.</p>
@@ -710,7 +696,7 @@ export default function Home() {
                                         <Label htmlFor="stake-amount">Commitment (NEAR)</Label>
                                         <Input id="stake-amount" type="number" value={stakeAmount} onChange={(e) => setStakeAmount(e.target.value)} className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                                     </div>
-                                    <Button onClick={() => handleStake(stakeAmount, 'rest')} disabled={appState !== 'idle' || !walletConnected || Number(stakeAmount) <= 0}>
+                                    <Button onClick={() => handleStake(stakeAmount, 'rest')} disabled={appState !== 'idle' || Number(stakeAmount) <= 0}>
                                         Commit & Begin
                                     </Button>
                                 </div>
@@ -724,7 +710,7 @@ export default function Home() {
                             </div>
                             <p className="text-sm text-muted-foreground">Commit a small stake of {CIVIC_ACTION_STAKE} NEAR and spend 10 Dream Dew to prove you've contacted a representative. Your anonymous action will be added to the public registry, and your stake returned.</p>
 
-                            {isActionStaked ? (
+                            {isActionStaked && walletConnected ? (
                                 <div className='p-4 bg-secondary rounded-md'>
                                     <p className='text-sm font-semibold'>You have a civic action commitment active.</p>
                                     <Button onClick={handleCivicAction} disabled={appState !== 'idle'} className="w-full mt-3">
