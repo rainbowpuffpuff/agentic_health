@@ -92,17 +92,18 @@ class ControlledBreathing(EmotionRegulationStrategy):
         print("--- Execution Complete ---")
 
 
-# --- New Gemini-Powered Strategy ---
+# --- Refactored Gemini-Powered Strategy ---
 class GenerativeReframing(EmotionRegulationStrategy):
     """
     A strategy that uses a generative AI model to provide a novel cognitive reappraisal.
+    This follows the recommended pattern for the google-generativeai library.
     """
-    def __init__(self, model):
+    def __init__(self, client: genai.GenerativeModel):
         super().__init__(
             name="Generative Reframing (AI)",
             classification={"psychological_function": "Knowledge", "orientation": "Goal-oriented"}
         )
-        self.model = model
+        self.client = client
 
     def execute(self, session: 'TherapySession') -> None:
         """Generates a new perspective using the Gemini API."""
@@ -117,16 +118,15 @@ class GenerativeReframing(EmotionRegulationStrategy):
         )
 
         try:
-            response = self.model.generate_content(prompt)
+            # The GenerativeModel object is the client for the model.
+            response = self.client.generate_content(contents=prompt)
             reframe = response.text.strip()
             print(f"Co-Pilot: Here's a different perspective: \"{reframe}\"")
             session.state['outcome'] = reframe
-            # We'll assign a high potential for distress reduction for this advanced technique
             session.state['distress_level'] -= 5
         except Exception as e:
             print(f"Co-Pilot: I'm having trouble connecting to my creative circuits right now. Error: {e}")
             session.state['outcome'] = "AI model failed to generate a response."
-            # No change in distress if it fails
         finally:
             print("--- Execution Complete ---")
 # ------------------------------------
@@ -214,19 +214,29 @@ class SelfImprovingAgent:
 # Step 5: Update the main execution block
 if __name__ == "__main__":
     # --- Load API Key from .env file ---
-    # Construct the path to the .env file in the parent directory
-    # __file__ is the path to the current script (e.g., /path/to/root/src/script.py)
-    # os.path.dirname(__file__) is the directory of the script (e.g., /path/to/root/src)
-    # os.path.join(..., '..') goes one level up to the root directory
     dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
     load_dotenv(dotenv_path=dotenv_path)
-
     api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("GEMINI_API_KEY not found. Please create a .env file in the root directory.")
 
-    genai.configure(api_key=api_key)
-    # ------------------------------------
+    # --- Initialize Strategies ---
+    strategies = [
+        CognitiveReappraisal(),
+        EffortfulDistraction(),
+        ControlledBreathing(),
+    ]
+
+    # --- Conditionally Initialize and Add AI Strategy ---
+    if api_key and api_key != "YOUR_API_KEY_HERE":
+        print("\nGEMINI_API_KEY found. Initializing Generative AI strategy.")
+        try:
+            genai.configure(api_key=api_key)
+            # Instantiate the model which will act as our client
+            model_client = genai.GenerativeModel(model_name="gemini-1.5-flash")
+            strategies.append(GenerativeReframing(client=model_client))
+        except Exception as e:
+            print(f"Failed to initialize Generative AI strategy: {e}")
+    else:
+        print("\nGEMINI_API_KEY not found or is a placeholder. Skipping Generative AI strategy.")
 
     # 1. Define the problem
     session = TherapySession(
@@ -235,31 +245,19 @@ if __name__ == "__main__":
         distress_level=8
     )
 
-    # 2. Create an agent with a set of strategies, including the new Gemini-powered one
-    try:
-        gemini_model = genai.GenerativeModel('gemini-pro')
+    # 2. Create an agent with the available strategies
+    agent = SelfImprovingAgent(strategies=strategies)
 
-        agent = SelfImprovingAgent(strategies=[
-            CognitiveReappraisal(),
-            EffortfulDistraction(),
-            ControlledBreathing(),
-            GenerativeReframing(model=gemini_model), # Add the new strategy
-        ])
+    # 3. The agent analyzes the problem by simulating the strategies
+    #    and selects the best one.
+    optimal_strategy = agent.analyze_and_select_best_strategy(session)
 
-        # 3. The agent analyzes the problem by simulating the strategies
-        #    and selects the best one.
-        optimal_strategy = agent.analyze_and_select_best_strategy(session)
+    # 4. The agent can now apply the chosen strategy for real.
+    print("\nAgent: Based on my analysis, the most effective approach is to use:")
+    print(f"** {optimal_strategy.name} **")
+    print("\nLet's begin...")
 
-        # 4. The agent can now apply the chosen strategy for real.
-        print("\nAgent: Based on my analysis, the most effective approach is to use:")
-        print(f"** {optimal_strategy.name} **")
-        print("\nLet's begin...")
-
-        # We reset the session to its original state before the "real" application.
-        session.reset()
-        optimal_strategy.execute(session)
-        print(f"\nFinal Session State: {session}")
-
-    except Exception as e:
-        print(f"\nAn error occurred during agent execution: {e}")
-        print("Please check your API key and network connection.")
+    # We reset the session to its original state before the "real" application.
+    session.reset()
+    optimal_strategy.execute(session)
+    print(f"\nFinal Session State: {session}")
