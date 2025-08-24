@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload } from 'lucide-react';
+import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, Combine } from 'lucide-react';
 import DewDropIcon from '@/components/icons/DewDropIcon';
 import FlowerIcon from '@/components/icons/FlowerIcon';
 import { cn } from '@/lib/utils';
@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { detectSleepingSurface } from '@/ai/flows/detect-sleeping-surface-flow';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
+import { DataPairingModal } from '@/components/ui/data-pairing-modal';
 import { useWalletSelector } from '@/components/WalletProvider';
 import { CONTRACT_ID } from '@/lib/constants';
 import { utils } from 'near-api-js';
@@ -41,6 +42,13 @@ type WhoopData = {
     'Time in Bed (hours)': number;
     'Sleep (hours)': number;
 }[];
+
+type PairedData = {
+  id: number;
+  date: string;
+  fnirsFileName: string;
+  glucoseFileName: string;
+};
 
 const chartConfig = {
   timeInBed: {
@@ -94,6 +102,10 @@ export default function Home() {
 
   // Whoop Data
   const [whoopData, setWhoopData] = useState<WhoopData>([]);
+
+  // Data Pairing Modal State
+  const [isDataPairingModalOpen, setIsDataPairingModalOpen] = useState(false);
+  const [pairedDataLog, setPairedDataLog] = useState<PairedData[]>([]);
 
 
   useEffect(() => {
@@ -484,6 +496,33 @@ export default function Home() {
     }
   };
 
+  const handleUploadData = async (fnirsFile: File, glucoseFile: File) => {
+    // This is a simulation for now.
+    // In a real app, this would involve a proper upload process.
+    console.log("Simulating upload for:", fnirsFile.name, glucoseFile.name);
+
+    setAppState('generating_action_proof'); // Reuse some existing state for progress
+    await runProgress(3000);
+
+    const newEntry: PairedData = {
+      id: Date.now(),
+      date: new Date().toLocaleString('en-US', { month: 'long', day: 'numeric' }),
+      fnirsFileName: fnirsFile.name,
+      glucoseFileName: glucoseFile.name,
+    };
+
+    setPairedDataLog(prev => [newEntry, ...prev]);
+
+    toast({
+        title: "Upload Successful",
+        description: "Your paired data has been submitted.",
+    });
+
+    setIsDataPairingModalOpen(false);
+    setAppState('idle');
+    setProgress(0);
+  };
+
   const handleSetupSwarm = () => {
     setSwarmState('generating_keys');
     setTimeout(() => {
@@ -800,7 +839,7 @@ export default function Home() {
                                 </div>
                                 <p className="text-sm text-muted-foreground mt-2">You have both devices. Start pairing your data to help train the glucose prediction model and earn proportional rewards.</p>
 
-                                <Button className="mt-3 w-full">Begin Data Pairing</Button>
+                                <Button className="mt-3 w-full" onClick={() => setIsDataPairingModalOpen(true)}>Begin Data Pairing</Button>
                             </Card>
                         </CardFooter>
                     }
@@ -906,6 +945,38 @@ export default function Home() {
             
             {/* Sleep Log Column */}
             <div className="lg:col-span-1 space-y-6">
+                <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '200ms'}}>
+                    <CardHeader>
+                        <CardTitle className="font-headline text-2xl flex items-center gap-3">
+                            <BrainCircuit className="text-primary"/> Paired Data Log
+                        </CardTitle>
+                        <CardDescription>Your submitted data contributions for the prediction model.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ScrollArea className="h-[240px] pr-4">
+                            <div className="space-y-4">
+                                {pairedDataLog.map(entry => (
+                                    <div key={entry.id} className="flex items-start gap-4 rounded-lg border p-3 bg-card hover:bg-secondary/50 transition-colors">
+                                        <Combine className="h-8 w-8 text-primary/80 mt-1" />
+                                        <div className="flex-grow">
+                                            <p className="font-semibold">{entry.date}</p>
+                                            <p className="text-sm text-muted-foreground truncate" title={entry.fnirsFileName}>fNIRS: {entry.fnirsFileName}</p>
+                                            <p className="text-sm text-muted-foreground truncate" title={entry.glucoseFileName}>Glucose: {entry.glucoseFileName}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                                {pairedDataLog.length === 0 && (
+                                    <div className="flex flex-col items-center justify-center h-full py-10 text-center text-muted-foreground">
+                                        <BrainCircuit className="h-12 w-12 mb-4 text-primary/20" />
+                                        <p className="font-semibold">No data submitted yet.</p>
+                                        <p className="text-xs">Your paired data contributions will appear here.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </ScrollArea>
+                    </CardContent>
+                </Card>
+
                 <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '300ms'}}>
                     <CardHeader>
                         <div className='flex items-start justify-between gap-4'>
@@ -955,6 +1026,11 @@ export default function Home() {
             </div>
         </div>
       </main>
+      <DataPairingModal
+        isOpen={isDataPairingModalOpen}
+        onClose={() => setIsDataPairingModalOpen(false)}
+        onUpload={handleUploadData}
+      />
     </div>
   );
 }
