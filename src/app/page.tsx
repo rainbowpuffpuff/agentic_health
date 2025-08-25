@@ -75,7 +75,7 @@ const THIRTY_TGAS = "30000000000000";
 const CIVIC_ACTION_STAKE = "0.1"; // 0.1 NEAR for civic action stake
 
 export default function Home() {
-  const [dreamDew, setDreamDew] = useState(200); // Start with enough dew to test
+  const [dreamDew, setDreamDew] = useState(250); // Start with enough dew to test
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [gardenFlowers, setGardenFlowers] = useState(0);
   const [hasFnirsDevice, setHasFnirsDevice] = useState(false);
@@ -1050,7 +1050,7 @@ export default function Home() {
                                 </div>
                             </div>
                             <Button onClick={() => handleAcquireDevice(100, 'fnirs')} disabled={dreamDew < 100 || hasFnirsDevice} className="w-full">
-                            {hasFnirsDevice ? 'Acquired' : 'Acquire'}
+                            {hasFnirsDevice ? 'Acquired' : 'Acquire for 100 Dew'}
                             </Button>
                         </Card>
                         <Card className="p-4 flex flex-col items-start gap-4 hover:bg-secondary/50 transition-colors">
@@ -1064,7 +1064,7 @@ export default function Home() {
                                 </div>
                             </div>
                             <Button onClick={() => handleAcquireDevice(150, 'abbott')} disabled={dreamDew < 150 || hasAbbottDevice} className="w-full">
-                                {hasAbbottDevice ? 'Acquired' : 'Acquire'}
+                                {hasAbbottDevice ? 'Acquired' : 'Acquire for 150 Dew'}
                             </Button>
                         </Card>
                     </CardContent>
