@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -962,47 +963,95 @@ export default function Home() {
         const glucoseReader = new FileReader();
         glucoseReader.onload = async (gEvent) => {
           const glucoseData = gEvent.target?.result as string;
-          const glucoseValue = parseFloat(glucoseData.trim());
-  
-          if (isNaN(glucoseValue)) {
-            toast({ variant: "destructive", title: "Invalid Glucose Data", description: "The glucose file must contain a single numerical value." });
+          
+          try {
+            // Parse CSV
+            const lines = glucoseData.split('\n').filter(line => line.trim() !== '');
+            if (lines.length < 2) throw new Error("Glucose CSV has no data rows.");
+            
+            const headerLine = lines.find(line => line.toLowerCase().includes('historic glucose') || line.toLowerCase().includes('scan glucose'));
+            if (!headerLine) throw new Error("Could not find required glucose headers in the file.");
+
+            const header = headerLine.split(',').map(h => h.trim().toLowerCase());
+            
+            const historicIndex = header.findIndex(h => h.includes('historic glucose'));
+            const scanIndex = header.findIndex(h => h.includes('scan glucose'));
+            
+            if (historicIndex === -1 && scanIndex === -1) {
+              throw new Error("Neither 'Historic Glucose' nor 'Scan Glucose' column found.");
+            }
+
+            let glucoseValues: number[] = [];
+            const dataLines = lines.slice(lines.indexOf(headerLine) + 1);
+
+            dataLines.forEach(line => {
+                const columns = line.split(',');
+                let valueStr = '';
+                if(historicIndex !== -1 && columns.length > historicIndex) {
+                    valueStr = columns[historicIndex]?.trim();
+                }
+                if (!valueStr && scanIndex !== -1 && columns.length > scanIndex) {
+                    valueStr = columns[scanIndex]?.trim();
+                }
+
+                if (valueStr) {
+                    const value = parseFloat(valueStr);
+                    if (!isNaN(value)) {
+                        glucoseValues.push(value);
+                    }
+                }
+            });
+
+            if (glucoseValues.length === 0) {
+              throw new Error("No valid numerical glucose values found in the file.");
+            }
+            
+            // Convert mmol/L to mg/dL for the AI model if needed
+            // 1 mmol/L = 18.0182 mg/dL
+            const glucoseValuesMgDl = glucoseValues.map(val => val * 18.0182);
+
+            const averageGlucose = glucoseValuesMgDl.reduce((sum, val) => sum + val, 0) / glucoseValuesMgDl.length;
+            
+            const result = await scoreDataContribution({
+              fnirsData: fnirsData,
+              glucoseLevel: averageGlucose,
+            });
+    
+            await runProgress(1000);
+    
+            const newEntry: PairedDataEntry = {
+              id: Date.now(),
+              date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+              fnirsFile: fnirsFile.name,
+              glucoseLevel: parseFloat(averageGlucose.toFixed(2)),
+              contributionScore: result.contributionScore,
+            };
+    
+            setPairedDataHistory(prev => [newEntry, ...prev]);
+            setIntentionPoints(prev => prev + result.reward);
+    
+            toast({
+              title: "Contribution Scored!",
+              description: `${result.reason} You earned ${result.reward} Intention Points.`,
+            });
+    
+            // Reset form
+            setFnirsFile(null);
+            setGlucoseFile(null);
+            setFnirsInfo(null);
+            setGlucoseInfo(null);
+            if (fnirsInputRef.current) fnirsInputRef.current.value = '';
+            if (glucoseInputRef.current) glucoseInputRef.current.value = '';
             setAppState('idle');
             setProgress(0);
-            return;
+
+          } catch (parseError: any) {
+              console.error("Error parsing glucose file:", parseError);
+              toast({ variant: "destructive", title: "Invalid Glucose Data", description: parseError.message || "Could not parse the glucose time-series file." });
+              setAppState('idle');
+              setProgress(0);
+              return;
           }
-  
-          const result = await scoreDataContribution({
-            fnirsData: fnirsData,
-            glucoseLevel: glucoseValue,
-          });
-  
-          await runProgress(1000);
-  
-          const newEntry: PairedDataEntry = {
-            id: Date.now(),
-            date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-            fnirsFile: fnirsFile.name,
-            glucoseLevel: glucoseValue,
-            contributionScore: result.contributionScore,
-          };
-  
-          setPairedDataHistory(prev => [newEntry, ...prev]);
-          setIntentionPoints(prev => prev + result.reward);
-  
-          toast({
-            title: "Contribution Scored!",
-            description: `${result.reason} You earned ${result.reward} Intention Points.`,
-          });
-  
-          // Reset form
-          setFnirsFile(null);
-          setGlucoseFile(null);
-          setFnirsInfo(null);
-          setGlucoseInfo(null);
-          if (fnirsInputRef.current) fnirsInputRef.current.value = '';
-          if (glucoseInputRef.current) glucoseInputRef.current.value = '';
-          setAppState('idle');
-          setProgress(0);
         };
         glucoseReader.readAsText(glucoseFile);
       };
@@ -1669,7 +1718,7 @@ export default function Home() {
                 )}
                 
                 {pairedDataHistory.length > 0 && (
-                     <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '300ms'}}>
+                     <Card className="lg-col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '300ms'}}>
                         <CardHeader>
                             <CardTitle className="font-headline text-2xl">Contribution History</CardTitle>
                             <CardDescription>Your history of data contributions to the model.</CardDescription>
@@ -1809,5 +1858,3 @@ export default function Home() {
     </TooltipProvider>
   );
 }
-
-    
