@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, UserCog } from 'lucide-react';
+import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, UserCog, FileText } from 'lucide-react';
 import DewDropIcon from '@/components/icons/DewDropIcon';
 import FlowerIcon from '@/components/icons/FlowerIcon';
 import { cn } from '@/lib/utils';
@@ -70,6 +70,13 @@ type StakerInfo = {
     bonus_approved: boolean;
 };
 
+type FileInfo = {
+    name: string;
+    size: string;
+    rows: number;
+    cols: number;
+} | null;
+
 
 const THIRTY_TGAS = "30000000000000";
 const CIVIC_ACTION_STAKE = "0.1"; // 0.1 NEAR for civic action stake
@@ -118,9 +125,10 @@ export default function Home() {
   const [whoopData, setWhoopData] = useState<WhoopData>([]);
   
   // Data Contribution State
-  const [glucoseLevel, setGlucoseLevel] = useState('');
   const [fnirsFile, setFnirsFile] = useState<File | null>(null);
   const [glucoseFile, setGlucoseFile] = useState<File | null>(null);
+  const [fnirsInfo, setFnirsInfo] = useState<FileInfo>(null);
+  const [glucoseInfo, setGlucoseInfo] = useState<FileInfo>(null);
   const [pairedDataHistory, setPairedDataHistory] = useState<PairedDataEntry[]>([]);
 
   // Admin state
@@ -661,6 +669,42 @@ export default function Home() {
     }
   };
   
+    const processFile = (file: File, setInfo: (info: FileInfo) => void) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const text = e.target?.result as string;
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+            const rows = lines.length;
+            const cols = rows > 0 ? lines[0].split(',').length : 0;
+            const sizeInKB = (file.size / 1024).toFixed(2);
+
+            setInfo({
+                name: file.name,
+                size: `${sizeInKB} KB`,
+                rows: rows,
+                cols: cols
+            });
+        };
+        reader.readAsText(file);
+    };
+
+    const handleFnirsUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            setFnirsFile(file);
+            processFile(file, setFnirsInfo);
+        }
+    };
+
+    const handleGlucoseUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            setGlucoseFile(file);
+            processFile(file, setGlucoseInfo);
+        }
+    };
+
+
   const handleDataContribution = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fnirsFile || !glucoseFile) {
@@ -714,6 +758,8 @@ export default function Home() {
           // Reset form
           setFnirsFile(null);
           setGlucoseFile(null);
+          setFnirsInfo(null);
+          setGlucoseInfo(null);
           if (fnirsInputRef.current) fnirsInputRef.current.value = '';
           if (glucoseInputRef.current) glucoseInputRef.current.value = '';
           setAppState('idle');
@@ -853,6 +899,21 @@ export default function Home() {
     </Card>
   );
 
+  const FileInfoDisplay = ({ info }: { info: FileInfo }) => {
+    if (!info) return null;
+    return (
+        <Alert variant="default" className="mt-2 text-xs">
+            <FileText className="h-4 w-4" />
+            <AlertTitle className="font-semibold">{info.name}</AlertTitle>
+            <AlertDescription className="flex justify-between items-center">
+                <span>{info.size}</span>
+                <span>{info.rows} rows</span>
+                <span>{info.cols} columns</span>
+            </AlertDescription>
+        </Alert>
+    )
+  }
+
   return (
     <div className="min-h-screen w-full bg-background text-foreground fade-in">
       <header className="sticky top-0 z-10 border-b border-border/50 bg-background/80 backdrop-blur-sm">
@@ -885,8 +946,8 @@ export default function Home() {
       
       <main className="container mx-auto p-4">
       <Input type="file" accept=".csv" ref={whoopInputRef} onChange={handleWhoopImport} className="hidden" />
-      <Input type="file" accept=".csv,.txt" ref={fnirsInputRef} onChange={(e) => setFnirsFile(e.target.files?.[0] || null)} className="hidden" />
-      <Input type="file" accept=".csv,.txt" ref={glucoseInputRef} onChange={(e) => setGlucoseFile(e.target.files?.[0] || null)} className="hidden" />
+      <Input type="file" accept=".csv,.txt" ref={fnirsInputRef} onChange={handleFnirsUpload} className="hidden" />
+      <Input type="file" accept=".csv,.txt" ref={glucoseInputRef} onChange={handleGlucoseUpload} className="hidden" />
 
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
@@ -1110,6 +1171,7 @@ export default function Home() {
                                         <FilePlus2 className="mr-2" />
                                         {fnirsFile ? <span className='truncate'>{fnirsFile.name}</span> : 'Select a .csv or .txt file'}
                                     </Button>
+                                    <FileInfoDisplay info={fnirsInfo} />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="glucose-level">2. Pair Glucose Reading File</Label>
@@ -1117,6 +1179,7 @@ export default function Home() {
                                         <FilePlus2 className="mr-2" />
                                         {glucoseFile ? <span className="truncate">{glucoseFile.name}</span> : 'Select a .csv or .txt file'}
                                     </Button>
+                                    <FileInfoDisplay info={glucoseInfo} />
                                 </div>
                             </div>
                              {appState === 'uploading_data' && (
