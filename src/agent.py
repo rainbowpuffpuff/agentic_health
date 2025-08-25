@@ -283,9 +283,9 @@ class SelfImprovingAgent:
 
         return best_strategy
 
-# --- Step 5: Main Interactive Simulation Loop (To be refactored) ---
+# --- Step 5: Automated Multi-Session Generation ---
 def main():
-    """Main function to run the simulation."""
+    """Main function to run the automated simulation for dataset generation."""
     try:
         load_dotenv()
     except Exception as e:
@@ -316,23 +316,28 @@ def main():
 
     agent = SelfImprovingAgent(strategies=strategies)
 
-    # This is now a single, non-interactive run for demonstration
-    print("\n--- Running a single automated session for dataset generation ---")
-    session = TherapySession(
-        problem="Feeling overwhelmed about an upcoming presentation.",
-        emotion="anxious and stressed",
-        distress_level=8
-    )
+    # --- Predefined Scenarios for Automated Run ---
+    scenarios = [
+        {"problem": "Feeling overwhelmed about an upcoming presentation.", "emotion": "anxious and stressed", "distress_level": 8},
+        {"problem": "I had an argument with my partner.", "emotion": "angry and sad", "distress_level": 7},
+        {"problem": "I feel unmotivated to work on my personal goals.", "emotion": "lethargic and disappointed", "distress_level": 6},
+        {"problem": "I'm worried about what others think of me.", "emotion": "insecure and self-conscious", "distress_level": 5},
+        {"problem": "I made a mistake at work and I'm afraid of the consequences.", "emotion": "fearful and guilty", "distress_level": 9}
+    ]
 
-    optimal_strategy = agent.analyze_and_select_best_strategy(session)
+    print("\n--- Running Automated Multi-Session Analysis for Dataset Generation ---")
 
-    print(f"Agent: Based on my analysis, the most effective approach appears to be ** {optimal_strategy.name} **.")
-    print(f"This is a {optimal_strategy.classification.get('function')} strategy that targets your {optimal_strategy.classification.get('target')}.")
-
-    # The execution is just for show in the console, the main goal is the analysis log
-    session.reset()
-    optimal_strategy.execute(session)
-    print(f"\nFinal Session State: {session}")
+    for i, scenario in enumerate(scenarios):
+        print(f"\n\n----- Scenario {i+1}/{len(scenarios)} -----")
+        session = TherapySession(
+            problem=scenario["problem"],
+            emotion=scenario["emotion"],
+            distress_level=scenario["distress_level"]
+        )
+        # The agent analyzes the scenario and prints the best strategy.
+        # In the next step, we will log this output to a file.
+        agent.analyze_and_select_best_strategy(session)
+        time.sleep(1) # Small delay for console readability
 
 if __name__ == "__main__":
     main()
