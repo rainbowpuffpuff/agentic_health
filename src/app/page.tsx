@@ -1278,7 +1278,7 @@ export default function Home() {
                                 </ChartContainer>
                             </div>
                         )}
-                        <ScrollArea className="h-[520px] pr-4">
+                        <ScrollArea className="h-[280px] pr-4">
                             <div className="space-y-4">
                                 {journalEntries.map(entry => (
                                     <div key={entry.id} className="flex items-center gap-4 rounded-lg border p-3 bg-card hover:bg-secondary/50 transition-colors" data-ai-hint="bed bedroom">
@@ -1304,4 +1304,5 @@ export default function Home() {
     
 
     
+
 
