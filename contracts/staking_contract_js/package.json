@@ -1,0 +1,20 @@
+{
+  "name": "staking_contract_js",
+  "version": "1.0.0",
+  "description": "A bonus staking contract for think2earn",
+  "main": "index.js",
+  "scripts": {
+    "build": "near-sdk-js build src/contract.ts build/contract.wasm",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "near-sdk-js": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "near-cli": "^4.0.0"
+  }
+}

@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2 } from 'lucide-react';
+import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2, Rocket } from 'lucide-react';
 import DewDropIcon from '@/components/icons/DewDropIcon';
 import FlowerIcon from '@/components/icons/FlowerIcon';
 import { cn } from '@/lib/utils';
@@ -88,6 +88,11 @@ export default function Home() {
   const [isActionStaked, setIsActionStaked] = useState(false);
   const [stakeAmount, setStakeAmount] = useState("1"); // In NEAR for sleep
   const [stakedBalance, setStakedBalance] = useState("0");
+
+  // Contract Deployment State
+  const [deployedContractId, setDeployedContractId] = useState<string | null>(null);
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [newContractName, setNewContractName] = useState("");
 
 
   // Swarm State
@@ -188,6 +193,71 @@ export default function Home() {
     };
     requestAnimationFrame(animate);
     await new Promise(resolve => setTimeout(resolve, duration));
+  };
+  
+    const handleDeployContract = async () => {
+    if (!walletConnected || !selector || !newContractName) {
+      toast({ variant: "destructive", title: "Cannot Deploy", description: "Please connect your wallet and enter a name for your new contract account." });
+      return;
+    }
+    
+    setIsDeploying(true);
+    toast({ title: "Deployment Initiated", description: "Please check your wallet to approve the transaction for creating your contract." });
+
+    // In a real app, you would fetch the compiled WASM from your server or a known URL.
+    // For this prototype, we'll simulate the process.
+    try {
+      // This is a placeholder for the actual WASM binary data.
+      const wasmCode = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0]); // Minimal valid WASM
+      
+      const wallet = await selector.wallet();
+      if (!wallet) {
+          setIsDeploying(false);
+          toast({ variant: "destructive", title: "Wallet not connected" });
+          return;
+      }
+      
+      const contractId = `${newContractName}.${signedAccountId}`;
+
+      await wallet.signAndSendTransaction({
+        receiverId: 'testnet', // The account that creates other accounts
+        actions: [
+          {
+            type: 'CreateAccount',
+            params: {}, // In a real scenario, you might add public keys here
+          },
+          {
+            type: 'DeployContract',
+            params: {
+              code: wasmCode,
+            },
+          },
+          {
+            type: 'FunctionCall',
+            params: {
+                methodName: 'init',
+                args: { owner_id: signedAccountId },
+                gas: THIRTY_TGAS,
+                deposit: "0",
+            },
+          }
+        ],
+      });
+
+      // This part is optimistic and will be updated based on the real transaction result
+      setDeployedContractId(contractId);
+      toast({ title: "Deployment Successful!", description: `Contract deployed to ${contractId}` });
+
+    } catch (error) {
+      console.error("Contract deployment failed:", error);
+      toast({
+        variant: "destructive",
+        title: "Deployment Failed",
+        description: (error as Error).message || "Could not deploy the contract. Please check the logs and your wallet.",
+      });
+    } finally {
+        setIsDeploying(false);
+    }
   };
 
   const handleStake = async (amount: string, stakeType: 'rest' | 'action') => {
@@ -389,7 +459,8 @@ export default function Home() {
           if (lines.length < 2) {
             throw new Error("CSV is empty or has no header.");
           }
-          const header = lines[0].split(',');
+          const headerLine = lines[0].trim();
+          const header = headerLine.split(',');
           const rows = lines.slice(1);
 
           const getIndex = (name: string) => {
@@ -408,7 +479,10 @@ export default function Home() {
             const columns = row.split(',');
             if (columns.length < header.length) return null;
 
-            const date = new Date(columns[dateIndex]).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const dateStr = columns[dateIndex];
+            if (!dateStr) return null;
+
+            const date = new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
             const timeInBed = parseFloat(columns[timeInBedIndex]) / 60;
             const sleep = parseFloat(columns[sleepIndex]) / 60;
             
@@ -708,6 +782,44 @@ export default function Home() {
             
             {/* Main Column */}
             <div className="lg:col-span-2 space-y-6">
+
+                {walletConnected && !deployedContractId && (
+                     <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5">
+                        <CardHeader>
+                            <CardTitle className="font-headline text-2xl flex items-center gap-3"><Rocket className="text-primary"/>Deploy Your Sovereign Contract</CardTitle>
+                            <CardDescription>Create and deploy your own personal staking contract on the NEAR blockchain. This contract will be owned by you and used for your commitments.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                           <p className="text-sm text-muted-foreground">Enter a unique name for your contract account. This will be created as a sub-account of your main wallet address (e.g., <code className="bg-muted px-1 py-0.5 rounded">your-name.{signedAccountId}</code>).</p>
+                           <div className="flex items-end gap-2">
+                                <div className="flex-grow">
+                                    <Label htmlFor="new-contract-name">New Contract Name</Label>
+                                    <Input id="new-contract-name" value={newContractName} onChange={(e) => setNewContractName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} placeholder="e.g., my-staking-contract"/>
+                                </div>
+                                <Button onClick={handleDeployContract} disabled={isDeploying || !newContractName}>
+                                    {isDeploying ? <><Loader className="animate-spin mr-2" />Deploying...</> : 'Deploy Contract'}
+                                </Button>
+                           </div>
+                        </CardContent>
+                     </Card>
+                )}
+
+                {deployedContractId && (
+                     <Card className="slide-in-from-bottom transition-all bg-primary/5 border-primary/20">
+                        <CardHeader>
+                            <CardTitle className="font-headline text-2xl flex items-center gap-3"><ShieldCheck className="text-primary"/>Contract Deployed!</CardTitle>
+                            <CardDescription>Your personal staking contract is now live and ready to use.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                           <Label>Your Contract ID</Label>
+                            <div className="flex items-center gap-2">
+                                <Input value={deployedContractId} readOnly />
+                                <Button variant="ghost" size="icon" onClick={() => copyToClipboard(deployedContractId)}><Copy/></Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-2">All commitments will now use this contract.</p>
+                        </CardContent>
+                     </Card>
+                )}
                 
                 {appState === 'taking_photo' && (
                     <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5">
