@@ -99,7 +99,7 @@ const CIVIC_ACTION_STAKE = "0.1"; // 0.1 NEAR for civic action stake
 type MotionStatus = 'still' | 'slight' | 'heavy';
 
 export default function Home() {
-  const [dreamDew, setDreamDew] = useState(250); // Start with enough dew to test
+  const [intentionPoints, setIntentionPoints] = useState(250); // Start with enough points to test
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [gardenFlowers, setGardenFlowers] = useState(0);
   const [hasFnirsDevice, setHasFnirsDevice] = useState(false);
@@ -713,13 +713,13 @@ export default function Home() {
                 }
             });
 
-            const newDew = Math.floor(Math.random() * 5) + 5;
-            setDreamDew(prev => prev + newDew);
+            const newPoints = Math.floor(Math.random() * 5) + 5;
+            setIntentionPoints(prev => prev + newPoints);
             
             const newEntry: JournalEntry = {
               id: Date.now(),
               date: uploadedImage?.date || new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' }),
-              sleep: `${(newDew - 0.5).toFixed(1)} hours verified`,
+              sleep: `${(newPoints - 0.5).toFixed(1)} hours verified`,
               imageUrl: photoUrl,
               motionData: [...motionData] // snapshot the data
             };
@@ -765,7 +765,7 @@ export default function Home() {
     setAppState('planting_seed');
     await runProgress(1500, async () => {
         setGardenFlowers(prev => prev + 1);
-        setDreamDew(prev => Math.max(0, prev - 10));
+        setIntentionPoints(prev => Math.max(0, prev - 10));
         if (walletConnected) {
             // This part is tricky as the civic action stake is not separated in the contract.
             // For now, we just update the UI state.
@@ -778,8 +778,8 @@ export default function Home() {
   };
 
   const handleAcquireDevice = (cost: number, device: 'fnirs' | 'abbott') => {
-    if (dreamDew >= cost) {
-      setDreamDew(prev => prev - cost);
+    if (intentionPoints >= cost) {
+      setIntentionPoints(prev => prev - cost);
       if (device === 'fnirs') {
         setHasFnirsDevice(true);
       } else {
@@ -868,11 +868,11 @@ export default function Home() {
           };
   
           setPairedDataHistory(prev => [newEntry, ...prev]);
-          setDreamDew(prev => prev + result.reward);
+          setIntentionPoints(prev => prev + result.reward);
   
           toast({
             title: "Contribution Scored!",
-            description: `${result.reason} You earned ${result.reward} Dream Dew.`,
+            description: `${result.reason} You earned ${result.reward} Intention Points.`,
           });
   
           // Reset form
@@ -1140,8 +1140,8 @@ export default function Home() {
           <div className="flex items-center gap-2 md:gap-4">
             <div className="flex items-center gap-2 rounded-full border border-border/50 bg-card px-3 md:px-4 py-2 text-sm shadow-sm">
                 <DewDropIcon className="h-5 w-5 text-accent" />
-                <span className="font-bold text-base md:text-lg">{dreamDew}</span>
-                <span className="text-muted-foreground hidden sm:inline">Dream Dew</span>
+                <span className="font-bold text-base md:text-lg">{intentionPoints}</span>
+                <span className="text-muted-foreground hidden sm:inline">Intention Points</span>
             </div>
             
             {walletConnected ? (
@@ -1293,7 +1293,7 @@ export default function Home() {
                                 <Mail className="h-6 w-6 text-primary" />
                                 <h3 className="font-headline text-lg">Proof of Action</h3>
                             </div>
-                            <p className="text-sm text-muted-foreground">Commit NEAR and spend 10 Dream Dew to prove you've contacted a representative. Your anonymous action will be added to the public registry, and your commitment returned.</p>
+                            <p className="text-sm text-muted-foreground">Commit NEAR and spend 10 Intention Points to prove you've contacted a representative. Your anonymous action will be added to the public registry, and your commitment returned.</p>
 
                             {isActionStaked && walletConnected ? (
                                 <div className='p-4 bg-secondary rounded-md space-y-3'>
@@ -1308,8 +1308,8 @@ export default function Home() {
                                         <Label htmlFor="action-stake-amount" className="sr-only">Commitment (NEAR)</Label>
                                         <Input id="action-stake-amount" type="number" value={actionStakeAmount} onChange={(e) => setActionStakeAmount(e.target.value)} placeholder="Commitment (NEAR)" className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                                     </div>
-                                    <Button onClick={() => handleStake(actionStakeAmount, 'action')} disabled={appState !== 'idle' || !walletConnected || dreamDew < 10 || Number(actionStakeAmount) <= 0} className="w-full sm:w-auto">
-                                        {dreamDew < 10 ? 'Need 10 Dream Dew' : 'Commit & Plant Seed'}
+                                    <Button onClick={() => handleStake(actionStakeAmount, 'action')} disabled={appState !== 'idle' || !walletConnected || intentionPoints < 10 || Number(actionStakeAmount) <= 0} className="w-full sm:w-auto">
+                                        {intentionPoints < 10 ? 'Need 10 Points' : 'Commit & Plant Seed'}
                                     </Button>
                                 </div>
                             )}
@@ -1357,11 +1357,11 @@ export default function Home() {
                                 <p className="text-sm text-muted-foreground">Open-hardware fNIRS device for continuous, non-invasive data collection.</p>
                                 <div className="flex items-center gap-2 text-accent font-bold">
                                     <DewDropIcon className="h-5 w-5"/>
-                                    <span>100 Dream Dew</span>
+                                    <span>100 Intention Points</span>
                                 </div>
                             </div>
-                            <Button onClick={() => handleAcquireDevice(100, 'fnirs')} disabled={dreamDew < 100 || hasFnirsDevice} className="w-full">
-                            {hasFnirsDevice ? 'Acquired' : 'Acquire for 100 Dew'}
+                            <Button onClick={() => handleAcquireDevice(100, 'fnirs')} disabled={intentionPoints < 100 || hasFnirsDevice} className="w-full">
+                            {hasFnirsDevice ? 'Acquired' : 'Acquire for 100 Points'}
                             </Button>
                         </Card>
                         <Card className="p-4 flex flex-col items-start gap-4 hover:bg-secondary/50 transition-colors">
@@ -1371,11 +1371,11 @@ export default function Home() {
                                 <p className="text-sm text-muted-foreground">Certified medical device for providing baseline glucose data to train the model.</p>
                                 <div className="flex items-center gap-2 text-accent font-bold">
                                 <DewDropIcon className="h-5 w-5"/>
-                                <span>150 Dream Dew</span>
+                                <span>150 Intention Points</span>
                                 </div>
                             </div>
-                            <Button onClick={() => handleAcquireDevice(150, 'abbott')} disabled={dreamDew < 150 || hasAbbottDevice} className="w-full">
-                                {hasAbbottDevice ? 'Acquired' : 'Acquire for 150 Dew'}
+                            <Button onClick={() => handleAcquireDevice(150, 'abbott')} disabled={intentionPoints < 150 || hasAbbottDevice} className="w-full">
+                                {hasAbbottDevice ? 'Acquired' : 'Acquire for 150 Points'}
                             </Button>
                         </Card>
                     </CardContent>

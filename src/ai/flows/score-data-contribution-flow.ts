@@ -22,7 +22,7 @@ export type ScoreDataContributionInput = z.infer<typeof ScoreDataContributionInp
 
 const ScoreDataContributionOutputSchema = z.object({
     contributionScore: z.number().min(0).max(100).describe('A score from 0-100 representing the quality and consistency of the paired data. Higher scores are better.'),
-    reward: z.number().min(0).describe('The amount of Dream Dew awarded for this contribution.'),
+    reward: z.number().min(0).describe('The amount of Intention Points awarded for this contribution.'),
     reason: z.string().describe('A brief, user-friendly explanation of the score, highlighting what was good or could be improved.'),
 });
 export type ScoreDataContributionOutput = z.infer<typeof ScoreDataContributionOutputSchema>;
