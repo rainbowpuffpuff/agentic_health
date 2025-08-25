@@ -1130,7 +1130,13 @@ export default function Home() {
     <div className="min-h-screen w-full bg-background text-foreground fade-in">
       <header className="sticky top-0 z-10 border-b border-border/50 bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-          <h1 className="font-headline text-xl md:text-2xl text-primary">think2earn</h1>
+            <a href="/" onClick={(e) => {
+                if(!window.confirm("Are you sure? This will refresh the page and you may lose your current progress.")) {
+                    e.preventDefault();
+                }
+            }}>
+                <h1 className="font-headline text-xl md:text-2xl text-primary">think2earn</h1>
+            </a>
           <div className="flex items-center gap-2 md:gap-4">
             <div className="flex items-center gap-2 rounded-full border border-border/50 bg-card px-3 md:px-4 py-2 text-sm shadow-sm">
                 <DewDropIcon className="h-5 w-5 text-accent" />
@@ -1609,3 +1615,5 @@ export default function Home() {
     </TooltipProvider>
   );
 }
+
+    
