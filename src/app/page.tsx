@@ -1463,7 +1463,7 @@ export default function Home() {
             </a>
           <div className="flex items-center gap-2 md:gap-4">
             <div className="flex items-center gap-2 rounded-full border border-border/50 bg-card px-3 md:px-4 py-2 text-sm shadow-sm">
-                <DewDropIcon className="h-5 w-5 text-accent" />
+                <DewDropIcon className="h-5 w-5 text-primary" />
                 <span className="font-bold text-base md:text-lg">{intentionPoints}</span>
                 <span className="text-muted-foreground hidden sm:inline">Intention Points</span>
             </div>
@@ -1768,7 +1768,7 @@ export default function Home() {
                                     <FileInfoDisplay info={glucoseInfo} />
                                 </div>
                             </div>
-                             {isUploadingData && <ProgressDisplay state={appstate} inCard={false} />}
+                             {isUploadingData && <ProgressDisplay state={appState} inCard={false} />}
                         </CardContent>
                         <CardFooter>
                              <Button type="submit" className="w-full" disabled={!fnirsFile || !glucoseFile || isUploadingData}>
