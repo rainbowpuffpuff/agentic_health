@@ -207,7 +207,7 @@ export default function Home() {
       await getStakedBalance();
       
       if(stakeType === 'rest') {
-          handleBeginSleepRitual();
+          handleBeginSleepVerification();
       } else {
           handleCivicAction();
       }
@@ -269,7 +269,7 @@ export default function Home() {
         }
     };
 
-  const handleBeginSleepRitual = () => {
+  const handleBeginSleepVerification = () => {
     setUploadedImage(null);
     setAppState('taking_photo');
   };
@@ -437,7 +437,7 @@ export default function Home() {
             
             setAppState('minting_dew');
             await runProgress(2000, async () => {
-                // Only unstake if the sleep ritual is successful
+                // Only unstake if the sleep verification is successful
                 if(walletConnected) {
                     await handleUnstake(stakeAmount);
                 }
@@ -671,7 +671,7 @@ export default function Home() {
                 {appState !== 'taking_photo' && (
                     <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5">
                     <CardHeader>
-                        <CardTitle className="font-headline text-2xl">Daily Rituals</CardTitle>
+                        <CardTitle className="font-headline text-2xl">Daily Actions</CardTitle>
                         <CardDescription>Generate proofs of your positive actions by making a commitment.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
@@ -680,13 +680,13 @@ export default function Home() {
                                 <Bed className="h-6 w-6 text-primary" />
                                 <h3 className="font-headline text-lg">Proof of Rest</h3>
                             </div>
-                            <p className="text-sm text-muted-foreground">Commit NEAR as a pledge to your sleep ritual. Your stake is returned with a reward upon successful verification.</p>
+                            <p className="text-sm text-muted-foreground">Commit NEAR as a pledge to your sleep. Your stake is returned with a reward after successful verification.</p>
                             
                             {isRestStaked && walletConnected ? (
                                 <div className='p-4 bg-secondary rounded-md'>
                                     <p className='text-sm font-semibold'>You have <span className="font-bold text-primary">{stakedBalance} NEAR</span> staked.</p>
-                                    <p className="text-xs text-muted-foreground mt-1">Complete the sleep ritual to get it back with a reward.</p>
-                                    <Button onClick={handleBeginSleepRitual} disabled={appState !== 'idle'} className="w-full mt-3">
+                                    <p className="text-xs text-muted-foreground mt-1">Complete the sleep verification to get it back with a reward.</p>
+                                    <Button onClick={handleBeginSleepVerification} disabled={appState !== 'idle'} className="w-full mt-3">
                                         Verify Sleep
                                     </Button>
                                 </div>
@@ -906,7 +906,7 @@ export default function Home() {
                         <div className='flex items-start justify-between gap-4'>
                             <div>
                                 <CardTitle className="font-headline text-2xl">Sleep Log</CardTitle>
-                                <CardDescription>Your private, encrypted memories of rest.</CardDescription>
+                                <CardDescription>Your private, encrypted records of rest.</CardDescription>
                             </div>
                             <Button variant="outline" size="sm" onClick={() => whoopInputRef.current?.click()}>
                                 <UploadCloud className="mr-2 h-4 w-4" />
@@ -942,7 +942,7 @@ export default function Home() {
                                     </div>
                                     </div>
                                 ))}
-                                {journalEntries.length === 0 && <p className="text-center text-muted-foreground pt-16">Complete a Sleep Ritual to start your log.</p>}
+                                {journalEntries.length === 0 && <p className="text-center text-muted-foreground pt-16">Complete a sleep verification to start your log.</p>}
                             </div>
                         </ScrollArea>
                     </CardContent>
