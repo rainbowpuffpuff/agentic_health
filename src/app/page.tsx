@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, UserCog, FileText, Activity, Clock } from 'lucide-react';
+import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, UserCog, FileText, Activity, Clock, BarChart2 } from 'lucide-react';
 import DewDropIcon from '@/components/icons/DewDropIcon';
 import FlowerIcon from '@/components/icons/FlowerIcon';
 import { cn } from '@/lib/utils';
@@ -26,7 +26,7 @@ import { CONTRACT_ID } from '@/lib/constants';
 import { utils, providers } from 'near-api-js';
 import type { CodeResult } from "near-api-js/lib/providers/provider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 type MotionDataPoint = {
@@ -157,11 +157,14 @@ export default function Home() {
   // Motion Sensor State
   const [motionData, setMotionData] = useState<MotionDataPoint[]>([]);
   const motionStartTimeRef = useRef<number | null>(null);
+  const [liveMotionData, setLiveMotionData] = useState<MotionDataPoint[]>([]);
+  const [hasMotionSensor, setHasMotionSensor] = useState<boolean|null>(null);
 
 
   useEffect(() => {
     // Simulate initial loading
     setTimeout(() => setIsLoading(false), 1000);
+    startLiveMotionTracking(); // Attempt to start tracking on load
   }, []);
 
   const getContractOwner = useCallback(async () => {
@@ -611,6 +614,43 @@ export default function Home() {
     window.removeEventListener('devicemotion', handleMotion);
     motionStartTimeRef.current = null;
   }, [handleMotion]);
+  
+  const handleLiveMotion = useCallback((event: DeviceMotionEvent) => {
+    if (event.acceleration?.x && event.acceleration?.y && event.acceleration?.z) {
+        const { x, y, z } = event.acceleration;
+        const magnitude = Math.sqrt(x*x + y*y + z*z);
+
+        setLiveMotionData(prevData => {
+            const newData = [...prevData, { time: Date.now(), magnitude }];
+            // Keep only the last 100 data points for performance
+            return newData.length > 100 ? newData.slice(newData.length - 100) : newData;
+        });
+    }
+  }, []);
+
+  const startLiveMotionTracking = useCallback(async () => {
+    if (hasMotionSensor !== null) return; // Already tried
+
+    if (typeof (DeviceMotionEvent as any)?.requestPermission === 'function') {
+        try {
+            const permissionState = await (DeviceMotionEvent as any).requestPermission();
+            if (permissionState === 'granted') {
+                setHasMotionSensor(true);
+                window.addEventListener('devicemotion', handleLiveMotion);
+            } else {
+                setHasMotionSensor(false);
+            }
+        } catch(error) {
+            setHasMotionSensor(false);
+            console.error("DeviceMotionEvent permission request failed", error);
+        }
+    } else if ('DeviceMotionEvent' in window) {
+        setHasMotionSensor(true);
+        window.addEventListener('devicemotion', handleLiveMotion);
+    } else {
+        setHasMotionSensor(false);
+    }
+  }, [handleLiveMotion, hasMotionSensor]);
 
 
   const handleConfirmPhoto = async () => {
@@ -981,14 +1021,14 @@ export default function Home() {
     )
   }
 
-  const MotionChart = ({ data }: { data: MotionDataPoint[] }) => {
+  const MotionChart = ({ data, title = "Motion Analysis" }: { data: MotionDataPoint[]; title?: string; }) => {
     if (!data || data.length === 0) {
       return <p className="text-sm text-muted-foreground text-center py-4">No motion data recorded for this session.</p>;
     }
   
     return (
       <div className="mt-4">
-        <h4 className="font-headline text-lg mb-2">Motion Analysis</h4>
+        <h4 className="font-headline text-lg mb-2">{title}</h4>
         <ChartContainer config={motionChartConfig} className="h-[150px] w-full">
           <LineChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
             <CartesianGrid vertical={false} strokeDasharray="3 3" />
@@ -1015,7 +1055,9 @@ export default function Home() {
                       <div className="grid grid-cols-2 gap-2">
                         <div className="flex flex-col">
                           <span className="text-[0.70rem] uppercase text-muted-foreground">Time</span>
-                          <span className="font-bold text-muted-foreground">{label}s</span>
+                          <span className="font-bold text-muted-foreground">{label.toLocaleString(undefined, {
+                            timeZoneName: 'short',
+                          })}s</span>
                         </div>
                         <div className="flex flex-col">
                           <span className="text-[0.70rem] uppercase text-muted-foreground">Movement</span>
@@ -1032,6 +1074,33 @@ export default function Home() {
       </div>
     );
   };
+  
+  const LiveMotionChart = () => {
+    return (
+         <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '300ms'}}>
+            <CardHeader>
+                <CardTitle className="font-headline text-2xl flex items-center gap-2"><BarChart2 className="text-primary"/>Live Sensor Data</CardTitle>
+                <CardDescription>Movement data from your device's accelerometer.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {hasMotionSensor === false && <p className="text-sm text-muted-foreground text-center py-4">Motion sensors not available or permission denied on this device.</p>}
+                {hasMotionSensor === null && <div className="flex items-center justify-center p-8 space-x-4"><Loader className="h-8 w-8 animate-spin text-primary" /><p>Accessing sensors...</p></div>}
+                {hasMotionSensor === true && liveMotionData.length > 0 && (
+                     <ChartContainer config={motionChartConfig} className="h-[150px] w-full">
+                        <LineChart data={liveMotionData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                            <CartesianGrid vertical={false} />
+                            <XAxis dataKey="time" type="number" domain={['dataMin', 'dataMax']} tick={false} axisLine={false}/>
+                            <YAxis domain={[0, 'dataMax + 2']} tickLine={false} axisLine={false}/>
+                            <RechartsTooltip content={() => null} />
+                            <Line type="monotone" dataKey="magnitude" stroke="hsl(var(--primary))" strokeWidth={2} dot={false}/>
+                        </LineChart>
+                    </ChartContainer>
+                )}
+                 {hasMotionSensor === true && liveMotionData.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Waiting for motion data...</p>}
+            </CardContent>
+        </Card>
+    )
+  }
 
   return (
     <TooltipProvider>
@@ -1509,6 +1578,7 @@ export default function Home() {
                         </ScrollArea>
                     </CardContent>
                 </Card>
+                 <LiveMotionChart />
             </div>
         </div>
       </main>
@@ -1516,3 +1586,4 @@ export default function Home() {
     </TooltipProvider>
   );
 }
+
