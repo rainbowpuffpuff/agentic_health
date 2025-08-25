@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, UserCog } from 'lucide-react';
+import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, UserCog, RefreshCw } from 'lucide-react';
 import DewDropIcon from '@/components/icons/DewDropIcon';
 import FlowerIcon from '@/components/icons/FlowerIcon';
 import { cn } from '@/lib/utils';
@@ -69,6 +69,8 @@ type StakerInfo = {
     bonus_approved: boolean;
 };
 
+type FullStakerInfo = [string, StakerInfo]; // [AccountId, StakerInfo]
+
 
 const THIRTY_TGAS = "30000000000000";
 const CIVIC_ACTION_STAKE = "0.1"; // 0.1 NEAR for civic action stake
@@ -121,9 +123,8 @@ export default function Home() {
   // Admin state
   const [isAdmin, setIsAdmin] = useState(false);
   const [contractOwner, setContractOwner] = useState<string | null>(null);
-  const [stakerIdToApprove, setStakerIdToApprove] = useState('');
-  const [infoForAddress, setInfoForAddress] = useState<StakerInfo | null>(null);
-  const [isCheckingAddress, setIsCheckingAddress] = useState(false);
+  const [allStakers, setAllStakers] = useState<FullStakerInfo[]>([]);
+  const [isFetchingStakers, setIsFetchingStakers] = useState(false);
 
 
   useEffect(() => {
@@ -146,13 +147,43 @@ export default function Home() {
       });
       const owner = JSON.parse(Buffer.from(res.result).toString());
       setContractOwner(owner);
+      return owner;
     } catch (error) {
       console.error("Failed to get contract owner:", error);
+      return null;
     }
   }, [selector]);
   
-  const getStakerInfo = useCallback(async (stakerId: string) => {
-    if (!selector) return null;
+  const getAllStakers = useCallback(async () => {
+    if (!selector) return;
+    setIsFetchingStakers(true);
+    const { network } = selector.options;
+    const provider = new providers.JsonRpcProvider({ url: network.nodeUrl });
+    try {
+      const res = await provider.query<CodeResult>({
+        request_type: "call_function",
+        finality: "final",
+        account_id: CONTRACT_ID,
+        method_name: "get_stakers",
+        args_base64: btoa(JSON.stringify({ from_index: 0, limit: 100 })), // Fetch up to 100 stakers
+      });
+      const stakers = JSON.parse(Buffer.from(res.result).toString());
+      setAllStakers(stakers);
+    } catch (error) {
+      console.error("Failed to get all stakers:", error);
+      toast({
+        variant: "destructive",
+        title: "Error Fetching Stakers",
+        description: "Could not retrieve the list of stakers.",
+      });
+    } finally {
+        setIsFetchingStakers(false);
+    }
+  }, [selector, toast]);
+
+
+  const getStakerInfo = useCallback(async () => {
+    if (!selector || !signedAccountId) return;
     const { network } = selector.options;
     const provider = new providers.JsonRpcProvider({ url: network.nodeUrl });
 
@@ -162,65 +193,41 @@ export default function Home() {
             finality: "final",
             account_id: CONTRACT_ID,
             method_name: "get_stake_info",
-            args_base64: btoa(JSON.stringify({ staker_id: stakerId })),
+            args_base64: btoa(JSON.stringify({ staker_id: signedAccountId })),
         });
       
       const info = JSON.parse(Buffer.from(res.result).toString());
-      return info;
+      setStakerInfo(info);
     } catch (error) {
-      console.error(`Failed to get staker info for ${stakerId}:`, error);
-      return null;
+      console.error("Failed to get staker info:", error);
+      setStakerInfo(null);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not fetch your staking information from the contract.",
+      });
     }
-  }, [selector]);
-
-  useEffect(() => {
-    getContractOwner();
-  }, [getContractOwner]);
+  }, [selector, signedAccountId, toast]);
 
   useEffect(() => {
     async function checkAdminStatus() {
-        if (walletConnected && signedAccountId && contractOwner) {
-            setIsAdmin(signedAccountId === contractOwner);
+        if (walletConnected && signedAccountId) {
+            const owner = await getContractOwner();
+            const isAdminUser = owner === signedAccountId;
+            setIsAdmin(isAdminUser);
+            if (isAdminUser) {
+                getAllStakers();
+            } else {
+                getStakerInfo();
+            }
         } else {
             setIsAdmin(false);
         }
     }
     checkAdminStatus();
-  }, [walletConnected, signedAccountId, contractOwner]);
+  }, [walletConnected, signedAccountId, getContractOwner, getStakerInfo, getAllStakers]);
 
-  useEffect(() => {
-    async function fetchUserInfo() {
-        if (walletConnected && signedAccountId) {
-            const info = await getStakerInfo(signedAccountId);
-            setStakerInfo(info);
-        } else {
-            setStakerInfo(null);
-        }
-    }
-    fetchUserInfo();
-  }, [walletConnected, signedAccountId, getStakerInfo]);
-
-  useEffect(() => {
-    const checkAddressInfo = async () => {
-        if(stakerIdToApprove.endsWith('.near') && stakerIdToApprove.length > 5) { // Basic validation
-            setIsCheckingAddress(true);
-            const info = await getStakerInfo(stakerIdToApprove);
-            setInfoForAddress(info);
-            setIsCheckingAddress(false);
-        } else {
-            setInfoForAddress(null);
-        }
-    }
-    
-    const debounceCheck = setTimeout(() => {
-        checkAddressInfo();
-    }, 500);
-
-    return () => clearTimeout(debounceCheck);
-
-  }, [stakerIdToApprove, getStakerInfo]);
-
-
+  
   const runProgress = async (duration: number, onComplete?: () => void) => {
     let startTime: number | null = null;
     const animate = (time: number) => {
@@ -270,9 +277,7 @@ export default function Home() {
         title: "Commitment Successful",
         description: `You have committed ${amount} NEAR.`,
       });
-      
-      const updatedInfo = await getStakerInfo(signedAccountId!);
-      setStakerInfo(updatedInfo);
+      await getStakerInfo();
       
       if(stakeType === 'rest') {
           handleBeginSleepVerification();
@@ -321,8 +326,7 @@ export default function Home() {
                 title: "Withdrawal Successful",
                 description: `Your commitment has been returned.`,
             });
-            const updatedInfo = await getStakerInfo(signedAccountId!);
-            setStakerInfo(updatedInfo);
+            await getStakerInfo();
         } catch (error) {
             console.error("Withdrawal failed:", error);
             toast({
@@ -333,8 +337,8 @@ export default function Home() {
         }
     };
     
-    const handleApproveBonus = async (stakerId: string) => {
-        if (!walletConnected || !selector || !isAdmin) {
+    const handleApproveBonus = async (stakerIdToApprove: string) => {
+        if (!walletConnected || !selector || !signedAccountId || !isAdmin) {
             toast({ variant: "destructive", title: "Permission Denied", description: "Only the admin can approve bonuses." });
             return;
         }
@@ -349,18 +353,22 @@ export default function Home() {
                         type: 'FunctionCall',
                         params: {
                             methodName: 'approve_bonus',
-                            args: { staker_id: stakerId },
+                            args: { staker_id: stakerIdToApprove },
                             gas: THIRTY_TGAS,
                             deposit: "0",
                         },
                     },
                 ],
             });
-            toast({ title: "Bonus Approved!", description: `Bonus for ${stakerId} has been approved.` });
+            toast({ title: "Bonus Approved!", description: `Bonus for ${stakerIdToApprove} has been approved.` });
             
-            // Refresh the info for the address
-            const info = await getStakerInfo(stakerId);
-            setInfoForAddress(info);
+            // Refresh the list of stakers to show the new state
+            await getAllStakers();
+            
+            // Also refresh the current user's info if they are the one being approved
+            if (stakerIdToApprove === signedAccountId) {
+                await getStakerInfo();
+            }
 
         } catch(error) {
              toast({ variant: "destructive", title: "Approval Failed", description: (error as Error).message });
@@ -479,12 +487,13 @@ export default function Home() {
           const getIndex = (name: string) => {
             const index = header.findIndex(h => h.trim().toLowerCase() === name.toLowerCase());
             if (index === -1) {
+              // Be flexible with column names
               const alternateNames: {[key: string]: string[]} = {
-                  'cycle start time': ['date'],
-                  'in bed duration (min)': ['time in bed (min)'],
-                  'asleep duration (min)': ['sleep duration (min)', 'asleep (min)'],
+                  'Cycle start time': ['date'],
+                  'In bed duration (min)': ['time in bed (min)'],
+                  'Asleep duration (min)': ['sleep duration (min)', 'asleep (min)'],
               }
-              const alternatives = alternateNames[name.toLowerCase()];
+              const alternatives = alternateNames[name];
               if(alternatives) {
                   for(const alt of alternatives) {
                       const altIndex = header.findIndex(h => h.trim().toLowerCase() === alt.toLowerCase());
@@ -780,51 +789,57 @@ export default function Home() {
   const renderAdminDashboard = () => (
     <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5">
         <CardHeader>
-            <CardTitle className="font-headline text-2xl flex items-center gap-3"><UserCog className="text-primary"/>Admin Dashboard</CardTitle>
-            <CardDescription>Approve staking bonuses for users.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-             <div className="space-y-2">
-                <Label htmlFor="staker-id">Staker Account ID</Label>
-                <div className="flex items-start gap-2">
-                    <div className="flex-grow space-y-2">
-                        <Input 
-                            id="staker-id" 
-                            value={stakerIdToApprove}
-                            onChange={(e) => setStakerIdToApprove(e.target.value)}
-                            placeholder="e.g. user.near"
-                        />
-                        {isCheckingAddress && <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader className="animate-spin" size={16}/> Checking...</p>}
-                        {infoForAddress && (
-                            <Alert>
-                                <AlertTitle className="flex items-center gap-2">
-                                    {infoForAddress.bonus_approved ? <CheckCircle2 className="text-green-500" /> : <AlertTriangle className="text-yellow-500" />}
-                                    Staker Information
-                                </AlertTitle>
-                                <AlertDescription>
-                                    <p>Stake: {utils.format.formatNearAmount(infoForAddress.amount, 4)} NEAR</p>
-                                    <p>Bonus Approved: {infoForAddress.bonus_approved ? 'Yes' : 'No'}</p>
-                                </AlertDescription>
-                            </Alert>
-                        )}
-                        {!isCheckingAddress && stakerIdToApprove.length > 5 && !infoForAddress && (
-                             <Alert variant="destructive">
-                                <AlertTriangle className="h-4 w-4" />
-                                <AlertTitle>Staker Not Found</AlertTitle>
-                                <AlertDescription>
-                                    This account has no stake in this contract.
-                                </AlertDescription>
-                            </Alert>
-                        )}
-                    </div>
-                    <Button 
-                        onClick={() => handleApproveBonus(stakerIdToApprove)} 
-                        disabled={!infoForAddress || infoForAddress.bonus_approved}
-                    >
-                        Approve Bonus
-                    </Button>
+            <div className="flex items-center justify-between">
+                <div>
+                    <CardTitle className="font-headline text-2xl flex items-center gap-3"><UserCog className="text-primary"/>Admin Dashboard</CardTitle>
+                    <CardDescription>View all stakers and approve bonuses.</CardDescription>
                 </div>
-             </div>
+                <Button variant="ghost" size="icon" onClick={getAllStakers} disabled={isFetchingStakers}>
+                    {isFetchingStakers ? <Loader className="animate-spin" /> : <RefreshCw />}
+                </Button>
+            </div>
+        </CardHeader>
+        <CardContent>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Staker Account</TableHead>
+                        <TableHead>Amount Staked (NEAR)</TableHead>
+                        <TableHead>Bonus Status</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {allStakers.length > 0 ? allStakers.map(([accountId, info]) => (
+                        <TableRow key={accountId}>
+                            <TableCell className="font-mono truncate max-w-[200px]">{accountId}</TableCell>
+                            <TableCell>{utils.format.formatNearAmount(info.amount, 4)}</TableCell>
+                            <TableCell>
+                                {info.bonus_approved ? (
+                                    <span className='font-medium text-green-600 flex items-center gap-1'><CheckCircle2 size={16}/> Approved</span>
+                                ) : (
+                                    <span className='font-medium text-muted-foreground flex items-center gap-1'><Loader size={16} className="animate-spin" /> Pending</span>
+                                )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                                <Button
+                                    size="sm"
+                                    onClick={() => handleApproveBonus(accountId)}
+                                    disabled={info.bonus_approved}
+                                >
+                                    Approve Bonus
+                                </Button>
+                            </TableCell>
+                        </TableRow>
+                    )) : (
+                        <TableRow>
+                            <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                                No stakers yet.
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
         </CardContent>
     </Card>
   );
@@ -1293,5 +1308,3 @@ export default function Home() {
     </div>
   );
 }
-
-    

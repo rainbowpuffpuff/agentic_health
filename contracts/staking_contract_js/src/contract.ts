@@ -133,6 +133,19 @@ export class BonusStakingContract {
   get_owner(): AccountId {
     return this.owner_id;
   }
+  
+  // New view function to get all stakers
+  @view({})
+  get_stakers({ from_index = 0, limit = 50 }: { from_index: number, limit: number }): [AccountId, StakerInfo][] {
+    const staker_keys = this.stakers.keys();
+    const result: [AccountId, StakerInfo][] = [];
+    for (let i = from_index; i < staker_keys.length && i < from_index + limit; i++) {
+        const key = staker_keys[i];
+        const value = this.stakers.get(key) as StakerInfo;
+        result.push([key, value]);
+    }
+    return result;
+  }
 }
 
     
