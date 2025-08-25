@@ -1522,7 +1522,7 @@ export default function Home() {
             </a>
           <div className="flex items-center gap-2 md:gap-4">
             <div className="flex items-center gap-2 rounded-full border border-border/50 bg-card px-3 md:px-4 py-2 text-sm shadow-sm">
-                <DewDropIcon className="h-5 w-5 text-primary" />
+                <DewDropIcon className="h-5 w-5 text-accent" />
                 <span className="font-bold text-base md:text-lg">{intentionPoints}</span>
                 <span className="text-muted-foreground hidden sm:inline">Intention Points</span>
             </div>
@@ -1900,7 +1900,7 @@ export default function Home() {
                                 <AlertTriangle className="h-5 w-5 mr-3 mt-1 text-destructive" />
                                 <div>
                                 <h4 className="font-bold text-destructive">Save These Credentials!</h4>
-                                <p className="text-sm text-destructive/80">this is generated locally in your browser so it cannot be retrieved by anyone else</p>
+                                <p className="text-sm text-destructive-foreground">this is generated locally in your browser so it cannot be retrieved by anyone else</p>
                                 </div>
                             </div>
                             </div>
@@ -1978,3 +1978,4 @@ export default function Home() {
     </TooltipProvider>
   );
 }
+
