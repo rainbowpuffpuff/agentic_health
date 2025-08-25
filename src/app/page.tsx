@@ -969,7 +969,7 @@ export default function Home() {
                             {stakerInfo && walletConnected ? (
                                 <div className='p-4 bg-secondary rounded-md space-y-3'>
                                     <div>
-                                        <p className='text-sm font-semibold'>You have <span className="font-bold text-primary">{utils.format.formatNearAmount(stakerInfo.amount)} NEAR</span> committed.</p>
+                                        <p className='text-sm font-semibold'>You have <span className="font-bold text-primary">{utils.format.formatNearAmount(stakerInfo.amount, 4)} NEAR</span> committed.</p>
                                         <p className="text-xs text-muted-foreground mt-1">Complete sleep verification to get it back with a bonus.</p>
                                     </div>
                                     <div className="flex items-center gap-2 text-sm">
@@ -1195,9 +1195,9 @@ export default function Home() {
                         
                         {swarmState === 'keys_generated' && swarmKeys && (
                         <div className="space-y-4">
-                            <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/50 text-destructive-foreground">
+                            <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/50 text-destructive">
                             <div className="flex items-start">
-                                <AlertTriangle className="h-5 w-5 mr-3 mt-1 text-destructive" />
+                                <AlertTriangle className="h-5 w-5 mr-3 mt-1" />
                                 <div>
                                 <h4 className="font-bold">Save These Credentials!</h4>
                                 <p className="text-sm">This is the only time you will see your password. We do not store it. Keep it safe.</p>
