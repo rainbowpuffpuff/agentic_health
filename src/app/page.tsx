@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -17,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { detectSleepingSurface } from '@/ai/flows/detect-sleeping-surface-flow';
 import { scoreDataContribution } from '@/ai/flows/score-data-contribution-flow';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart"
@@ -101,9 +100,10 @@ type FileInfo = {
     cols: number;
 } | null;
 
+type Campaign = 'chat_control' | 'sugar_tax' | 'sleep_compensation';
+
 
 const THIRTY_TGAS = "30000000000000";
-const CIVIC_ACTION_STAKE = "0.1"; // 0.1 NEAR for civic action stake
 type MotionStatus = 'still' | 'slight' | 'heavy';
 
 export default function Home() {
@@ -132,8 +132,7 @@ export default function Home() {
   // Staking state
   const [stakerInfo, setStakerInfo] = useState<StakerInfo | null>(null);
   const [stakeAmount, setStakeAmount] = useState("0.1"); // In NEAR for sleep
-  const [actionStakeAmount, setActionStakeAmount] = useState(CIVIC_ACTION_STAKE);
-  const [isActionStaked, setIsActionStaked] = useState(false); // We'll keep this separate for civic action for now
+  const [selectedCampaign, setSelectedCampaign] = useState<Campaign>('chat_control');
 
   // Swarm State
   const [swarmState, setSwarmState] = useState<'idle' | 'generating_keys' | 'keys_generated' | 'funding' | 'buying_stamps' | 'ready_to_upload'>('idle');
@@ -292,7 +291,7 @@ export default function Home() {
     await new Promise(resolve => setTimeout(resolve, duration));
   };
   
-  const handleStake = async (amount: string, stakeType: 'rest' | 'action') => {
+  const handleStake = async () => {
     if (!walletConnected || !selector) {
       toast({ variant: "destructive", title: "Wallet not connected", description: "Please connect your NEAR wallet to make a commitment." });
       return;
@@ -313,7 +312,7 @@ export default function Home() {
               methodName: 'stake',
               args: {},
               gas: THIRTY_TGAS,
-              deposit: utils.format.parseNearAmount(amount) || "0",
+              deposit: utils.format.parseNearAmount(stakeAmount) || "0",
             },
           },
         ],
@@ -321,18 +320,13 @@ export default function Home() {
       
       toast({
         title: "Commitment Successful",
-        description: `You have committed ${amount} NEAR.`,
+        description: `You have committed ${stakeAmount} NEAR.`,
       });
       
       const updatedInfo = await getStakerInfo(signedAccountId!);
       setStakerInfo(updatedInfo);
       
-      if(stakeType === 'rest') {
-          handleBeginSleepVerification();
-      } else {
-          setIsActionStaked(true); // Manually set for now
-          handleCivicAction();
-      }
+      handleBeginSleepVerification();
 
     } catch (error) {
       console.error("Stake failed:", error);
@@ -789,11 +783,6 @@ export default function Home() {
             return prev;
         });
         setIntentionPoints(prev => Math.max(0, prev - 10));
-        if (walletConnected) {
-            // This part is tricky as the civic action stake is not separated in the contract.
-            // For now, we just update the UI state.
-             setIsActionStaked(false);
-        }
     });
 
     setAppState('idle');
@@ -1404,7 +1393,7 @@ export default function Home() {
                                         <Label htmlFor="stake-amount" className="sr-only">Commitment (NEAR)</Label>
                                         <Input id="stake-amount" type="number" value={stakeAmount} onChange={(e) => setStakeAmount(e.target.value)} placeholder="Commitment (NEAR)" className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                                     </div>
-                                    <Button onClick={() => handleStake(stakeAmount, 'rest')} disabled={appState !== 'idle' || !walletConnected || Number(stakeAmount) <= 0} className="w-full sm:w-auto">
+                                    <Button onClick={handleStake} disabled={appState !== 'idle' || !walletConnected || Number(stakeAmount) <= 0} className="w-full sm:w-auto">
                                         Commit & Begin
                                     </Button>
                                 </div>
@@ -1416,26 +1405,40 @@ export default function Home() {
                                 <Mail className="h-6 w-6 text-primary" />
                                 <h3 className="font-headline text-lg">Proof of Action</h3>
                             </div>
-                            <p className="text-sm text-muted-foreground">Commit NEAR and spend 10 Intention Points to prove you've contacted a representative. Your anonymous action will be added to the public registry, and your commitment returned.</p>
-
-                            {isActionStaked && walletConnected ? (
-                                <div className='p-4 bg-secondary rounded-md space-y-3'>
-                                    <p className='text-sm font-semibold'>You have a civic action commitment active.</p>
-                                    <Button onClick={handleCivicAction} disabled={appState !== 'idle'} className="w-full mt-2">
-                                        Verify Action
-                                    </Button>
-                                </div>
-                            ) : (
-                                <div className="flex flex-col sm:flex-row items-stretch gap-2">
-                                    <div className="flex-grow">
-                                        <Label htmlFor="action-stake-amount" className="sr-only">Commitment (NEAR)</Label>
-                                        <Input id="action-stake-amount" type="number" value={actionStakeAmount} onChange={(e) => setActionStakeAmount(e.target.value)} placeholder="Commitment (NEAR)" className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                            <p className="text-sm text-muted-foreground">Select a campaign, spend 10 Intention Points to prove you've taken action, and watch your garden grow.</p>
+                             <RadioGroup value={selectedCampaign} onValueChange={(value) => setSelectedCampaign(value as Campaign)}>
+                                <Label htmlFor="chat_control">
+                                    <div className={cn("flex items-start gap-4 rounded-md border p-3 cursor-pointer", {'border-primary ring-2 ring-primary': selectedCampaign === 'chat_control'})}>
+                                        <RadioGroupItem value="chat_control" id="chat_control" className="mt-1" />
+                                        <div className="space-y-1">
+                                            <p className="font-medium">Stop Chat Control</p>
+                                            <p className="text-sm text-muted-foreground">The EU is working on a law that would monitor all citizens' communications. Voice your opposition to this mass surveillance proposal.</p>
+                                        </div>
                                     </div>
-                                    <Button onClick={() => handleStake(actionStakeAmount, 'action')} disabled={appState !== 'idle' || !walletConnected || intentionPoints < 10 || Number(actionStakeAmount) <= 0} className="w-full sm:w-auto">
-                                        {intentionPoints < 10 ? 'Need 10 Points' : 'Commit & Plant Seed'}
-                                    </Button>
-                                </div>
-                            )}
+                                </Label>
+                                 <Label htmlFor="sugar_tax">
+                                    <div className={cn("flex items-start gap-4 rounded-md border p-3 cursor-pointer", {'border-primary ring-2 ring-primary': selectedCampaign === 'sugar_tax'})}>
+                                        <RadioGroupItem value="sugar_tax" id="sugar_tax" className="mt-1" />
+                                        <div className="space-y-1">
+                                            <p className="font-medium">Should sugar be taxed?</p>
+                                            <p className="text-sm text-muted-foreground">Contribute your opinion to the debate on whether a sugar tax is an effective public health policy for combating obesity and related diseases.</p>
+                                        </div>
+                                    </div>
+                                </Label>
+                                 <Label htmlFor="sleep_compensation">
+                                    <div className={cn("flex items-start gap-4 rounded-md border p-3 cursor-pointer", {'border-primary ring-2 ring-primary': selectedCampaign === 'sleep_compensation'})}>
+                                        <RadioGroupItem value="sleep_compensation" id="sleep_compensation" className="mt-1" />
+                                        <div className="space-y-1">
+                                            <p className="font-medium">Should sleep be compensated?</p>
+                                            <p className="text-sm text-muted-foreground">Argue for or against the idea that adequate sleep, which boosts productivity and reduces errors, should be recognized or compensated by employers.</p>
+                                        </div>
+                                    </div>
+                                </Label>
+                            </RadioGroup>
+                            <Button onClick={handleCivicAction} disabled={appState !== 'idle' || intentionPoints < 10} className="w-full">
+                                <Sprout className="mr-2 h-4 w-4"/>
+                                {intentionPoints < 10 ? 'Need 10 Points' : 'Plant the Seed for 10 Points'}
+                            </Button>
                         </div>
 
                         {appState !== 'idle' && appState !== 'taking_photo' && (
@@ -1621,7 +1624,7 @@ export default function Home() {
                                 <AlertTriangle className="h-5 w-5 mr-3 mt-1 text-destructive" />
                                 <div>
                                 <h4 className="font-bold text-destructive">Save These Credentials!</h4>
-                                <p className="text-sm">This is generated locally in your browser so it cannot be retrieved by anyone else.</p>
+                                <p className="text-sm">this is generated locally in your browser so it cannot be retrieved by anyone else</p>
                                 </div>
                             </div>
                             </div>
