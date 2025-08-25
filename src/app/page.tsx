@@ -102,6 +102,26 @@ type FileInfo = {
 
 type Campaign = 'chat_control' | 'sugar_tax' | 'sleep_compensation';
 
+type CampaignState = 'idle' | 'email_pending';
+
+const CAMPAIGN_DETAILS: Record<Campaign, { title: string; description: string; subject: string }> = {
+    chat_control: {
+        title: "Stop Chat Control",
+        description: "The EU is working on a law that would monitor all citizens' communications. Voice your opposition to this mass surveillance proposal.",
+        subject: "Regarding the 'Chat Control' Proposal",
+    },
+    sugar_tax: {
+        title: "Should sugar be taxed?",
+        description: "Contribute your opinion to the debate on whether a sugar tax is an effective public health policy for combating obesity and related diseases.",
+        subject: "Opinion on Sugar Taxation Policy"
+    },
+    sleep_compensation: {
+        title: "Should sleep be compensated?",
+        description: "Argue for or against the idea that adequate sleep, which boosts productivity and reduces errors, should be recognized or compensated by employers.",
+        subject: "The Economic Case for Sleep Compensation"
+    }
+};
+
 
 const THIRTY_TGAS = "30000000000000";
 type MotionStatus = 'still' | 'slight' | 'heavy';
@@ -132,7 +152,15 @@ export default function Home() {
   // Staking state
   const [stakerInfo, setStakerInfo] = useState<StakerInfo | null>(null);
   const [stakeAmount, setStakeAmount] = useState("0.1"); // In NEAR for sleep
+
+  // Civic Action State
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign>('chat_control');
+  const [campaignStates, setCampaignStates] = useState<Record<Campaign, CampaignState>>({
+      chat_control: 'idle',
+      sugar_tax: 'idle',
+      sleep_compensation: 'idle'
+  });
+  const emailUploadRef = useRef<HTMLInputElement>(null);
 
   // Swarm State
   const [swarmState, setSwarmState] = useState<'idle' | 'generating_keys' | 'keys_generated' | 'funding' | 'buying_stamps' | 'ready_to_upload'>('idle');
@@ -764,30 +792,67 @@ export default function Home() {
   };
 
 
-  const handleCivicAction = async () => {
-    setAppState('taking_action');
-    await runProgress(2000);
-    
-    setAppState('generating_action_proof');
-    await runProgress(3000);
-    
-    setAppState('planting_seed');
-    await runProgress(1500, async () => {
-        setGardenFlowers(prev => {
-            const firstUnlockedIndex = prev.findIndex(f => !f.unlocked);
-            if(firstUnlockedIndex !== -1) {
-                const newFlowers = [...prev];
-                newFlowers[firstUnlockedIndex].unlocked = true;
-                return newFlowers;
-            }
-            return prev;
-        });
-        setIntentionPoints(prev => Math.max(0, prev - 10));
+  const handleSendEmail = (campaign: Campaign) => {
+    const details = CAMPAIGN_DETAILS[campaign];
+    const mailtoLink = `mailto:test@gmail.com?subject=${encodeURIComponent(details.subject)}`;
+    window.location.href = mailtoLink;
+    setCampaignStates(prev => ({ ...prev, [campaign]: 'email_pending' }));
+    toast({
+        title: "Action Required",
+        description: "Your email client has been opened. Please send the email and then upload the .eml file to complete verification.",
+        duration: 8000,
     });
-
-    setAppState('idle');
-    setProgress(0);
   };
+
+  const handleEmailUpload = (e: React.ChangeEvent<HTMLInputElement>, campaign: Campaign) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+        const emailContent = event.target?.result as string;
+
+        setAppState('generating_action_proof');
+        await runProgress(2000);
+
+        // Simple regex to check for DKIM-Signature header
+        const dkimRegex = /DKIM-Signature/i;
+        if (dkimRegex.test(emailContent)) {
+            setAppState('planting_seed');
+            await runProgress(1500);
+
+            setIntentionPoints(prev => Math.max(0, prev - 10));
+            setGardenFlowers(prev => {
+                const firstUnlockedIndex = prev.findIndex(f => !f.unlocked);
+                if(firstUnlockedIndex !== -1) {
+                    const newFlowers = [...prev];
+                    newFlowers[firstUnlockedIndex].unlocked = true;
+                    return newFlowers;
+                }
+                return prev;
+            });
+            
+            toast({
+                title: "Action Verified!",
+                description: "Your civic action has been recorded on-chain. A new flower has bloomed!",
+            });
+            setCampaignStates(prev => ({ ...prev, [campaign]: 'verified' }));
+        } else {
+            toast({
+                variant: "destructive",
+                title: "Verification Failed",
+                description: "No DKIM signature found in the uploaded email. Please ensure you upload the correct .eml file.",
+                duration: 6000
+            });
+        }
+        setAppState('idle');
+        setProgress(0);
+        // Reset the input so the same file can be uploaded again if needed
+        if (emailUploadRef.current) emailUploadRef.current.value = '';
+    };
+    reader.readAsText(file);
+  };
+
 
   const handleAcquireDevice = (cost: number, device: 'fnirs' | 'abbott') => {
     if (intentionPoints >= cost) {
@@ -1278,6 +1343,7 @@ export default function Home() {
       <Input type="file" accept=".csv" ref={whoopInputRef} onChange={handleWhoopImport} className="hidden" />
       <Input type="file" accept=".csv,.txt" ref={fnirsInputRef} onChange={handleFnirsUpload} className="hidden" />
       <Input type="file" accept=".csv,.txt" ref={glucoseInputRef} onChange={handleGlucoseUpload} className="hidden" />
+      <Input type="file" accept=".eml,.txt" ref={emailUploadRef} onChange={(e) => handleEmailUpload(e, selectedCampaign)} className="hidden" />
 
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
@@ -1405,40 +1471,53 @@ export default function Home() {
                                 <Mail className="h-6 w-6 text-primary" />
                                 <h3 className="font-headline text-lg">Proof of Action</h3>
                             </div>
-                            <p className="text-sm text-muted-foreground">Select a campaign, spend 10 Intention Points to prove you've taken action, and watch your garden grow.</p>
-                             <RadioGroup value={selectedCampaign} onValueChange={(value) => setSelectedCampaign(value as Campaign)}>
-                                <Label htmlFor="chat_control">
-                                    <div className={cn("flex items-start gap-4 rounded-md border p-3 cursor-pointer", {'border-primary ring-2 ring-primary': selectedCampaign === 'chat_control'})}>
-                                        <RadioGroupItem value="chat_control" id="chat_control" className="mt-1" />
-                                        <div className="space-y-1">
-                                            <p className="font-medium">Stop Chat Control</p>
-                                            <p className="text-sm text-muted-foreground">The EU is working on a law that would monitor all citizens' communications. Voice your opposition to this mass surveillance proposal.</p>
-                                        </div>
-                                    </div>
-                                </Label>
-                                 <Label htmlFor="sugar_tax">
-                                    <div className={cn("flex items-start gap-4 rounded-md border p-3 cursor-pointer", {'border-primary ring-2 ring-primary': selectedCampaign === 'sugar_tax'})}>
-                                        <RadioGroupItem value="sugar_tax" id="sugar_tax" className="mt-1" />
-                                        <div className="space-y-1">
-                                            <p className="font-medium">Should sugar be taxed?</p>
-                                            <p className="text-sm text-muted-foreground">Contribute your opinion to the debate on whether a sugar tax is an effective public health policy for combating obesity and related diseases.</p>
-                                        </div>
-                                    </div>
-                                </Label>
-                                 <Label htmlFor="sleep_compensation">
-                                    <div className={cn("flex items-start gap-4 rounded-md border p-3 cursor-pointer", {'border-primary ring-2 ring-primary': selectedCampaign === 'sleep_compensation'})}>
-                                        <RadioGroupItem value="sleep_compensation" id="sleep_compensation" className="mt-1" />
-                                        <div className="space-y-1">
-                                            <p className="font-medium">Should sleep be compensated?</p>
-                                            <p className="text-sm text-muted-foreground">Argue for or against the idea that adequate sleep, which boosts productivity and reduces errors, should be recognized or compensated by employers.</p>
-                                        </div>
-                                    </div>
-                                </Label>
+                            <p className="text-sm text-muted-foreground">Select a campaign and send a signed email to prove you've taken action. Costs 10 Intention Points.</p>
+                             <RadioGroup value={selectedCampaign} onValueChange={(value) => setSelectedCampaign(value as Campaign)} className="space-y-2">
+                                {Object.keys(CAMPAIGN_DETAILS).map((campaignKey) => {
+                                    const campaign = campaignKey as Campaign;
+                                    const details = CAMPAIGN_DETAILS[campaign];
+                                    const campaignState = campaignStates[campaign];
+
+                                    return (
+                                        <Label key={campaign} htmlFor={campaign} className={cn("flex flex-col gap-2 rounded-md border p-3 cursor-pointer", {'border-primary ring-2 ring-primary': selectedCampaign === campaign, 'opacity-50 cursor-not-allowed': campaignState === 'verified'})}>
+                                            <div className="flex items-start gap-3">
+                                                <RadioGroupItem value={campaign} id={campaign} className="mt-1" disabled={campaignState === 'verified'} />
+                                                <div className="flex-grow space-y-1">
+                                                    <p className="font-medium">{details.title}</p>
+                                                    <p className="text-sm text-muted-foreground">{details.description}</p>
+                                                </div>
+                                            </div>
+                                            {selectedCampaign === campaign && campaignState !== 'verified' && (
+                                                <div className="pt-2 pl-7">
+                                                    {campaignState === 'idle' && (
+                                                        <Button onClick={() => handleSendEmail(campaign)} disabled={appState !== 'idle' || intentionPoints < 10} className="w-full" size="sm">
+                                                            <Mail className="mr-2"/>
+                                                            {intentionPoints < 10 ? 'Need 10 Points' : 'Send Email for 10 Points'}
+                                                        </Button>
+                                                    )}
+                                                    {campaignState === 'email_pending' && (
+                                                         <Button onClick={() => emailUploadRef.current?.click()} disabled={appState !== 'idle'} className="w-full" size="sm" variant="outline">
+                                                             <Upload className="mr-2"/>
+                                                            Upload Signed Email (.eml/.txt)
+                                                         </Button>
+                                                    )}
+                                                </div>
+                                            )}
+                                            {campaignState === 'verified' && (
+                                                 <div className="pt-2 pl-7">
+                                                    <Alert variant="default" className="border-green-500 text-green-700">
+                                                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                                        <AlertTitle>Action Verified!</AlertTitle>
+                                                        <AlertDescription>
+                                                           You have successfully completed this action.
+                                                        </AlertDescription>
+                                                    </Alert>
+                                                 </div>
+                                            )}
+                                        </Label>
+                                    )
+                                })}
                             </RadioGroup>
-                            <Button onClick={handleCivicAction} disabled={appState !== 'idle' || intentionPoints < 10} className="w-full">
-                                <Sprout className="mr-2 h-4 w-4"/>
-                                {intentionPoints < 10 ? 'Need 10 Points' : 'Plant the Seed for 10 Points'}
-                            </Button>
                         </div>
 
                         {appState !== 'idle' && appState !== 'taking_photo' && (
