@@ -93,6 +93,7 @@ export default function Home() {
   // Staking state
   const [stakerInfo, setStakerInfo] = useState<StakerInfo | null>(null);
   const [stakeAmount, setStakeAmount] = useState("0.1"); // In NEAR for sleep
+  const [actionStakeAmount, setActionStakeAmount] = useState(CIVIC_ACTION_STAKE);
   const [isActionStaked, setIsActionStaked] = useState(false); // We'll keep this separate for civic action for now
 
   // Swarm State
@@ -988,7 +989,7 @@ export default function Home() {
                                 <Mail className="h-6 w-6 text-primary" />
                                 <h3 className="font-headline text-lg">Proof of Action</h3>
                             </div>
-                            <p className="text-sm text-muted-foreground">Commit {CIVIC_ACTION_STAKE} NEAR and spend 10 Dream Dew to prove you've contacted a representative. Your anonymous action will be added to the public registry, and your commitment returned.</p>
+                            <p className="text-sm text-muted-foreground">Commit NEAR and spend 10 Dream Dew to prove you've contacted a representative. Your anonymous action will be added to the public registry, and your commitment returned.</p>
 
                             {isActionStaked && walletConnected ? (
                                 <div className='p-4 bg-secondary rounded-md'>
@@ -998,9 +999,15 @@ export default function Home() {
                                     </Button>
                                 </div>
                             ) : (
-                                <Button onClick={() => handleStake(CIVIC_ACTION_STAKE, 'action')} disabled={appState !== 'idle' || !walletConnected || dreamDew < 10} variant="outline" className="w-full">
-                                    {dreamDew < 10 ? 'Need 10 Dream Dew' : `Commit ${CIVIC_ACTION_STAKE} NEAR & Plant Seed`}
-                                </Button>
+                                <div className="flex items-end gap-2">
+                                    <div className="flex-grow">
+                                        <Label htmlFor="action-stake-amount">Commitment (NEAR)</Label>
+                                        <Input id="action-stake-amount" type="number" value={actionStakeAmount} onChange={(e) => setActionStakeAmount(e.target.value)} className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                                    </div>
+                                    <Button onClick={() => handleStake(actionStakeAmount, 'action')} disabled={appState !== 'idle' || !walletConnected || dreamDew < 10 || Number(actionStakeAmount) <= 0}>
+                                        {dreamDew < 10 ? 'Need 10 Dream Dew' : 'Commit & Plant Seed'}
+                                    </Button>
+                                </div>
                             )}
                         </div>
 
@@ -1304,5 +1311,6 @@ export default function Home() {
     
 
     
+
 
 
