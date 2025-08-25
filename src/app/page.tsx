@@ -1677,7 +1677,7 @@ export default function Home() {
                                     </Button>
                                 </div>
                             )}
-                            {isVerifyingSleep && <ProgressDisplay state={appState} />}
+                            {isVerifyingSleep && <ProgressDisplay state={appState} inCard={false} />}
                         </div>
 
                         <div className="space-y-4 rounded-lg border p-4 hover:border-primary/20 transition-colors">
@@ -1732,7 +1732,7 @@ export default function Home() {
                                     )
                                 })}
                             </RadioGroup>
-                            {isVerifyingAction && <ProgressDisplay state={appState} />}
+                            {isVerifyingAction && <ProgressDisplay state={appState} inCard={false} />}
                         </div>
                     </CardContent>
                     </Card>
@@ -1771,11 +1771,11 @@ export default function Home() {
                     </CardHeader>
                     <CardContent className="grid sm:grid-cols-2 gap-4">
                         <Card className="p-4 flex flex-col items-start gap-4 hover:bg-secondary/50 transition-colors">
-                            <Image src="https://placehold.co/600x400/171717/808080?text=fNIRS+Device" alt="Futuristic fNIRS armband wearable" width={600} height={400} className="rounded-lg self-center aspect-video object-cover" data-ai-hint="futuristic armband" />
+                            <Image src="https://placehold.co/600x400?text=fNIRS+Device" alt="Futuristic fNIRS armband wearable" width={600} height={400} className="rounded-lg self-center aspect-video object-cover" data-ai-hint="futuristic armband" />
                             <div className="flex-grow space-y-2">
                                 <h3 className="font-headline text-lg">fNIRS Armband</h3>
                                 <p className="text-sm text-muted-foreground">Open-hardware fNIRS device for continuous, non-invasive data collection.</p>
-                                <div className="flex items-center gap-2 text-accent font-bold">
+                                <div className="flex items-center gap-2 text-primary font-bold">
                                     <DewDropIcon className="h-5 w-5"/>
                                     <span>100 Intention Points</span>
                                 </div>
@@ -1785,11 +1785,11 @@ export default function Home() {
                             </Button>
                         </Card>
                         <Card className="p-4 flex flex-col items-start gap-4 hover:bg-secondary/50 transition-colors">
-                            <Image src="https://placehold.co/400x400/171717/808080?text=Glucose+Monitor" alt="Small, circular glucose monitoring device" width={400} height={400} className="rounded-lg self-center aspect-square object-cover" data-ai-hint="medical sensor" />
+                            <Image src="https://placehold.co/400x400?text=Glucose+Monitor" alt="Small, circular glucose monitoring device" width={400} height={400} className="rounded-lg self-center aspect-square object-cover" data-ai-hint="medical sensor" />
                             <div className="flex-grow space-y-2">
                                 <h3 className="font-headline text-lg">Abbott Glucose Monitor</h3>
                                 <p className="text-sm text-muted-foreground">Certified medical device for providing baseline glucose data to train the model.</p>
-                                <div className="flex items-center gap-2 text-accent font-bold">
+                                <div className="flex items-center gap-2 text-primary font-bold">
                                 <DewDropIcon className="h-5 w-5"/>
                                 <span>150 Intention Points</span>
                                 </div>
@@ -1895,7 +1895,7 @@ export default function Home() {
                         
                         {swarmState === 'keys_generated' && swarmKeys && (
                         <div className="space-y-4">
-                            <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/50 text-destructive-foreground">
+                            <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/50">
                             <div className="flex items-start">
                                 <AlertTriangle className="h-5 w-5 mr-3 mt-1 text-destructive" />
                                 <div>
@@ -1919,8 +1919,7 @@ export default function Home() {
                             </div>
                             </div>
                             <div className="space-y-2">
-                            <Label htmlFor="password">Password</Label>
-                            <div className="flex items-center gap-2">
+                            <Label htmlFor="password">Password</Label>                            <div className="flex items-center gap-2">
                                 <Input id="password" value={swarmKeys.password} readOnly />
                                 <Button variant="ghost" size="icon" onClick={() => copyToClipboard(swarmKeys.password)}><Copy/></Button>
                             </div>
