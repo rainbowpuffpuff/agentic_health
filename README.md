@@ -36,10 +36,6 @@ export CONTRACT_ID=stake-bonus-js.$ADMIN_ID
 Step 2: Build and Deploy the Contract
 
 These commands compile the contract and deploy it to the mainnet.
-code Bash
-IGNORE_WHEN_COPYING_START
-IGNORE_WHEN_COPYING_END
-
     
 # 1. Navigate to the JS contract directory
 cd contracts/staking_contract_js
@@ -65,10 +61,6 @@ near deploy $CONTRACT_ID --wasmFile ./contracts/staking_contract_js/build/contra
 Step 3: Test the Full Flow on Mainnet
 
 This sequence tests all the functions of the live contract.
-code Bash
-IGNORE_WHEN_COPYING_START
-IGNORE_WHEN_COPYING_END
-
     
 # 1. ADMIN: Deposit 0.01 NEAR into the reward pool
 near call $CONTRACT_ID deposit_reward_funds --accountId $ADMIN_ID --deposit 0.01 --networkId mainnet
