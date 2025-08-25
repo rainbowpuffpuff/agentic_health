@@ -96,6 +96,7 @@ type FileInfo = {
 
 const THIRTY_TGAS = "30000000000000";
 const CIVIC_ACTION_STAKE = "0.1"; // 0.1 NEAR for civic action stake
+type MotionStatus = 'still' | 'slight' | 'heavy';
 
 export default function Home() {
   const [dreamDew, setDreamDew] = useState(250); // Start with enough dew to test
@@ -157,8 +158,9 @@ export default function Home() {
   // Motion Sensor State
   const [motionData, setMotionData] = useState<MotionDataPoint[]>([]);
   const motionStartTimeRef = useRef<number | null>(null);
-  const [liveMotionData, setLiveMotionData] = useState<MotionDataPoint[]>([]);
+  const [liveMotionStatus, setLiveMotionStatus] = useState<MotionStatus>('still');
   const [hasMotionSensor, setHasMotionSensor] = useState<boolean|null>(null);
+  const motionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
 
   useEffect(() => {
@@ -618,13 +620,24 @@ export default function Home() {
   const handleLiveMotion = useCallback((event: DeviceMotionEvent) => {
     if (event.acceleration?.x && event.acceleration?.y && event.acceleration?.z) {
         const { x, y, z } = event.acceleration;
-        const magnitude = Math.sqrt(x*x + y*y + z*z);
+        // The resting state magnitude is around 9.8 (gravity). We subtract this to focus on user-generated movement.
+        const magnitude = Math.abs(Math.sqrt(x*x + y*y + z*z) - 9.8);
 
-        setLiveMotionData(prevData => {
-            const newData = [...prevData, { time: Date.now(), magnitude }];
-            // Keep only the last 100 data points for performance
-            return newData.length > 100 ? newData.slice(newData.length - 100) : newData;
-        });
+        let newStatus: MotionStatus = 'still';
+        if (magnitude > 1.5) { // Threshold for heavy movement
+            newStatus = 'heavy';
+        } else if (magnitude > 0.2) { // Threshold for slight movement
+            newStatus = 'slight';
+        }
+        setLiveMotionStatus(newStatus);
+        
+        // Reset to 'still' after a short period of no movement
+        if(motionTimeoutRef.current) {
+            clearTimeout(motionTimeoutRef.current);
+        }
+        motionTimeoutRef.current = setTimeout(() => {
+            setLiveMotionStatus('still');
+        }, 1000);
     }
   }, []);
 
@@ -1074,32 +1087,43 @@ export default function Home() {
     );
   };
   
-  const LiveMotionChart = () => {
+  const LiveMotionStatus = () => {
+    const statusConfig = {
+      still: {
+        color: "bg-green-500",
+        text: "Still",
+      },
+      slight: {
+        color: "bg-yellow-500",
+        text: "Slight Movement",
+      },
+      heavy: {
+        color: "bg-red-500",
+        text: "Heavy Movement",
+      },
+    };
+
+    const currentStatus = statusConfig[liveMotionStatus];
+
     return (
-         <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '300ms'}}>
-            <CardHeader>
-                <CardTitle className="font-headline text-2xl flex items-center gap-2"><BarChart2 className="text-primary"/>Live Sensor Data</CardTitle>
-                <CardDescription>Movement data from your device's accelerometer.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                {hasMotionSensor === false && <p className="text-sm text-muted-foreground text-center py-4">Motion sensors not available or permission denied on this device.</p>}
-                {hasMotionSensor === null && <div className="flex items-center justify-center p-8 space-x-4"><Loader className="h-8 w-8 animate-spin text-primary" /><p>Accessing sensors...</p></div>}
-                {hasMotionSensor === true && liveMotionData.length > 0 && (
-                     <ChartContainer config={motionChartConfig} className="h-[150px] w-full">
-                        <LineChart data={liveMotionData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                            <CartesianGrid vertical={false} />
-                            <XAxis dataKey="time" type="number" domain={['dataMin', 'dataMax']} tick={false} axisLine={false}/>
-                            <YAxis domain={[0, 'dataMax + 2']} tick={false} axisLine={false}/>
-                            <RechartsTooltip content={() => null} />
-                            <Line type="monotone" dataKey="magnitude" stroke="hsl(var(--primary))" strokeWidth={2} dot={false}/>
-                        </LineChart>
-                    </ChartContainer>
-                )}
-                 {hasMotionSensor === true && liveMotionData.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Waiting for motion data...</p>}
-            </CardContent>
-        </Card>
-    )
-  }
+      <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5" style={{ animationDelay: '300ms' }}>
+        <CardHeader>
+          <CardTitle className="font-headline text-2xl flex items-center gap-2"><BarChart2 className="text-primary" />Live Sensor Data</CardTitle>
+          <CardDescription>Movement data from your device's accelerometer.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {hasMotionSensor === false && <p className="text-sm text-muted-foreground text-center py-4">Motion sensors not available or permission denied on this device.</p>}
+          {hasMotionSensor === null && <div className="flex items-center justify-center p-8 space-x-4"><Loader className="h-8 w-8 animate-spin text-primary" /><p>Accessing sensors...</p></div>}
+          {hasMotionSensor === true && (
+            <div className="flex items-center justify-center p-8 space-x-4">
+              <div className={cn("h-6 w-6 rounded-full transition-colors", currentStatus.color)} />
+              <p className="font-medium text-lg">{currentStatus.text}</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <TooltipProvider>
@@ -1453,11 +1477,11 @@ export default function Home() {
                         
                         {swarmState === 'keys_generated' && swarmKeys && (
                         <div className="space-y-4">
-                            <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/50 text-destructive">
+                            <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/50 text-destructive-foreground">
                             <div className="flex items-start">
-                                <AlertTriangle className="h-5 w-5 mr-3 mt-1" />
+                                <AlertTriangle className="h-5 w-5 mr-3 mt-1 text-destructive" />
                                 <div>
-                                <h4 className="font-bold">Save These Credentials!</h4>
+                                <h4 className="font-bold text-destructive">Save These Credentials!</h4>
                                 <p className="text-sm">This is generated locally in your browser so it cannot be retrieved by anyone else.</p>
                                 </div>
                             </div>
@@ -1577,7 +1601,7 @@ export default function Home() {
                         </ScrollArea>
                     </CardContent>
                 </Card>
-                 <LiveMotionChart />
+                 <LiveMotionStatus />
             </div>
         </div>
       </main>
