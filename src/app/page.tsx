@@ -1665,7 +1665,7 @@ export default function Home() {
                     </CardHeader>
                     <CardContent className="grid sm:grid-cols-2 gap-4">
                         <Card className="p-4 flex flex-col items-start gap-4 hover:bg-secondary/50 transition-colors">
-                            <Image src="https://picsum.photos/600/400" alt="Futuristic fNIRS armband wearable" width={600} height={400} className="rounded-lg self-center aspect-video object-cover" data-ai-hint="wearable technology"/>
+                            <Image src="https://placehold.co/600x400/171717/808080?text=fNIRS+Device" alt="Futuristic fNIRS armband wearable" width={600} height={400} className="rounded-lg self-center aspect-video object-cover" />
                             <div className="flex-grow space-y-2">
                                 <h3 className="font-headline text-lg">fNIRS Armband</h3>
                                 <p className="text-sm text-muted-foreground">Open-hardware fNIRS device for continuous, non-invasive data collection.</p>
@@ -1679,7 +1679,7 @@ export default function Home() {
                             </Button>
                         </Card>
                         <Card className="p-4 flex flex-col items-start gap-4 hover:bg-secondary/50 transition-colors">
-                            <Image src="https://picsum.photos/400/400" alt="Small, circular glucose monitoring device" width={400} height={400} className="rounded-lg self-center aspect-square object-cover" data-ai-hint="medical device"/>
+                            <Image src="https://placehold.co/400x400/171717/808080?text=Glucose+Monitor" alt="Small, circular glucose monitoring device" width={400} height={400} className="rounded-lg self-center aspect-square object-cover" />
                             <div className="flex-grow space-y-2">
                                 <h3 className="font-headline text-lg">Abbott Glucose Monitor</h3>
                                 <p className="text-sm text-muted-foreground">Certified medical device for providing baseline glucose data to train the model.</p>
