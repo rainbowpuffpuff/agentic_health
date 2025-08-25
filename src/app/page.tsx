@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload } from 'lucide-react';
+import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2 } from 'lucide-react';
 import DewDropIcon from '@/components/icons/DewDropIcon';
 import FlowerIcon from '@/components/icons/FlowerIcon';
 import { cn } from '@/lib/utils';
@@ -22,12 +22,21 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
 import { useWalletSelector } from '@/components/WalletProvider';
 import { CONTRACT_ID } from '@/lib/constants';
 import { utils } from 'near-api-js';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type JournalEntry = {
   id: number;
   date: string;
   sleep: string;
   imageUrl: string;
+};
+
+type PairedDataEntry = {
+  id: number;
+  date: string;
+  fnirsFile: string;
+  glucoseLevel: number;
+  contributionScore: number;
 };
 
 type SwarmKeys = {
@@ -65,7 +74,7 @@ export default function Home() {
 
 
   const [isLoading, setIsLoading] = useState(true);
-  const [appState, setAppState] = useState<'idle' | 'sleeping' | 'generating_sleep_proof' | 'minting_dew' | 'taking_action' | 'generating_action_proof' | 'planting_seed' | 'taking_photo' | 'analyzing_photo'>('idle');
+  const [appState, setAppState] = useState<'idle' | 'sleeping' | 'generating_sleep_proof' | 'minting_dew' | 'taking_action' | 'generating_action_proof' | 'planting_seed' | 'taking_photo' | 'analyzing_photo' | 'uploading_data'>('idle');
   const [progress, setProgress] = useState(0);
   const { toast } = useToast();
 
@@ -92,10 +101,16 @@ export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const whoopInputRef = useRef<HTMLInputElement>(null);
+  const fnirsInputRef = useRef<HTMLInputElement>(null);
   const [uploadedImage, setUploadedImage] = useState<{url: string, date: string} | null>(null);
 
   // Whoop Data
   const [whoopData, setWhoopData] = useState<WhoopData>([]);
+  
+  // Data Contribution State
+  const [glucoseLevel, setGlucoseLevel] = useState('');
+  const [fnirsFile, setFnirsFile] = useState<File | null>(null);
+  const [pairedDataHistory, setPairedDataHistory] = useState<PairedDataEntry[]>([]);
 
 
   useEffect(() => {
@@ -437,7 +452,6 @@ export default function Home() {
             
             setAppState('minting_dew');
             await runProgress(2000, async () => {
-                // Only unstake if the sleep verification is successful
                 if(walletConnected) {
                     await handleUnstake(stakeAmount);
                 }
@@ -509,6 +523,46 @@ export default function Home() {
       setHasDevice(true);
     }
   };
+  
+    const handleDataContribution = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!fnirsFile || !glucoseLevel) {
+            toast({ variant: "destructive", title: "Missing Information", description: "Please provide both a fNIRS data file and a glucose reading." });
+            return;
+        }
+
+        setAppState('uploading_data');
+        await runProgress(2000, () => {
+             // This is where we would call the AI flow in the future
+            const contributionScore = Math.floor(Math.random() * 21) + 80; // Simulate a score between 80-100
+            const newDew = Math.floor(contributionScore / 10); // Reward based on score
+
+            const newEntry: PairedDataEntry = {
+                id: Date.now(),
+                date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                fnirsFile: fnirsFile.name,
+                glucoseLevel: Number(glucoseLevel),
+                contributionScore,
+            };
+            
+            setPairedDataHistory(prev => [newEntry, ...prev]);
+            setDreamDew(prev => prev + newDew);
+
+            toast({
+                title: "Contribution Received!",
+                description: `Your data was analyzed. You earned ${newDew} Dream Dew for your contribution!`,
+            });
+
+            // Reset form
+            setFnirsFile(null);
+            setGlucoseLevel('');
+            if (fnirsInputRef.current) {
+                fnirsInputRef.current.value = '';
+            }
+            setAppState('idle');
+            setProgress(0);
+        });
+    };
 
   const handleSetupSwarm = () => {
     setSwarmState('generating_keys');
@@ -565,6 +619,8 @@ export default function Home() {
         return { icon: <KeyRound className="animate-spin text-primary" />, text: 'Generating ZK-Proof of Action...' };
       case 'planting_seed':
         return { icon: <Sprout className="sprout text-primary" />, text: 'Verifying on Civic Action Registry...' };
+      case 'uploading_data':
+        return { icon: <UploadCloud className="animate-pulse text-primary" />, text: 'Encrypting and uploading paired data...' };
       default:
         return { icon: null, text: '' };
     }
@@ -606,6 +662,8 @@ export default function Home() {
       
       <main className="container mx-auto p-4">
       <Input type="file" accept=".csv" ref={whoopInputRef} onChange={handleWhoopImport} className="hidden" />
+      <Input type="file" accept=".csv,.txt" ref={fnirsInputRef} onChange={(e) => setFnirsFile(e.target.files?.[0] || null)} className="hidden" />
+
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
             
             {/* Main Column */}
@@ -752,6 +810,121 @@ export default function Home() {
                     </CardContent>
                 </Card>
 
+                 <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '400ms'}}>
+                    <CardHeader>
+                        <CardTitle className="font-headline text-2xl flex items-center gap-3"><ShoppingCart className="text-primary"/> Device Store</CardTitle>
+                        <CardDescription>Acquire the tools to contribute to glucose monitoring research.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid sm:grid-cols-2 gap-4">
+                        <Card className="p-4 flex flex-col items-start gap-4 hover:bg-secondary/50 transition-colors">
+                            <Image src="https://placehold.co/100x100.png" alt="fNIRS Armband" width={100} height={100} className="rounded-lg self-center" data-ai-hint="wearable technology"/>
+                            <div className="flex-grow space-y-2">
+                                <h3 className="font-headline text-lg">fNIRS Armband</h3>
+                                <p className="text-sm text-muted-foreground">Open-hardware fNIRS device for continuous, non-invasive data collection.</p>
+                                <div className="flex items-center gap-2 text-accent font-bold">
+                                    <DewDropIcon className="h-5 w-5"/>
+                                    <span>100 Dream Dew</span>
+                                </div>
+                            </div>
+                            <Button onClick={() => handleAcquireDevice(100, setHasFnirsDevice)} disabled={dreamDew < 100 || hasFnirsDevice} className="w-full">
+                            {hasFnirsDevice ? 'Acquired' : 'Acquire'}
+                            </Button>
+                        </Card>
+                        <Card className="p-4 flex flex-col items-start gap-4 hover:bg-secondary/50 transition-colors">
+                            <Image src="https://placehold.co/100x100.png" alt="Abbott Glucose Monitor" width={100} height={100} className="rounded-lg self-center" data-ai-hint="medical device"/>
+                            <div className="flex-grow space-y-2">
+                                <h3 className="font-headline text-lg">Abbott Glucose Monitor</h3>
+                                <p className="text-sm text-muted-foreground">Certified medical device for providing baseline glucose data to train the model.</p>
+                                <div className="flex items-center gap-2 text-accent font-bold">
+                                <DewDropIcon className="h-5 w-5"/>
+                                <span>150 Dream Dew</span>
+                                </div>
+                            </div>
+                            <Button onClick={() => handleAcquireDevice(150, setHasAbbottDevice)} disabled={dreamDew < 150 || hasAbbottDevice} className="w-full">
+                                {hasAbbottDevice ? 'Acquired' : 'Acquire'}
+                            </Button>
+                        </Card>
+                    </CardContent>
+                </Card>
+
+                {(hasFnirsDevice && hasAbbottDevice) && (
+                     <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '200ms'}}>
+                        <CardHeader>
+                            <CardTitle className="font-headline text-2xl flex items-center gap-3"><TestTube className="text-primary"/> Contribute Data</CardTitle>
+                            <CardDescription>Pair your fNIRS data with a certified glucose reading to help train the model.</CardDescription>
+                        </CardHeader>
+                        <form onSubmit={handleDataContribution}>
+                        <CardContent className="space-y-4">
+                            <div className="grid sm:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="fnirs-file">1. Upload fNIRS Data</Label>
+                                    <Button type="button" variant="outline" className="w-full justify-start text-left font-normal" onClick={() => fnirsInputRef.current?.click()}>
+                                        <FilePlus2 className="mr-2" />
+                                        {fnirsFile ? <span className='truncate'>{fnirsFile.name}</span> : 'Select a .csv or .txt file'}
+                                    </Button>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="glucose-level">2. Pair Glucose Reading (mg/dL)</Label>
+                                    <Input 
+                                        id="glucose-level" 
+                                        type="number" 
+                                        value={glucoseLevel}
+                                        onChange={(e) => setGlucoseLevel(e.target.value)}
+                                        placeholder="e.g. 95"
+                                    />
+                                </div>
+                            </div>
+                             {appState === 'uploading_data' && (
+                                <div className="mt-4 space-y-3 p-4 bg-secondary/50 rounded-lg fade-in">
+                                    <div className="flex items-center gap-3 text-sm font-medium">
+                                        {getStateDescription().icon}
+                                        <span>{getStateDescription().text}</span>
+                                    </div>
+                                    <Progress value={progress} className="w-full h-2" />
+                                </div>
+                            )}
+                        </CardContent>
+                        <CardFooter>
+                             <Button type="submit" className="w-full" disabled={!fnirsFile || !glucoseLevel || appState === 'uploading_data'}>
+                                {appState === 'uploading_data' ? 'Submitting...' : 'Submit Paired Data'}
+                             </Button>
+                        </CardFooter>
+                        </form>
+                     </Card>
+                )}
+                
+                {pairedDataHistory.length > 0 && (
+                     <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '300ms'}}>
+                        <CardHeader>
+                            <CardTitle className="font-headline text-2xl">Contribution History</CardTitle>
+                            <CardDescription>Your history of data contributions to the model.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>fNIRS File</TableHead>
+                                        <TableHead>Glucose (mg/dL)</TableHead>
+                                        <TableHead className="text-right">Contribution Score</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {pairedDataHistory.map(entry => (
+                                        <TableRow key={entry.id}>
+                                            <TableCell>{entry.date}</TableCell>
+                                            <TableCell className="truncate max-w-[150px]">{entry.fnirsFile}</TableCell>
+                                            <TableCell>{entry.glucoseLevel}</TableCell>
+                                            <TableCell className="text-right font-medium text-primary">{entry.contributionScore}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                )}
+
+
                 {hasFnirsDevice && (
                     <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '500ms'}}>
                     <CardHeader>
@@ -848,55 +1021,6 @@ export default function Home() {
                     </CardContent>
                     </Card>
                 )}
-                 <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '400ms'}}>
-                    <CardHeader>
-                        <CardTitle className="font-headline text-2xl flex items-center gap-3"><ShoppingCart className="text-primary"/> Device Store</CardTitle>
-                        <CardDescription>Acquire the tools to contribute to glucose monitoring research.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid sm:grid-cols-2 gap-4">
-                        <Card className="p-4 flex flex-col items-start gap-4 hover:bg-secondary/50 transition-colors">
-                            <Image src="https://placehold.co/100x100.png" alt="fNIRS Armband" width={100} height={100} className="rounded-lg self-center" data-ai-hint="wearable technology"/>
-                            <div className="flex-grow space-y-2">
-                                <h3 className="font-headline text-lg">fNIRS Armband</h3>
-                                <p className="text-sm text-muted-foreground">Open-hardware fNIRS device for continuous, non-invasive data collection.</p>
-                                <div className="flex items-center gap-2 text-accent font-bold">
-                                    <DewDropIcon className="h-5 w-5"/>
-                                    <span>100 Dream Dew</span>
-                                </div>
-                            </div>
-                            <Button onClick={() => handleAcquireDevice(100, setHasFnirsDevice)} disabled={dreamDew < 100 || hasFnirsDevice} className="w-full">
-                            {hasFnirsDevice ? 'Acquired' : 'Acquire'}
-                            </Button>
-                        </Card>
-                        <Card className="p-4 flex flex-col items-start gap-4 hover:bg-secondary/50 transition-colors">
-                            <Image src="https://placehold.co/100x100.png" alt="Abbott Glucose Monitor" width={100} height={100} className="rounded-lg self-center" data-ai-hint="medical device"/>
-                            <div className="flex-grow space-y-2">
-                                <h3 className="font-headline text-lg">Abbott Glucose Monitor</h3>
-                                <p className="text-sm text-muted-foreground">Certified medical device for providing baseline glucose data to train the model.</p>
-                                <div className="flex items-center gap-2 text-accent font-bold">
-                                <DewDropIcon className="h-5 w-5"/>
-                                <span>150 Dream Dew</span>
-                                </div>
-                            </div>
-                            <Button onClick={() => handleAcquireDevice(150, setHasAbbottDevice)} disabled={dreamDew < 150 || hasAbbottDevice} className="w-full">
-                                {hasAbbottDevice ? 'Acquired' : 'Acquire'}
-                            </Button>
-                        </Card>
-                    </CardContent>
-                    {(hasFnirsDevice && hasAbbottDevice) &&
-                        <CardFooter>
-                            <Card className="p-4 w-full bg-secondary/50 border-primary/30">
-                                <div className="flex items-center gap-3">
-                                    <BrainCircuit className="h-6 w-6 text-primary" />
-                                    <h3 className="font-headline text-lg">Ready to Contribute</h3>
-                                </div>
-                                <p className="text-sm text-muted-foreground mt-2">You have both devices. Start pairing your data to help train the glucose prediction model and earn proportional rewards.</p>
-
-                                <Button className="mt-3 w-full">Begin Data Pairing</Button>
-                            </Card>
-                        </CardFooter>
-                    }
-                </Card>
             </div>
             
             {/* Side Column */}
@@ -953,6 +1077,3 @@ export default function Home() {
     </div>
   );
 }
-
-
-    
