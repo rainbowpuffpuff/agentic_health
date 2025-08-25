@@ -1134,7 +1134,11 @@ export default function Home() {
   };
 
   const ProgressDisplay = ({ state, inCard = true } : { state: typeof appState; inCard?: boolean }) => {
-    if (!['analyzing_photo', 'sleeping', 'generating_sleep_proof', 'minting_dew', 'generating_action_proof', 'planting_seed', 'uploading_data'].includes(state)) {
+    const statesToShow = [
+      'analyzing_photo', 'sleeping', 'generating_sleep_proof', 'minting_dew',
+      'generating_action_proof', 'planting_seed', 'uploading_data'
+    ];
+    if (!statesToShow.includes(state)) {
       return null;
     }
 
@@ -1794,7 +1798,7 @@ export default function Home() {
                                 <AlertTriangle className="h-5 w-5 mr-3 mt-1 text-destructive" />
                                 <div>
                                 <h4 className="font-bold text-destructive">Save These Credentials!</h4>
-                                <p className="text-sm">this is generated locally in your browser so it cannot be retrieved by anyone else</p>
+                                <p className="text-sm text-destructive/80">this is generated locally in your browser so it cannot be retrieved by anyone else</p>
                                 </div>
                             </div>
                             </div>
