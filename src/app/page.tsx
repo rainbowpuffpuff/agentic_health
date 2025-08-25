@@ -962,7 +962,7 @@ export default function Home() {
                                             <span className='font-medium text-muted-foreground flex items-center gap-1'><Loader size={16} className="animate-spin" /> Pending</span>
                                         )}
                                     </div>
-                                    <div className="flex gap-2">
+                                    <div className="flex flex-col sm:flex-row gap-2">
                                         <Button onClick={handleBeginSleepVerification} disabled={appState !== 'idle' || stakerInfo.bonus_approved} className="w-full">
                                             Verify Sleep
                                         </Button>
@@ -972,12 +972,12 @@ export default function Home() {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="flex items-end gap-2">
+                                <div className="flex flex-col sm:flex-row items-stretch gap-2">
                                     <div className="flex-grow">
-                                        <Label htmlFor="stake-amount">Commitment (NEAR)</Label>
-                                        <Input id="stake-amount" type="number" value={stakeAmount} onChange={(e) => setStakeAmount(e.target.value)} className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                                        <Label htmlFor="stake-amount" className="sr-only">Commitment (NEAR)</Label>
+                                        <Input id="stake-amount" type="number" value={stakeAmount} onChange={(e) => setStakeAmount(e.target.value)} placeholder="Commitment (NEAR)" className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                                     </div>
-                                    <Button onClick={() => handleStake(stakeAmount, 'rest')} disabled={appState !== 'idle' || !walletConnected || Number(stakeAmount) <= 0}>
+                                    <Button onClick={() => handleStake(stakeAmount, 'rest')} disabled={appState !== 'idle' || !walletConnected || Number(stakeAmount) <= 0} className="sm:w-auto">
                                         Commit & Begin
                                     </Button>
                                 </div>
@@ -992,19 +992,19 @@ export default function Home() {
                             <p className="text-sm text-muted-foreground">Commit NEAR and spend 10 Dream Dew to prove you've contacted a representative. Your anonymous action will be added to the public registry, and your commitment returned.</p>
 
                             {isActionStaked && walletConnected ? (
-                                <div className='p-4 bg-secondary rounded-md'>
+                                <div className='p-4 bg-secondary rounded-md space-y-3'>
                                     <p className='text-sm font-semibold'>You have a civic action commitment active.</p>
-                                    <Button onClick={handleCivicAction} disabled={appState !== 'idle'} className="w-full mt-3">
+                                    <Button onClick={handleCivicAction} disabled={appState !== 'idle'} className="w-full mt-2">
                                         Verify Action
                                     </Button>
                                 </div>
                             ) : (
-                                <div className="flex items-end gap-2">
+                                <div className="flex flex-col sm:flex-row items-stretch gap-2">
                                     <div className="flex-grow">
-                                        <Label htmlFor="action-stake-amount">Commitment (NEAR)</Label>
-                                        <Input id="action-stake-amount" type="number" value={actionStakeAmount} onChange={(e) => setActionStakeAmount(e.target.value)} className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                                        <Label htmlFor="action-stake-amount" className="sr-only">Commitment (NEAR)</Label>
+                                        <Input id="action-stake-amount" type="number" value={actionStakeAmount} onChange={(e) => setActionStakeAmount(e.target.value)} placeholder="Commitment (NEAR)" className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                                     </div>
-                                    <Button onClick={() => handleStake(actionStakeAmount, 'action')} disabled={appState !== 'idle' || !walletConnected || dreamDew < 10 || Number(actionStakeAmount) <= 0}>
+                                    <Button onClick={() => handleStake(actionStakeAmount, 'action')} disabled={appState !== 'idle' || !walletConnected || dreamDew < 10 || Number(actionStakeAmount) <= 0} className="sm:w-auto">
                                         {dreamDew < 10 ? 'Need 10 Dream Dew' : 'Commit & Plant Seed'}
                                     </Button>
                                 </div>
@@ -1311,6 +1311,7 @@ export default function Home() {
     
 
     
+
 
 
 
