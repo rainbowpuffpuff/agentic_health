@@ -204,6 +204,10 @@ export default function Home() {
   const [hasMotionSensor, setHasMotionSensor] = useState<boolean|null>(null);
   const motionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  const isVerifyingSleep = ['analyzing_photo', 'sleeping', 'generating_sleep_proof', 'minting_dew'].includes(appState);
+  const isVerifyingAction = ['generating_action_proof', 'planting_seed'].includes(appState);
+  const isUploadingData = appState === 'uploading_data';
+
 
   useEffect(() => {
     // Simulate initial loading
@@ -1052,6 +1056,21 @@ export default function Home() {
     }
   };
 
+  const ProgressDisplay = () => {
+    if (appState === 'idle' || appState === 'taking_photo') return null;
+
+    return (
+        <div className="mt-4 space-y-3 p-4 bg-secondary/50 rounded-lg fade-in">
+            <div className="flex items-center gap-3 text-sm font-medium">
+                {getStateDescription().icon}
+                <span>{getStateDescription().text}</span>
+            </div>
+            <Progress value={progress} className="w-full h-2" />
+        </div>
+    );
+  };
+
+
   if (isLoading) {
     return <div className="flex h-screen w-full items-center justify-center bg-background"><Loader className="h-12 w-12 animate-spin text-primary" /></div>;
   }
@@ -1445,10 +1464,10 @@ export default function Home() {
                                         )}
                                     </div>
                                     <div className="flex flex-col sm:flex-row gap-2">
-                                        <Button onClick={handleBeginSleepVerification} disabled={appState !== 'idle' || stakerInfo.bonus_approved} className="w-full">
+                                        <Button onClick={handleBeginSleepVerification} disabled={isVerifyingSleep || stakerInfo.bonus_approved} className="w-full">
                                             Verify Sleep
                                         </Button>
-                                        <Button onClick={handleWithdraw} disabled={appState !== 'idle' || !stakerInfo.bonus_approved} className="w-full" variant="outline">
+                                        <Button onClick={handleWithdraw} disabled={isVerifyingSleep || !stakerInfo.bonus_approved} className="w-full" variant="outline">
                                             Withdraw
                                         </Button>
                                     </div>
@@ -1459,11 +1478,12 @@ export default function Home() {
                                         <Label htmlFor="stake-amount" className="sr-only">Commitment (NEAR)</Label>
                                         <Input id="stake-amount" type="number" value={stakeAmount} onChange={(e) => setStakeAmount(e.target.value)} placeholder="Commitment (NEAR)" className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                                     </div>
-                                    <Button onClick={handleStake} disabled={appState !== 'idle' || !walletConnected || Number(stakeAmount) <= 0} className="w-full sm:w-auto">
+                                    <Button onClick={handleStake} disabled={isVerifyingSleep || !walletConnected || Number(stakeAmount) <= 0} className="w-full sm:w-auto">
                                         Commit & Begin
                                     </Button>
                                 </div>
                             )}
+                            {isVerifyingSleep && <ProgressDisplay />}
                         </div>
 
                         <div className="space-y-4 rounded-lg border p-4 hover:border-primary/20 transition-colors">
@@ -1490,13 +1510,13 @@ export default function Home() {
                                             {selectedCampaign === campaign && campaignState !== 'verified' && (
                                                 <div className="pt-2 pl-7">
                                                     {campaignState === 'idle' && (
-                                                        <Button onClick={() => handleSendEmail(campaign)} disabled={appState !== 'idle' || intentionPoints < 10} className="w-full" size="sm">
+                                                        <Button onClick={() => handleSendEmail(campaign)} disabled={isVerifyingAction || intentionPoints < 10} className="w-full" size="sm">
                                                             <Mail className="mr-2"/>
                                                             {intentionPoints < 10 ? 'Need 10 Points' : 'Send Email for 10 Points'}
                                                         </Button>
                                                     )}
                                                     {campaignState === 'email_pending' && (
-                                                         <Button onClick={() => emailUploadRef.current?.click()} disabled={appState !== 'idle'} className="w-full" size="sm" variant="outline">
+                                                         <Button onClick={() => emailUploadRef.current?.click()} disabled={isVerifyingAction} className="w-full" size="sm" variant="outline">
                                                              <Upload className="mr-2"/>
                                                             Upload Signed Email (.eml/.txt)
                                                          </Button>
@@ -1518,17 +1538,8 @@ export default function Home() {
                                     )
                                 })}
                             </RadioGroup>
+                            {isVerifyingAction && <ProgressDisplay />}
                         </div>
-
-                        {appState !== 'idle' && appState !== 'taking_photo' && (
-                        <div className="mt-4 space-y-3 p-4 bg-secondary/50 rounded-lg fade-in">
-                            <div className="flex items-center gap-3 text-sm font-medium">
-                            {getStateDescription().icon}
-                            <span>{getStateDescription().text}</span>
-                            </div>
-                            <Progress value={progress} className="w-full h-2" />
-                        </div>
-                        )}
                     </CardContent>
                     </Card>
                   )
@@ -1622,19 +1633,11 @@ export default function Home() {
                                     <FileInfoDisplay info={glucoseInfo} />
                                 </div>
                             </div>
-                             {appState === 'uploading_data' && (
-                                <div className="mt-4 space-y-3 p-4 bg-secondary/50 rounded-lg fade-in">
-                                    <div className="flex items-center gap-3 text-sm font-medium">
-                                        {getStateDescription().icon}
-                                        <span>{getStateDescription().text}</span>
-                                    </div>
-                                    <Progress value={progress} className="w-full h-2" />
-                                </div>
-                            )}
+                             {isUploadingData && <ProgressDisplay />}
                         </CardContent>
                         <CardFooter>
-                             <Button type="submit" className="w-full" disabled={!fnirsFile || !glucoseFile || appState === 'uploading_data'}>
-                                {appState === 'uploading_data' ? 'Submitting...' : 'Submit Paired Data'}
+                             <Button type="submit" className="w-full" disabled={!fnirsFile || !glucoseFile || isUploadingData}>
+                                {isUploadingData ? 'Submitting...' : 'Submit Paired Data'}
                              </Button>
                         </CardFooter>
                         </form>
