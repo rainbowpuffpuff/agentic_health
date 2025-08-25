@@ -102,7 +102,7 @@ type FileInfo = {
 
 type Campaign = 'chat_control' | 'sugar_tax' | 'sleep_compensation';
 
-type CampaignState = 'idle' | 'email_pending';
+type CampaignState = 'idle' | 'email_pending' | 'verified';
 
 const CAMPAIGN_DETAILS: Record<Campaign, { title: string; description: string; subject: string }> = {
     chat_control: {
@@ -824,9 +824,9 @@ export default function Home() {
             setIntentionPoints(prev => Math.max(0, prev - 10));
             setGardenFlowers(prev => {
                 const firstUnlockedIndex = prev.findIndex(f => !f.unlocked);
-                if(firstUnlockedIndex !== -1) {
+                if (firstUnlockedIndex !== -1) {
                     const newFlowers = [...prev];
-                    newFlowers[firstUnlockedIndex].unlocked = true;
+                    newFlowers[firstUnlockedIndex] = { ...newFlowers[firstUnlockedIndex], unlocked: true };
                     return newFlowers;
                 }
                 return prev;
