@@ -1263,7 +1263,7 @@ export default function Home() {
                                 <AlertTriangle className="h-5 w-5 mr-3 mt-1" />
                                 <div>
                                 <h4 className="font-bold">Save These Credentials!</h4>
-                                <p className="text-sm">This is the only time you will see your password. We do not store it. Keep it safe.</p>
+                                <p className="text-sm">This is generated locally in your browser so it cannot be retrieved by anyone else.</p>
                                 </div>
                             </div>
                             </div>
