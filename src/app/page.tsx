@@ -155,6 +155,8 @@ export default function Home() {
   const [stakerInfo, setStakerInfo] = useState<StakerInfo | null>(null);
   const [stakeAmount, setStakeAmount] = useState("0.1"); // In NEAR for sleep
   const [rewardPoolBalance, setRewardPoolBalance] = useState<string | null>(null);
+  const [depositAmount, setDepositAmount] = useState("1");
+
 
   // Civic Action State
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign>('chat_control');
@@ -492,6 +494,44 @@ export default function Home() {
             } else {
                 console.error("Approval failed:", error);
                  toast({ variant: "destructive", title: "Approval Failed", description: (error as Error).message });
+            }
+        }
+    }
+    
+    const handleDepositRewardFunds = async () => {
+        if (!walletConnected || !selector || !isAdmin) {
+            toast({ variant: "destructive", title: "Permission Denied" });
+            return;
+        }
+        const wallet = await selector.wallet();
+        if (!wallet) return;
+
+        try {
+            await wallet.signAndSendTransaction({
+                receiverId: CONTRACT_ID,
+                actions: [
+                    {
+                        type: 'FunctionCall',
+                        params: {
+                            methodName: 'deposit_reward_funds',
+                            args: {},
+                            gas: THIRTY_TGAS,
+                            deposit: utils.format.parseNearAmount(depositAmount) || "0",
+                        },
+                    },
+                ],
+            });
+            toast({ title: "Deposit Successful!", description: `You deposited ${depositAmount} NEAR to the reward pool.` });
+            await getRewardPoolBalance(); // Refresh balance
+        } catch(error: any) {
+            if (error.message.includes("User closed the window")) {
+                toast({
+                    variant: "default",
+                    title: "Transaction Cancelled",
+                });
+            } else {
+                console.error("Deposit failed:", error);
+                toast({ variant: "destructive", title: "Deposit Failed", description: (error as Error).message });
             }
         }
     }
@@ -1195,23 +1235,23 @@ export default function Home() {
             <CardTitle className="font-headline text-2xl flex items-center gap-3"><UserCog className="text-primary"/>Admin Dashboard</CardTitle>
             <CardDescription>Approve staking bonuses for users and monitor the reward pool.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-             <div className="p-4 rounded-lg bg-secondary flex items-center justify-between">
+        <CardContent className="space-y-6">
+             <div className="p-4 rounded-lg bg-secondary flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                    <PiggyBank className="text-primary" size={20}/>
+                    <PiggyBank className="text-primary" size={24}/>
                     <div >
                         <p className="font-semibold">Reward Pool Balance</p>
                         <p className="text-sm text-muted-foreground">Funds available for bonuses.</p>
                     </div>
                 </div>
                 {rewardPoolBalance !== null ? (
-                    <p className="font-bold text-lg text-primary">{utils.format.formatNearAmount(rewardPoolBalance, 4)} NEAR</p>
+                    <p className="font-bold text-xl text-primary">{utils.format.formatNearAmount(rewardPoolBalance, 4)} NEAR</p>
                 ) : (
                     <Loader className="animate-spin" size={20} />
                 )}
              </div>
-             <div className="space-y-2">
-                <Label htmlFor="staker-id">Staker Account ID</Label>
+             <div className="space-y-4">
+                <Label htmlFor="staker-id">Approve Bonus for Staker</Label>
                 <div className="flex items-start gap-2">
                     <div className="flex-grow space-y-2">
                         <Input 
@@ -1248,6 +1288,25 @@ export default function Home() {
                         disabled={!infoForAddress || infoForAddress.bonus_approved}
                     >
                         Approve Bonus
+                    </Button>
+                </div>
+             </div>
+              <div className="space-y-4 pt-4 border-t">
+                <Label htmlFor="deposit-amount">Deposit to Reward Pool</Label>
+                 <div className="flex items-stretch gap-2">
+                    <div className="flex-grow">
+                        <Label htmlFor="deposit-amount" className="sr-only">Deposit Amount (NEAR)</Label>
+                        <Input 
+                            id="deposit-amount" 
+                            type="number" 
+                            value={depositAmount}
+                            onChange={(e) => setDepositAmount(e.target.value)}
+                            placeholder="Amount in NEAR"
+                            className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                    </div>
+                    <Button onClick={handleDepositRewardFunds} disabled={!depositAmount || Number(depositAmount) <= 0}>
+                        Deposit NEAR
                     </Button>
                 </div>
              </div>
