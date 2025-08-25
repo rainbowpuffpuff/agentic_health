@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, UserCog, FileText, Activity } from 'lucide-react';
+import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, UserCog, FileText, Activity, Clock } from 'lucide-react';
 import DewDropIcon from '@/components/icons/DewDropIcon';
 import FlowerIcon from '@/components/icons/FlowerIcon';
 import { cn } from '@/lib/utils';
@@ -26,6 +26,8 @@ import { CONTRACT_ID } from '@/lib/constants';
 import { utils, providers } from 'near-api-js';
 import type { CodeResult } from "near-api-js/lib/providers/provider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
 
 type MotionDataPoint = {
   time: number;
@@ -1032,6 +1034,7 @@ export default function Home() {
   };
 
   return (
+    <TooltipProvider>
     <div className="min-h-screen w-full bg-background text-foreground fade-in">
       <header className="sticky top-0 z-10 border-b border-border/50 bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -1155,7 +1158,14 @@ export default function Home() {
                                         {stakerInfo.bonus_approved ? (
                                             <span className='font-medium text-green-600 flex items-center gap-1'><CheckCircle2 size={16}/> Approved</span>
                                         ) : (
-                                            <span className='font-medium text-muted-foreground flex items-center gap-1'><Loader size={16} className="animate-spin" /> Pending</span>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <span className='font-medium text-muted-foreground flex items-center gap-1 cursor-help'><Clock size={16} /> Pending</span>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Bonus is approved manually by the admin.<br/> It may take a few moments to be verified.</p>
+                                                </TooltipContent>
+                                            </Tooltip>
                                         )}
                                     </div>
                                     <div className="flex flex-col sm:flex-row gap-2">
@@ -1503,7 +1513,6 @@ export default function Home() {
         </div>
       </main>
     </div>
+    </TooltipProvider>
   );
 }
-
-    
