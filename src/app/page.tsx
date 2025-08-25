@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -100,6 +101,7 @@ export default function Home() {
   const [credentialsSaved, setCredentialsSaved] = useState(false);
   const [accountFunded, setAccountFunded] = useState(false);
   const [stampsPurchased, setStampsPurchased] = useState(false);
+  const [showSwarmUI, setShowSwarmUI] = useState(false);
   
   // Camera State
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
@@ -644,10 +646,15 @@ export default function Home() {
     setProgress(0);
   };
 
-  const handleAcquireDevice = (cost: number, setHasDevice: (has: boolean) => void) => {
+  const handleAcquireDevice = (cost: number, device: 'fnirs' | 'abbott') => {
     if (dreamDew >= cost) {
       setDreamDew(prev => prev - cost);
-      setHasDevice(true);
+      if (device === 'fnirs') {
+        setHasFnirsDevice(true);
+      } else {
+        setHasAbbottDevice(true);
+        setShowSwarmUI(true);
+      }
     }
   };
   
@@ -1042,7 +1049,7 @@ export default function Home() {
                                     <span>100 Dream Dew</span>
                                 </div>
                             </div>
-                            <Button onClick={() => handleAcquireDevice(100, setHasFnirsDevice)} disabled={dreamDew < 100 || hasFnirsDevice} className="w-full">
+                            <Button onClick={() => handleAcquireDevice(100, 'fnirs')} disabled={dreamDew < 100 || hasFnirsDevice} className="w-full">
                             {hasFnirsDevice ? 'Acquired' : 'Acquire'}
                             </Button>
                         </Card>
@@ -1056,7 +1063,7 @@ export default function Home() {
                                 <span>150 Dream Dew</span>
                                 </div>
                             </div>
-                            <Button onClick={() => handleAcquireDevice(150, setHasAbbottDevice)} disabled={dreamDew < 150 || hasAbbottDevice} className="w-full">
+                            <Button onClick={() => handleAcquireDevice(150, 'abbott')} disabled={dreamDew < 150 || hasAbbottDevice} className="w-full">
                                 {hasAbbottDevice ? 'Acquired' : 'Acquire'}
                             </Button>
                         </Card>
@@ -1141,7 +1148,7 @@ export default function Home() {
                 )}
 
 
-                {hasFnirsDevice && (
+                {showSwarmUI && (
                     <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '500ms'}}>
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl flex items-center gap-3"><HardDrive className="text-primary"/> Sovereign Storage on Swarm</CardTitle>
@@ -1293,5 +1300,7 @@ export default function Home() {
     </div>
   );
 }
+
+    
 
     
