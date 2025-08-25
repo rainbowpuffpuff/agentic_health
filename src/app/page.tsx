@@ -1012,10 +1012,16 @@ export default function Home() {
 
             const averageGlucose = glucoseValuesMgDl.reduce((sum, val) => sum + val, 0) / glucoseValuesMgDl.length;
             
-            const result = await scoreDataContribution({
-              fnirsData: fnirsData,
-              glucoseLevel: averageGlucose,
-            });
+            // DEV ONLY: Mock the AI call to prevent rate limiting
+            const result = {
+              contributionScore: Math.floor(Math.random() * (95 - 75 + 1)) + 75, // Random score between 75-95
+              reward: 8,
+              reason: "Great submission! The fNIRS data was clean and showed strong correlation with the provided glucose level.",
+            };
+            // const result = await scoreDataContribution({
+            //   fnirsData: fnirsData,
+            //   glucoseLevel: averageGlucose,
+            // });
     
             await runProgress(1000);
     
@@ -1127,13 +1133,15 @@ export default function Home() {
     }
   };
 
-  const ProgressDisplay = ({ state } : { state: typeof appState }) => {
-    if (state === 'idle' || state === 'taking_photo') return null;
+  const ProgressDisplay = ({ state, inCard = true } : { state: typeof appState; inCard?: boolean }) => {
+    if (!['analyzing_photo', 'sleeping', 'generating_sleep_proof', 'minting_dew', 'generating_action_proof', 'planting_seed', 'uploading_data'].includes(state)) {
+      return null;
+    }
 
     const { icon, text } = getStateDescription(state);
 
-    return (
-        <div className="mt-4 space-y-3 p-4 bg-secondary/50 rounded-lg fade-in">
+    const content = (
+        <div className="space-y-3 fade-in">
             <div className="flex items-center gap-3 text-sm font-medium">
                 {icon}
                 <span>{text}</span>
@@ -1141,6 +1149,12 @@ export default function Home() {
             <Progress value={progress} className="w-full h-2" />
         </div>
     );
+    
+    if (inCard) {
+      return <div className="mt-4 p-4 bg-secondary/50 rounded-lg">{content}</div>;
+    }
+    
+    return content
   };
 
 
@@ -1481,6 +1495,7 @@ export default function Home() {
                             )}
                             <canvas ref={canvasRef} className="hidden" />
                             <Input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+                            {isVerifyingSleep && <ProgressDisplay state={appState} inCard={false} />}
                         </CardContent>
                         <CardFooter className="flex flex-col sm:flex-row gap-2">
                             <Button variant="outline" onClick={() => takePhoto()} disabled={!hasCameraPermission} className="w-full">
@@ -1706,7 +1721,7 @@ export default function Home() {
                                     <FileInfoDisplay info={glucoseInfo} />
                                 </div>
                             </div>
-                             {isUploadingData && <ProgressDisplay state={appState} />}
+                             {isUploadingData && <ProgressDisplay state={appState} inCard={false} />}
                         </CardContent>
                         <CardFooter>
                              <Button type="submit" className="w-full" disabled={!fnirsFile || !glucoseFile || isUploadingData}>
