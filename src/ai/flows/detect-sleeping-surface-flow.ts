@@ -1,4 +1,4 @@
-git rev-list --count HEAD'use server';
+'use server';
 /**
  * @fileOverview An AI agent to detect sleeping surfaces in images.
  *
@@ -44,7 +44,7 @@ Analyze the image and determine if it meets the criteria.
 Photo: {{media url=photoDataUri}}
 
 - If a clear sleeping surface is visible, set isSleepingSurface to true.
-- If the image does not clearly show a sleeping surface (e.g., it's a picture of a desk, a pet, a selfie, or it's too dark/blurry), set isSleepingSurface to false and provide a gentle, user-friendly reason.
+- If the image does not clearly show a clear sleeping surface (e.g., it's a picture of a desk, a pet, a selfie, or it's too dark/blurry), set isSleepingSurface to false and provide a gentle, user-friendly reason.
 - Example Reason (if false): "It looks like this photo might not be of your bed. Please try taking a clear picture of your sleeping area."
 `,
 });
