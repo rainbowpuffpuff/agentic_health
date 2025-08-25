@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, UserCog, FileText, Activity, Clock, BarChart2 } from 'lucide-react';
+import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, UserCog, FileText, Activity, Clock, BarChart2, Lock } from 'lucide-react';
 import DewDropIcon from '@/components/icons/DewDropIcon';
 import FlowerIcon from '@/components/icons/FlowerIcon';
 import { cn } from '@/lib/utils';
@@ -27,6 +27,8 @@ import { utils, providers } from 'near-api-js';
 import type { CodeResult } from "near-api-js/lib/providers/provider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import FlowerIconTwo from '@/components/icons/FlowerIconTwo';
+import FlowerIconThree from '@/components/icons/FlowerIconThree';
 
 
 type MotionDataPoint = {
@@ -61,6 +63,12 @@ type WhoopData = {
     'Time in Bed (hours)': number;
     'Sleep (hours)': number;
 }[];
+
+type GardenFlower = {
+    id: number;
+    Icon: React.ElementType;
+    unlocked: boolean;
+};
 
 const whoopChartConfig = {
   timeInBed: {
@@ -101,9 +109,16 @@ type MotionStatus = 'still' | 'slight' | 'heavy';
 export default function Home() {
   const [intentionPoints, setIntentionPoints] = useState(250); // Start with enough points to test
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
-  const [gardenFlowers, setGardenFlowers] = useState(0);
+  const [gardenFlowers, setGardenFlowers] = useState<GardenFlower[]>([
+    { id: 1, Icon: FlowerIcon, unlocked: false },
+    { id: 2, Icon: FlowerIconTwo, unlocked: false },
+    { id: 3, Icon: FlowerIconThree, unlocked: false },
+    { id: 4, Icon: FlowerIcon, unlocked: false },
+    { id: 5, Icon: FlowerIconTwo, unlocked: false },
+  ]);
   const [hasFnirsDevice, setHasFnirsDevice] = useState(false);
   const [hasAbbottDevice, setHasAbbottDevice] = useState(false);
+  const [isSleepLogUnlocked, setIsSleepLogUnlocked] = useState(false);
 
 
   const [isLoading, setIsLoading] = useState(true);
@@ -764,7 +779,15 @@ export default function Home() {
     
     setAppState('planting_seed');
     await runProgress(1500, async () => {
-        setGardenFlowers(prev => prev + 1);
+        setGardenFlowers(prev => {
+            const firstUnlockedIndex = prev.findIndex(f => !f.unlocked);
+            if(firstUnlockedIndex !== -1) {
+                const newFlowers = [...prev];
+                newFlowers[firstUnlockedIndex].unlocked = true;
+                return newFlowers;
+            }
+            return prev;
+        });
         setIntentionPoints(prev => Math.max(0, prev - 10));
         if (walletConnected) {
             // This part is tricky as the civic action stake is not separated in the contract.
@@ -787,6 +810,18 @@ export default function Home() {
         setShowSwarmUI(true);
       }
     }
+  };
+
+  const handleUnlockSleepLog = () => {
+      const cost = 500;
+      if (intentionPoints >= cost) {
+          setIntentionPoints(prev => prev - cost);
+          setIsSleepLogUnlocked(true);
+          toast({
+              title: "Feature Unlocked!",
+              description: "Your Sleep Log is now available."
+          });
+      }
   };
   
     const processFile = (file: File, setInfo: (info: FileInfo) => void) => {
@@ -1125,6 +1160,94 @@ export default function Home() {
     );
   };
 
+  const renderSleepLog = () => (
+     <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '300ms'}}>
+        <CardHeader>
+            <div className='flex items-start justify-between gap-4'>
+                <div>
+                    <CardTitle className="font-headline text-2xl">Sleep Log</CardTitle>
+                    <CardDescription>Your private, encrypted records of rest.</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => whoopInputRef.current?.click()}>
+                    <UploadCloud className="mr-2 h-4 w-4" />
+                    Import
+                </Button>
+            </div>
+        </CardHeader>
+        <CardContent>
+            {whoopData.length > 0 && (
+                <div className="mb-6">
+                    <h4 className="text-lg font-headline mb-2">Recent Sleep Performance</h4>
+                    <ChartContainer config={whoopChartConfig} className="h-[200px] w-full">
+                        <BarChart accessibilityLayer data={whoopData} margin={{ top: 20, right: 20, bottom: 5, left: 0 }}>
+                            <CartesianGrid vertical={false} />
+                            <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
+                            <YAxis unit="h" tickLine={false} axisLine={false} />
+                            <RechartsTooltip cursor={false} content={<ChartTooltipContent />} />
+                            <Legend />
+                            <Bar dataKey="Time in Bed (hours)" name="Time in Bed" fill="var(--color-timeInBed)" radius={4} />
+                            <Bar dataKey="Sleep (hours)" name="Sleep" fill="var(--color-sleep)" radius={4} />
+                        </BarChart>
+                    </ChartContainer>
+                </div>
+            )}
+            <ScrollArea className="h-[280px] pr-4">
+                <div className="space-y-4">
+                    {journalEntries.map(entry => (
+                        <div key={entry.id} className="flex flex-col gap-4 rounded-lg border p-3 bg-card hover:bg-secondary/50 transition-colors" data-ai-hint="bed bedroom">
+                            <div className="flex items-center gap-4">
+                                <Image src={entry.imageUrl} alt="A photo of a bed" width={80} height={60} className="rounded-md object-cover aspect-[4/3]" data-ai-hint="night sleep" />
+                                <div className="flex-grow">
+                                    <p className="font-semibold">{entry.date}</p>
+                                    <p className="text-sm text-primary">{entry.sleep}</p>
+                                </div>
+                            </div>
+                            {entry.motionData && entry.motionData.length > 0 && <MotionChart data={entry.motionData} />}
+                        </div>
+                    ))}
+                    {journalEntries.length === 0 && <p className="text-center text-muted-foreground pt-16">Complete a sleep verification to start your log.</p>}
+                </div>
+            </ScrollArea>
+        </CardContent>
+    </Card>
+  );
+
+  const renderLockedSleepLog = () => (
+     <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5 relative overflow-hidden" style={{animationDelay: '300ms'}}>
+        <div className="absolute inset-0 bg-background/70 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-8 gap-4">
+             <div className="flex items-center gap-2 text-lg font-headline">
+                <Lock className="text-primary" />
+                <span>Sleep Log Locked</span>
+             </div>
+             <p className="text-center text-muted-foreground">Unlock this feature to track your sleep history and import data from other services.</p>
+             <Button onClick={handleUnlockSleepLog} disabled={intentionPoints < 500} className="mt-2">
+                 <DewDropIcon className="mr-2" />
+                 Unlock for 500 Points
+             </Button>
+        </div>
+        <CardHeader>
+            <div className='flex items-start justify-between gap-4'>
+                <div>
+                    <CardTitle className="font-headline text-2xl">Sleep Log</CardTitle>
+                    <CardDescription>Your private, encrypted records of rest.</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" disabled>
+                    <UploadCloud className="mr-2 h-4 w-4" />
+                    Import
+                </Button>
+            </div>
+        </CardHeader>
+        <CardContent>
+             <ScrollArea className="h-[280px] pr-4">
+                <div className="space-y-4">
+                    <p className="text-center text-muted-foreground pt-16">Unlock to see your sleep history.</p>
+                </div>
+             </ScrollArea>
+        </CardContent>
+    </Card>
+  )
+
+
   return (
     <TooltipProvider>
     <div className="min-h-screen w-full bg-background text-foreground fade-in">
@@ -1336,10 +1459,20 @@ export default function Home() {
                     </CardHeader>
                     <CardContent>
                     <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-4 p-4 rounded-lg min-h-[160px] bg-secondary/30 border border-border/50">
-                        {Array.from({ length: gardenFlowers }).map((_, i) => (
-                        <FlowerIcon key={i} className="h-10 w-10 sprout text-primary" style={{ animationDelay: `${i * 50}ms` }}/>
-                        ))}
-                        {gardenFlowers === 0 && <p className="col-span-full text-center text-muted-foreground self-center">Your garden awaits. Plant a seed by taking civic action.</p>}
+                        {gardenFlowers.map((flower, i) => {
+                            const { Icon, unlocked } = flower;
+                            return (
+                                <Icon 
+                                    key={i} 
+                                    className={cn(
+                                        "h-10 w-10 transition-all duration-500",
+                                        unlocked ? "text-primary sprout" : "text-gray-300 opacity-50",
+                                    )} 
+                                    style={{ animationDelay: `${i * 50}ms` }}
+                                />
+                            )
+                        })}
+                        {gardenFlowers.every(f => f.unlocked) && <p className="col-span-full text-center text-muted-foreground self-center">Your garden is in full bloom! Keep up the great work.</p>}
                     </div>
                     </CardContent>
                 </Card>
@@ -1558,56 +1691,8 @@ export default function Home() {
             
             {/* Side Column */}
             <div className="lg:col-span-1 space-y-6">
-                 <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '300ms'}}>
-                    <CardHeader>
-                        <div className='flex items-start justify-between gap-4'>
-                            <div>
-                                <CardTitle className="font-headline text-2xl">Sleep Log</CardTitle>
-                                <CardDescription>Your private, encrypted records of rest.</CardDescription>
-                            </div>
-                            <Button variant="outline" size="sm" onClick={() => whoopInputRef.current?.click()}>
-                                <UploadCloud className="mr-2 h-4 w-4" />
-                                Import
-                            </Button>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        {whoopData.length > 0 && (
-                            <div className="mb-6">
-                                <h4 className="text-lg font-headline mb-2">Recent Sleep Performance</h4>
-                                <ChartContainer config={whoopChartConfig} className="h-[200px] w-full">
-                                    <BarChart accessibilityLayer data={whoopData} margin={{ top: 20, right: 20, bottom: 5, left: 0 }}>
-                                        <CartesianGrid vertical={false} />
-                                        <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
-                                        <YAxis unit="h" tickLine={false} axisLine={false} />
-                                        <RechartsTooltip cursor={false} content={<ChartTooltipContent />} />
-                                        <Legend />
-                                        <Bar dataKey="Time in Bed (hours)" name="Time in Bed" fill="var(--color-timeInBed)" radius={4} />
-                                        <Bar dataKey="Sleep (hours)" name="Sleep" fill="var(--color-sleep)" radius={4} />
-                                    </BarChart>
-                                </ChartContainer>
-                            </div>
-                        )}
-                        <ScrollArea className="h-[280px] pr-4">
-                            <div className="space-y-4">
-                                {journalEntries.map(entry => (
-                                    <div key={entry.id} className="flex flex-col gap-4 rounded-lg border p-3 bg-card hover:bg-secondary/50 transition-colors" data-ai-hint="bed bedroom">
-                                        <div className="flex items-center gap-4">
-                                            <Image src={entry.imageUrl} alt="A photo of a bed" width={80} height={60} className="rounded-md object-cover aspect-[4/3]" data-ai-hint="night sleep" />
-                                            <div className="flex-grow">
-                                                <p className="font-semibold">{entry.date}</p>
-                                                <p className="text-sm text-primary">{entry.sleep}</p>
-                                            </div>
-                                        </div>
-                                        {entry.motionData && entry.motionData.length > 0 && <MotionChart data={entry.motionData} />}
-                                    </div>
-                                ))}
-                                {journalEntries.length === 0 && <p className="text-center text-muted-foreground pt-16">Complete a sleep verification to start your log.</p>}
-                            </div>
-                        </ScrollArea>
-                    </CardContent>
-                </Card>
-                 <LiveMotionStatus />
+                {isSleepLogUnlocked ? renderSleepLog() : renderLockedSleepLog()}
+                <LiveMotionStatus />
             </div>
         </div>
       </main>
@@ -1615,5 +1700,3 @@ export default function Home() {
     </TooltipProvider>
   );
 }
-
-    
