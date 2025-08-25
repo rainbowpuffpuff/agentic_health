@@ -74,7 +74,7 @@ const whoopChartConfig = {
 } satisfies ChartConfig
 
 const motionChartConfig = {
-    movement: {
+    magnitude: {
       label: "Movement",
       color: "hsl(var(--primary))",
     },
@@ -1041,11 +1041,12 @@ export default function Home() {
                 axisLine={false}
                 tickMargin={8}
                 />
-            <YAxis 
-                label={{ value: 'm/s²', angle: -90, position: 'insideLeft', offset: 10, style: { textAnchor: 'middle' } }}
+            <YAxis
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
+                tickFormatter={(tick) => tick.toFixed(1)}
+                label={{ value: 'm/s²', angle: -90, position: 'insideLeft', offset: 10, style: { textAnchor: 'middle' } }}
             />
             <RechartsTooltip 
                 cursor={{ strokeDasharray: '3 3' }} 
@@ -1055,9 +1056,7 @@ export default function Home() {
                       <div className="grid grid-cols-2 gap-2">
                         <div className="flex flex-col">
                           <span className="text-[0.70rem] uppercase text-muted-foreground">Time</span>
-                          <span className="font-bold text-muted-foreground">{label.toLocaleString(undefined, {
-                            timeZoneName: 'short',
-                          })}s</span>
+                          <span className="font-bold text-muted-foreground">{label.toFixed(1)}s</span>
                         </div>
                         <div className="flex flex-col">
                           <span className="text-[0.70rem] uppercase text-muted-foreground">Movement</span>
@@ -1068,7 +1067,7 @@ export default function Home() {
                   ) : null
                 }
             />
-            <Line type="monotone" dataKey="magnitude" stroke="var(--color-movement)" strokeWidth={2} dot={false} name="Movement"/>
+            <Line type="monotone" dataKey="magnitude" stroke="var(--color-magnitude)" strokeWidth={2} dot={false} name="Movement"/>
           </LineChart>
         </ChartContainer>
       </div>
@@ -1090,7 +1089,7 @@ export default function Home() {
                         <LineChart data={liveMotionData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                             <CartesianGrid vertical={false} />
                             <XAxis dataKey="time" type="number" domain={['dataMin', 'dataMax']} tick={false} axisLine={false}/>
-                            <YAxis domain={[0, 'dataMax + 2']} tickLine={false} axisLine={false}/>
+                            <YAxis domain={[0, 'dataMax + 2']} tick={false} axisLine={false}/>
                             <RechartsTooltip content={() => null} />
                             <Line type="monotone" dataKey="magnitude" stroke="hsl(var(--primary))" strokeWidth={2} dot={false}/>
                         </LineChart>
@@ -1586,4 +1585,3 @@ export default function Home() {
     </TooltipProvider>
   );
 }
-
