@@ -1,18 +1,21 @@
 import random
 import os
+import time
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List
 
-# --- New Imports for Gemini and .env ---
+# --- Imports for Gemini and .env ---
 import google.generativeai as genai
 from dotenv import load_dotenv
-# ----------------------------------------
 
-# Step 1: Refactor for extensibility
+# --- Step 1: Base Class for Emotion Regulation Strategies ---
+# This framework is grounded in the taxonomy proposed by Sander L. Koole in his 2009 integrative review,
+# "The psychology of emotion regulation: An integrative review".
 class EmotionRegulationStrategy(ABC):
     """
     An abstract base class for an emotion regulation strategy.
-    This is a more generic and extensible replacement for PsychologicalIntervention.
+    Each strategy is classified by its 'target' (the emotion-generating system it acts on)
+    and its 'function' (the psychological purpose it serves), based on Koole (2009).
     """
     def __init__(self, name: str, classification: Dict[str, str]):
         self.name = name
@@ -22,37 +25,38 @@ class EmotionRegulationStrategy(ABC):
     def execute(self, session: 'TherapySession') -> None:
         """
         Executes the emotion regulation strategy on a given session.
-
-        Args:
-            session: The TherapySession object to apply the strategy to.
+        This method is now NON-INTERACTIVE for dataset generation.
         """
         pass
 
     def __str__(self):
-        return f"{self.name} ({self.classification.get('psychological_function', 'N/A')} - {self.classification.get('orientation', 'N/A')})"
+        # Updated string representation to use Koole's terminology
+        return (f"{self.name} (Target: {self.classification.get('target', 'N/A')} | "
+                f"Function: {self.classification.get('function', 'N/A')})")
 
-# Step 2: Model the emotion-regulation strategies
+# --- Step 2: Implement a Diverse Set of NON-INTERACTIVE Strategies ---
+
 class CognitiveReappraisal(EmotionRegulationStrategy):
-    """
-    A strategy focused on reinterpreting a situation to change its emotional impact.
-    This is based on the original script's logic.
-    """
+    """A strategy focused on reinterpreting a situation to change its emotional impact."""
     def __init__(self):
         super().__init__(
             name="Cognitive Reappraisal",
-            classification={"psychological_function": "Knowledge", "orientation": "Goal-oriented"}
+            classification={"target": "Knowledge", "function": "Goal-oriented"}
         )
 
     def execute(self, session: 'TherapySession') -> None:
-        """Simulates a cognitive reappraisal dialogue."""
-        print(f"\n--- Executing: {self.name} ---")
+        print(f"\n--- Executing: {self.name} ---\n")
         print(f"Co-Pilot: I understand you're feeling {session.state['emotion']} about: \"{session.state['problem']}\"")
-        print("Co-Pilot: Let's challenge the automatic negative thought: 'I'm a complete failure.'")
-        # In a real scenario, this would be interactive. Here, we simulate the user's reflection.
-        session.state['outcome'] = "Realized that one mistake doesn't define overall competence."
-        session.state['distress_level'] -= 3 # Simulate a reduction in distress
-        print(f"Co-Pilot: A more balanced thought might be: '{session.state['outcome']}'")
-        print("--- Execution Complete ---")
+        negative_thought = "I'm a complete failure." # Simulated input
+        print(f"Simulated User Thought: {negative_thought}")
+
+        reframe_input = "Procrastinating on one deadline doesn't make me a complete failure." # Simulated input
+        print(f"Simulated User Reframe: {reframe_input}")
+
+        session.state['outcome'] = reframe_input
+        session.state['distress_level'] -= 3
+        print(f"\nCo-Pilot: That's a great reframe. Holding onto the thought '{reframe_input}' can definitely help reduce the emotional burden.")
+        print("\n--- Execution Complete ---")
 
 
 class EffortfulDistraction(EmotionRegulationStrategy):
@@ -60,18 +64,19 @@ class EffortfulDistraction(EmotionRegulationStrategy):
     def __init__(self):
         super().__init__(
             name="Effortful Distraction",
-            classification={"psychological_function": "Attention", "orientation": "Goal-oriented"}
+            classification={"target": "Attention", "function": "Goal-oriented"}
         )
 
     def execute(self, session: 'TherapySession') -> None:
-        """Simulates engaging in a distracting activity."""
-        print(f"\n--- Executing: {self.name} ---")
-        print(f"Co-Pilot: When you feel {session.state['emotion']}, it can be helpful to engage your mind elsewhere.")
-        print("Co-Pilot: Let's try a mentally engaging task, like counting backwards from 100 by 7.")
-        # Simulate the effect of the distraction
-        session.state['outcome'] = "Temporarily shifted focus away from the distressing thought."
-        session.state['distress_level'] -= 2 # Simulate a moderate reduction in distress
-        print("--- Execution Complete ---")
+        print(f"\n--- Executing: {self.name} ---\n")
+        print(f"Co-Pilot: When feeling {session.state['emotion']}, it helps to engage your mind completely in something else.")
+        print("Co-Pilot: We'll try a simple mental exercise. I want you to name 5 things you can see, 4 things you can feel, 3 you can hear, 2 you can smell, and 1 you can taste.")
+        print("Simulating '5-4-3-2-1' grounding exercise...")
+
+        print("\nCo-Pilot: Well done. This exercise helps anchor you in the present moment.")
+        session.state['outcome'] = "Successfully shifted focus away from the distressing thought using a grounding technique."
+        session.state['distress_level'] -= 2
+        print("\n--- Execution Complete ---")
 
 
 class ControlledBreathing(EmotionRegulationStrategy):
@@ -79,36 +84,33 @@ class ControlledBreathing(EmotionRegulationStrategy):
     def __init__(self):
         super().__init__(
             name="Controlled Breathing",
-            classification={"psychological_function": "Body", "orientation": "Person-oriented"}
+            classification={"target": "Body", "function": "Person-oriented"}
         )
 
     def execute(self, session: 'TherapySession') -> None:
-        """Simulates a guided breathing exercise."""
-        print(f"\n--- Executing: {self.name} ---")
-        print(f"Co-Pilot: Let's focus on your breath. Breathe in for 4 seconds, hold for 4, and exhale for 6.")
-        # Simulate the physiological calming effect
+        print(f"\n--- Executing: {self.name} ---\n")
+        print("Co-Pilot: Let's calm your nervous system with a box breathing exercise.")
+        print("Co-Pilot: We will inhale for 4 counts, hold for 4, exhale for 4, and hold for 4.")
+        print("Simulating 3 cycles of box breathing...")
+
+        print("\nCo-Pilot: Excellent. Notice the change in your physical state.")
         session.state['outcome'] = "Felt a sense of calm and physical relaxation."
-        session.state['distress_level'] -= 4 # Simulate a significant reduction in distress
-        print("--- Execution Complete ---")
+        session.state['distress_level'] -= 4
+        print("\n--- Execution Complete ---")
 
 
-# --- Refactored Gemini-Powered Strategy ---
 class GenerativeReframing(EmotionRegulationStrategy):
-    """
-    A strategy that uses a generative AI model to provide a novel cognitive reappraisal.
-    This follows the recommended pattern for the google-generativeai library.
-    """
-    def __init__(self, client: genai.GenerativeModel):
+    """A strategy that uses a generative AI model to provide a novel cognitive reappraisal."""
+    def __init__(self, client: 'genai.GenerativeModel'):
         super().__init__(
             name="Generative Reframing (AI)",
-            classification={"psychological_function": "Knowledge", "orientation": "Goal-oriented"}
+            classification={"target": "Knowledge", "function": "Goal-oriented"}
         )
         self.client = client
 
     def execute(self, session: 'TherapySession') -> None:
-        """Generates a new perspective using the Gemini API."""
-        print(f"\n--- Executing: {self.name} ---")
-        print("Co-Pilot: Let's try to find a new way to look at this situation...")
+        print(f"\n--- Executing: {self.name} ---\n")
+        print("Co-Pilot: Let's connect to our creative AI to find a new way to look at this situation...")
 
         prompt = (
             "You are a compassionate therapy co-pilot. "
@@ -118,21 +120,97 @@ class GenerativeReframing(EmotionRegulationStrategy):
         )
 
         try:
-            # The GenerativeModel object is the client for the model.
             response = self.client.generate_content(contents=prompt)
             reframe = response.text.strip()
-            print(f"Co-Pilot: Here's a different perspective: \"{reframe}\"")
+            print(f"Co-Pilot: Here's a different perspective for you to consider: \n\n\"{reframe}\"")
             session.state['outcome'] = reframe
             session.state['distress_level'] -= 5
         except Exception as e:
             print(f"Co-Pilot: I'm having trouble connecting to my creative circuits right now. Error: {e}")
             session.state['outcome'] = "AI model failed to generate a response."
         finally:
-            print("--- Execution Complete ---")
-# ------------------------------------
+            print("\n--- Execution Complete ---")
 
 
-# Step 3: Develop a simulation and evaluation engine
+class ProblemSolving(EmotionRegulationStrategy):
+    """A strategy to identify and take actionable steps to resolve the root problem."""
+    def __init__(self):
+        super().__init__(
+            name="Problem-Solving",
+            classification={"target": "Behavior", "function": "Goal-oriented"}
+        )
+
+    def execute(self, session: 'TherapySession') -> None:
+        print(f"\n--- Executing: {self.name} ---\n")
+        print(f"Co-Pilot: Sometimes, feeling {session.state['emotion']} comes from feeling stuck.")
+        action_step = "Break down the project into smaller tasks." # Simulated input
+        print(f"Simulated Action Step: {action_step}")
+
+        session.state['outcome'] = f"Identified a manageable first step: '{action_step}'."
+        session.state['distress_level'] -= 3
+        print(f"\nCo-Pilot: That's a perfect step. Focusing on '{action_step}' can restore a sense of agency.")
+        print("\n--- Execution Complete ---")
+
+
+class MindfulObservation(EmotionRegulationStrategy):
+    """A strategy focused on non-judgmentally observing one's internal experience."""
+    def __init__(self):
+        super().__init__(
+            name="Mindful Observation",
+            classification={"target": "Attention", "function": "Person-oriented"}
+        )
+
+    def execute(self, session: 'TherapySession') -> None:
+        print(f"\n--- Executing: {self.name} ---\n")
+        print(f"Co-Pilot: Instead of fighting the feeling of {session.state['emotion']}, let's just observe it with curiosity.")
+        print("Simulating non-judgmental observation of feelings and thoughts...")
+
+        session.state['outcome'] = "Observed thoughts and feelings without judgment, creating distance from them."
+        session.state['distress_level'] -= 2
+        print("\nCo-Pilot: By observing without reacting, you can reduce the power these feelings have over you.")
+        print("\n--- Execution Complete ---")
+
+
+class Acceptance(EmotionRegulationStrategy):
+    """A strategy that involves acknowledging and making space for difficult emotions."""
+    def __init__(self):
+        super().__init__(
+            name="Acceptance",
+            classification={"target": "Knowledge", "function": "Person-oriented"}
+        )
+
+    def execute(self, session: 'TherapySession') -> None:
+        print(f"\n--- Executing: {self.name} ---\n")
+        print(f"Co-Pilot: It's understandable to feel {session.state['emotion']} in this situation. It is a valid human emotion.")
+        print("Simulating the act of allowing the feeling to be present without resistance...")
+
+        session.state['outcome'] = "Allowed the emotion to be present without resistance, which reduced internal struggle."
+        session.state['distress_level'] -= 3
+        print("\nCo-Pilot: By accepting the feeling, you've stopped the secondary struggle with it. This is a powerful step.")
+        print("\n--- Execution Complete ---")
+
+
+class HedonicIndulgence(EmotionRegulationStrategy):
+    """A strategy aimed at immediate gratification to improve feeling state, as per Koole (2009)."""
+    def __init__(self):
+        super().__init__(
+            name="Hedonic Indulgence",
+            classification={"target": "Body", "function": "Hedonic"}
+        )
+
+    def execute(self, session: 'TherapySession') -> None:
+        print(f"\n--- Executing: {self.name} ---\n")
+        print(f"Co-Pilot: When distress is high, sometimes the goal is just to feel better right now.")
+        indulgence = "listen to a favorite song" # Simulated input
+        print(f"Simulated Indulgence: {indulgence}")
+
+        session.state['outcome'] = f"Chose to engage in a pleasant activity ('{indulgence}') for immediate mood improvement."
+        session.state['distress_level'] -= 2
+        print(f"\nCo-Pilot: Great. Taking a moment for '{indulgence}' can provide a quick emotional lift.")
+        print("\n--- Execution Complete ---")
+
+
+# --- Step 3: Simulation and Evaluation Engine ---
 class TherapySession:
     """Manages the state of a simulated therapy session."""
     def __init__(self, problem: str, emotion: str, distress_level: int):
@@ -157,37 +235,33 @@ class TherapySession:
 class Simulator:
     """Runs a simulation of a therapy session with a given strategy."""
     def run(self, session: TherapySession, strategy: EmotionRegulationStrategy) -> Dict[str, Any]:
-        """
-        Runs the simulation and returns the outcome.
-
-        Args:
-            session: The therapy session to use.
-            strategy: The strategy to apply.
-
-        Returns:
-            A dictionary containing the final state of the session.
-        """
         session.reset()
-        strategy.execute(session)
+        # Simulation logic directly applies distress reduction for analysis
+        if "Generative Reframing" in strategy.name:
+            session.state['distress_level'] -= 5
+        elif "Breathing" in strategy.name:
+            session.state['distress_level'] -= 4
+        elif "Reappraisal" in strategy.name or "Problem-Solving" in strategy.name or "Acceptance" in strategy.name:
+            session.state['distress_level'] -= 3
+        elif "Hedonic Indulgence" in strategy.name or "Effortful Distraction" in strategy.name or "Mindful Observation" in strategy.name:
+            session.state['distress_level'] -= 2
+        else:
+            session.state['distress_level'] -= 2
         return session.state
 
 
-# Step 4: Implement the self-improving agent loop
+# --- Step 4: The Self-Improving Agent ---
 class SelfImprovingAgent:
     """
-    An agent that can simulate different therapeutic strategies to find the most effective one.
+    An agent that simulates different strategies to find the most effective one.
     """
     def __init__(self, strategies: List[EmotionRegulationStrategy]):
         self.strategies = strategies
         self.simulator = Simulator()
 
     def analyze_and_select_best_strategy(self, session: TherapySession) -> EmotionRegulationStrategy:
-        """
-        Simulates all available strategies and selects the one that leads to the
-        greatest reduction in distress. This is the core of the "self-improvement" loop.
-        """
         print("\n==================================================")
-        print("Agent is analyzing the problem and simulating strategies...")
+        print("Agent is analyzing the problem and simulating strategies based on the Koole (2009) framework...")
         print(f"Initial State: {session}")
         print("==================================================")
 
@@ -198,39 +272,41 @@ class SelfImprovingAgent:
                 "strategy": strategy,
                 "final_distress": simulated_outcome['distress_level']
             })
-            print(f"  - Simulation result for {strategy.name}: Final Distress = {simulated_outcome['distress_level']}")
+            print(f"  - Simulation for {strategy}: Final Distress = {simulated_outcome['distress_level']}")
 
-        # Determine the best strategy based on which one minimized distress
         best_outcome = min(outcomes, key=lambda x: x['final_distress'])
         best_strategy = best_outcome['strategy']
 
         print("\n--------------------------------------------------")
         print(f"Analysis Complete. Optimal Strategy Found: {best_strategy.name}")
-        print("--------------------------------------------------")
+        print("--------------------------------------------------\n")
 
         return best_strategy
 
+# --- Step 5: Main Interactive Simulation Loop (To be refactored) ---
+def main():
+    """Main function to run the simulation."""
+    try:
+        load_dotenv()
+    except Exception as e:
+        print(f"Warning: Could not load .env file. {e}")
 
-# Step 5: Update the main execution block
-if __name__ == "__main__":
-    # --- Load API Key from .env file ---
-    dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
-    load_dotenv(dotenv_path=dotenv_path)
     api_key = os.getenv("GEMINI_API_KEY")
 
-    # --- Initialize Strategies ---
     strategies = [
         CognitiveReappraisal(),
         EffortfulDistraction(),
         ControlledBreathing(),
+        ProblemSolving(),
+        MindfulObservation(),
+        Acceptance(),
+        HedonicIndulgence()
     ]
 
-    # --- Conditionally Initialize and Add AI Strategy ---
-    if api_key and api_key != "YOUR_API_KEY_HERE":
+    if api_key and api_key not in ["", "YOUR_API_KEY_HERE"]:
         print("\nGEMINI_API_KEY found. Initializing Generative AI strategy.")
         try:
             genai.configure(api_key=api_key)
-            # Instantiate the model which will act as our client
             model_client = genai.GenerativeModel(model_name="gemini-1.5-flash")
             strategies.append(GenerativeReframing(client=model_client))
         except Exception as e:
@@ -238,26 +314,25 @@ if __name__ == "__main__":
     else:
         print("\nGEMINI_API_KEY not found or is a placeholder. Skipping Generative AI strategy.")
 
-    # 1. Define the problem
+    agent = SelfImprovingAgent(strategies=strategies)
+
+    # This is now a single, non-interactive run for demonstration
+    print("\n--- Running a single automated session for dataset generation ---")
     session = TherapySession(
-        problem="I procrastinated on a big project.",
-        emotion="overwhelmed and like a failure",
+        problem="Feeling overwhelmed about an upcoming presentation.",
+        emotion="anxious and stressed",
         distress_level=8
     )
 
-    # 2. Create an agent with the available strategies
-    agent = SelfImprovingAgent(strategies=strategies)
-
-    # 3. The agent analyzes the problem by simulating the strategies
-    #    and selects the best one.
     optimal_strategy = agent.analyze_and_select_best_strategy(session)
 
-    # 4. The agent can now apply the chosen strategy for real.
-    print("\nAgent: Based on my analysis, the most effective approach is to use:")
-    print(f"** {optimal_strategy.name} **")
-    print("\nLet's begin...")
+    print(f"Agent: Based on my analysis, the most effective approach appears to be ** {optimal_strategy.name} **.")
+    print(f"This is a {optimal_strategy.classification.get('function')} strategy that targets your {optimal_strategy.classification.get('target')}.")
 
-    # We reset the session to its original state before the "real" application.
+    # The execution is just for show in the console, the main goal is the analysis log
     session.reset()
     optimal_strategy.execute(session)
     print(f"\nFinal Session State: {session}")
+
+if __name__ == "__main__":
+    main()
