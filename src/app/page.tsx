@@ -111,6 +111,7 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const whoopInputRef = useRef<HTMLInputElement>(null);
   const fnirsInputRef = useRef<HTMLInputElement>(null);
+  const glucoseInputRef = useRef<HTMLInputElement>(null);
   const [uploadedImage, setUploadedImage] = useState<{url: string, date: string} | null>(null);
 
   // Whoop Data
@@ -119,6 +120,7 @@ export default function Home() {
   // Data Contribution State
   const [glucoseLevel, setGlucoseLevel] = useState('');
   const [fnirsFile, setFnirsFile] = useState<File | null>(null);
+  const [glucoseFile, setGlucoseFile] = useState<File | null>(null);
   const [pairedDataHistory, setPairedDataHistory] = useState<PairedDataEntry[]>([]);
 
   // Admin state
@@ -661,61 +663,75 @@ export default function Home() {
   
   const handleDataContribution = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fnirsFile || !glucoseLevel) {
-        toast({ variant: "destructive", title: "Missing Information", description: "Please provide both a fNIRS data file and a glucose reading." });
-        return;
+    if (!fnirsFile || !glucoseFile) {
+      toast({ variant: "destructive", title: "Missing Information", description: "Please provide both a fNIRS and a glucose data file." });
+      return;
     }
-
+  
     setAppState('uploading_data');
     await runProgress(1000);
-
+  
     try {
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            const fnirsData = event.target?.result as string;
-            
-            const result = await scoreDataContribution({
-                fnirsData: fnirsData,
-                glucoseLevel: Number(glucoseLevel),
-            });
-            
-            await runProgress(1000);
-
-            const newEntry: PairedDataEntry = {
-                id: Date.now(),
-                date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                fnirsFile: fnirsFile.name,
-                glucoseLevel: Number(glucoseLevel),
-                contributionScore: result.contributionScore,
-            };
-            
-            setPairedDataHistory(prev => [newEntry, ...prev]);
-            setDreamDew(prev => prev + result.reward);
-
-            toast({
-                title: "Contribution Scored!",
-                description: `${result.reason} You earned ${result.reward} Dream Dew.`,
-            });
-
-            // Reset form
-            setFnirsFile(null);
-            setGlucoseLevel('');
-            if (fnirsInputRef.current) {
-                fnirsInputRef.current.value = '';
-            }
+      const fnirsReader = new FileReader();
+      fnirsReader.onload = async (event) => {
+        const fnirsData = event.target?.result as string;
+  
+        const glucoseReader = new FileReader();
+        glucoseReader.onload = async (gEvent) => {
+          const glucoseData = gEvent.target?.result as string;
+          const glucoseValue = parseFloat(glucoseData.trim());
+  
+          if (isNaN(glucoseValue)) {
+            toast({ variant: "destructive", title: "Invalid Glucose Data", description: "The glucose file must contain a single numerical value." });
             setAppState('idle');
             setProgress(0);
+            return;
+          }
+  
+          const result = await scoreDataContribution({
+            fnirsData: fnirsData,
+            glucoseLevel: glucoseValue,
+          });
+  
+          await runProgress(1000);
+  
+          const newEntry: PairedDataEntry = {
+            id: Date.now(),
+            date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            fnirsFile: fnirsFile.name,
+            glucoseLevel: glucoseValue,
+            contributionScore: result.contributionScore,
+          };
+  
+          setPairedDataHistory(prev => [newEntry, ...prev]);
+          setDreamDew(prev => prev + result.reward);
+  
+          toast({
+            title: "Contribution Scored!",
+            description: `${result.reason} You earned ${result.reward} Dream Dew.`,
+          });
+  
+          // Reset form
+          setFnirsFile(null);
+          setGlucoseFile(null);
+          if (fnirsInputRef.current) fnirsInputRef.current.value = '';
+          if (glucoseInputRef.current) glucoseInputRef.current.value = '';
+          setAppState('idle');
+          setProgress(0);
         };
-        reader.readAsText(fnirsFile);
+        glucoseReader.readAsText(glucoseFile);
+      };
+      fnirsReader.readAsText(fnirsFile);
+  
     } catch(error) {
-        console.error("Error scoring data:", error);
-        toast({
-            variant: "destructive",
-            title: "Scoring Error",
-            description: "Could not score the data contribution. Please try again.",
-        });
-        setAppState('idle');
-        setProgress(0);
+      console.error("Error scoring data:", error);
+      toast({
+        variant: "destructive",
+        title: "Scoring Error",
+        description: "Could not score the data contribution. Please try again.",
+      });
+      setAppState('idle');
+      setProgress(0);
     }
   };
 
@@ -870,6 +886,8 @@ export default function Home() {
       <main className="container mx-auto p-4">
       <Input type="file" accept=".csv" ref={whoopInputRef} onChange={handleWhoopImport} className="hidden" />
       <Input type="file" accept=".csv,.txt" ref={fnirsInputRef} onChange={(e) => setFnirsFile(e.target.files?.[0] || null)} className="hidden" />
+      <Input type="file" accept=".csv,.txt" ref={glucoseInputRef} onChange={(e) => setGlucoseFile(e.target.files?.[0] || null)} className="hidden" />
+
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
             
@@ -977,7 +995,7 @@ export default function Home() {
                                         <Label htmlFor="stake-amount" className="sr-only">Commitment (NEAR)</Label>
                                         <Input id="stake-amount" type="number" value={stakeAmount} onChange={(e) => setStakeAmount(e.target.value)} placeholder="Commitment (NEAR)" className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                                     </div>
-                                    <Button onClick={() => handleStake(stakeAmount, 'rest')} disabled={appState !== 'idle' || !walletConnected || Number(stakeAmount) <= 0} className="sm:w-auto">
+                                    <Button onClick={() => handleStake(stakeAmount, 'rest')} disabled={appState !== 'idle' || !walletConnected || Number(stakeAmount) <= 0} className="w-full sm:w-auto">
                                         Commit & Begin
                                     </Button>
                                 </div>
@@ -1004,7 +1022,7 @@ export default function Home() {
                                         <Label htmlFor="action-stake-amount" className="sr-only">Commitment (NEAR)</Label>
                                         <Input id="action-stake-amount" type="number" value={actionStakeAmount} onChange={(e) => setActionStakeAmount(e.target.value)} placeholder="Commitment (NEAR)" className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                                     </div>
-                                    <Button onClick={() => handleStake(actionStakeAmount, 'action')} disabled={appState !== 'idle' || !walletConnected || dreamDew < 10 || Number(actionStakeAmount) <= 0} className="sm:w-auto">
+                                    <Button onClick={() => handleStake(actionStakeAmount, 'action')} disabled={appState !== 'idle' || !walletConnected || dreamDew < 10 || Number(actionStakeAmount) <= 0} className="w-full sm:w-auto">
                                         {dreamDew < 10 ? 'Need 10 Dream Dew' : 'Commit & Plant Seed'}
                                     </Button>
                                 </div>
@@ -1094,14 +1112,11 @@ export default function Home() {
                                     </Button>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="glucose-level">2. Pair Glucose Reading (mg/dL)</Label>
-                                    <Input 
-                                        id="glucose-level" 
-                                        type="number" 
-                                        value={glucoseLevel}
-                                        onChange={(e) => setGlucoseLevel(e.target.value)}
-                                        placeholder="e.g. 95"
-                                    />
+                                    <Label htmlFor="glucose-level">2. Pair Glucose Reading File</Label>
+                                    <Button type="button" variant="outline" className="w-full justify-start text-left font-normal" onClick={() => glucoseInputRef.current?.click()}>
+                                        <FilePlus2 className="mr-2" />
+                                        {glucoseFile ? <span className="truncate">{glucoseFile.name}</span> : 'Select a .csv or .txt file'}
+                                    </Button>
                                 </div>
                             </div>
                              {appState === 'uploading_data' && (
@@ -1115,7 +1130,7 @@ export default function Home() {
                             )}
                         </CardContent>
                         <CardFooter>
-                             <Button type="submit" className="w-full" disabled={!fnirsFile || !glucoseLevel || appState === 'uploading_data'}>
+                             <Button type="submit" className="w-full" disabled={!fnirsFile || !glucoseFile || appState === 'uploading_data'}>
                                 {appState === 'uploading_data' ? 'Submitting...' : 'Submit Paired Data'}
                              </Button>
                         </CardFooter>
@@ -1307,11 +1322,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
-
-    
-
-
-
-
