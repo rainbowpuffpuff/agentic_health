@@ -1031,10 +1031,8 @@ export default function Home() {
     toast({ title: 'Copied to clipboard!' });
   }
   
-  const getStateDescription = () => {
-    switch (appState) {
-      case 'taking_photo':
-        return { icon: <Camera className="text-primary" />, text: 'Take a timestamped photo of your bed...' };
+  const getStateDescription = (state: typeof appState) => {
+    switch (state) {
       case 'analyzing_photo':
         return { icon: <BrainCircuit className="animate-pulse text-primary" />, text: 'Analyzing photo for sleeping surface...' };
       case 'sleeping':
@@ -1043,8 +1041,6 @@ export default function Home() {
         return { icon: <KeyRound className="animate-spin text-primary" />, text: 'Generating ZK-Proof of Rest...' };
       case 'minting_dew':
         return { icon: <Zap className="futuristic-glow text-primary" />, text: 'Withdrawing your commitment...' };
-      case 'taking_action':
-        return { icon: <Mail className="text-primary" />, text: 'Sending secure email...' };
       case 'generating_action_proof':
         return { icon: <KeyRound className="animate-spin text-primary" />, text: 'Generating ZK-Proof of Action...' };
       case 'planting_seed':
@@ -1056,14 +1052,16 @@ export default function Home() {
     }
   };
 
-  const ProgressDisplay = () => {
-    if (appState === 'idle' || appState === 'taking_photo') return null;
+  const ProgressDisplay = ({ state } : { state: typeof appState }) => {
+    if (state === 'idle' || state === 'taking_photo') return null;
+
+    const { icon, text } = getStateDescription(state);
 
     return (
         <div className="mt-4 space-y-3 p-4 bg-secondary/50 rounded-lg fade-in">
             <div className="flex items-center gap-3 text-sm font-medium">
-                {getStateDescription().icon}
-                <span>{getStateDescription().text}</span>
+                {icon}
+                <span>{text}</span>
             </div>
             <Progress value={progress} className="w-full h-2" />
         </div>
@@ -1483,7 +1481,7 @@ export default function Home() {
                                     </Button>
                                 </div>
                             )}
-                            {isVerifyingSleep && <ProgressDisplay />}
+                            {isVerifyingSleep && <ProgressDisplay state={appState} />}
                         </div>
 
                         <div className="space-y-4 rounded-lg border p-4 hover:border-primary/20 transition-colors">
@@ -1538,7 +1536,7 @@ export default function Home() {
                                     )
                                 })}
                             </RadioGroup>
-                            {isVerifyingAction && <ProgressDisplay />}
+                            {isVerifyingAction && <ProgressDisplay state={appState} />}
                         </div>
                     </CardContent>
                     </Card>
@@ -1577,7 +1575,7 @@ export default function Home() {
                     </CardHeader>
                     <CardContent className="grid sm:grid-cols-2 gap-4">
                         <Card className="p-4 flex flex-col items-start gap-4 hover:bg-secondary/50 transition-colors">
-                            <Image src="https://placehold.co/100x100.png" alt="fNIRS Armband" width={100} height={100} className="rounded-lg self-center" data-ai-hint="wearable technology"/>
+                            <Image src="https://picsum.photos/600/400" alt="Futuristic fNIRS armband wearable" width={600} height={400} className="rounded-lg self-center aspect-video object-cover" data-ai-hint="wearable technology"/>
                             <div className="flex-grow space-y-2">
                                 <h3 className="font-headline text-lg">fNIRS Armband</h3>
                                 <p className="text-sm text-muted-foreground">Open-hardware fNIRS device for continuous, non-invasive data collection.</p>
@@ -1591,7 +1589,7 @@ export default function Home() {
                             </Button>
                         </Card>
                         <Card className="p-4 flex flex-col items-start gap-4 hover:bg-secondary/50 transition-colors">
-                            <Image src="https://placehold.co/100x100.png" alt="Abbott Glucose Monitor" width={100} height={100} className="rounded-lg self-center" data-ai-hint="medical device"/>
+                            <Image src="https://picsum.photos/400/400" alt="Small, circular glucose monitoring device" width={400} height={400} className="rounded-lg self-center aspect-square object-cover" data-ai-hint="medical device"/>
                             <div className="flex-grow space-y-2">
                                 <h3 className="font-headline text-lg">Abbott Glucose Monitor</h3>
                                 <p className="text-sm text-muted-foreground">Certified medical device for providing baseline glucose data to train the model.</p>
@@ -1633,7 +1631,7 @@ export default function Home() {
                                     <FileInfoDisplay info={glucoseInfo} />
                                 </div>
                             </div>
-                             {isUploadingData && <ProgressDisplay />}
+                             {isUploadingData && <ProgressDisplay state={appState} />}
                         </CardContent>
                         <CardFooter>
                              <Button type="submit" className="w-full" disabled={!fnirsFile || !glucoseFile || isUploadingData}>
