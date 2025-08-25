@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2 } from 'lucide-react';
+import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2 } from 'lucide-react';
 import DewDropIcon from '@/components/icons/DewDropIcon';
 import FlowerIcon from '@/components/icons/FlowerIcon';
 import { cn } from '@/lib/utils';
@@ -22,7 +22,8 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useWalletSelector } from '@/components/WalletProvider';
 import { CONTRACT_ID } from '@/lib/constants';
-import { utils } from 'near-api-js';
+import { utils, providers } from 'near-api-js';
+import type { CodeResult } from "near-api-js/lib/providers/provider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type JournalEntry = {
@@ -63,6 +64,12 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
+type StakerInfo = {
+    amount: string; // Comes as a string from the contract
+    bonus_approved: boolean;
+};
+
+
 const THIRTY_TGAS = "30000000000000";
 const CIVIC_ACTION_STAKE = "0.1"; // 0.1 NEAR for civic action stake
 
@@ -83,10 +90,9 @@ export default function Home() {
   const walletConnected = !!signedAccountId;
 
   // Staking state
-  const [isRestStaked, setIsRestStaked] = useState(false);
-  const [isActionStaked, setIsActionStaked] = useState(false);
-  const [stakeAmount, setStakeAmount] = useState("1"); // In NEAR for sleep
-  const [stakedBalance, setStakedBalance] = useState("0");
+  const [stakerInfo, setStakerInfo] = useState<StakerInfo | null>(null);
+  const [stakeAmount, setStakeAmount] = useState("0.1"); // In NEAR for sleep
+  const [isActionStaked, setIsActionStaked] = useState(false); // We'll keep this separate for civic action for now
 
   // Swarm State
   const [swarmState, setSwarmState] = useState<'idle' | 'generating_keys' | 'keys_generated' | 'funding' | 'buying_stamps' | 'ready_to_upload'>('idle');
@@ -118,56 +124,38 @@ export default function Home() {
     setTimeout(() => setIsLoading(false), 1000);
   }, []);
 
-  const getStakedBalance = useCallback(async () => {
+  const getStakerInfo = useCallback(async () => {
     if (!selector || !signedAccountId) return;
     const { network } = selector.options;
-    const provider = new utils.JsonRpcProvider({ url: network.nodeUrl });
+    const provider = new providers.JsonRpcProvider({ url: network.nodeUrl });
 
     try {
-        const balanceResult = await provider.query({
-        request_type: "call_function",
-        finality: "final",
-        account_id: CONTRACT_ID,
-        method_name: "get_staked_balance",
-        args_base64: btoa(JSON.stringify({ account_id: signedAccountId })),
-      });
+        const res = await provider.query<CodeResult>({
+            request_type: "call_function",
+            finality: "final",
+            account_id: CONTRACT_ID,
+            method_name: "get_stake_info",
+            args_base64: btoa(JSON.stringify({ staker_id: signedAccountId })),
+        });
       
-      const staked = JSON.parse(Buffer.from((balanceResult as any).result).toString());
-      const formattedBalance = utils.format.formatNearAmount(staked);
-      setStakedBalance(formattedBalance);
-
-      // Simple logic to check if staked for rest or action.
-      // A more robust solution might involve checking different staking pools in the contract.
-      const numericBalance = Number(formattedBalance);
-      if (numericBalance > 0) {
-        if (numericBalance >= 1) { // Assuming sleep stake is >= 1
-             setIsRestStaked(true);
-        } else {
-             setIsActionStaked(true);
-        }
-      } else {
-        setIsRestStaked(false);
-        setIsActionStaked(false);
-      }
-
-
+      const info = JSON.parse(Buffer.from(res.result).toString());
+      setStakerInfo(info);
     } catch (error) {
-      console.error("Failed to get staked balance:", error);
+      console.error("Failed to get staker info:", error);
+      setStakerInfo(null);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to fetch staked balance. The placeholder contract may not support this.",
+        description: "Could not fetch your staking information from the contract.",
       });
     }
-
   }, [selector, signedAccountId, toast]);
-
 
   useEffect(() => {
     if(walletConnected) {
-        getStakedBalance();
+        getStakerInfo();
     }
-  }, [walletConnected, getStakedBalance]);
+  }, [walletConnected, getStakerInfo]);
 
   
   const runProgress = async (duration: number, onComplete?: () => void) => {
@@ -219,11 +207,12 @@ export default function Home() {
         title: "Commitment Successful",
         description: `You have committed ${amount} NEAR.`,
       });
-      await getStakedBalance();
+      await getStakerInfo();
       
       if(stakeType === 'rest') {
           handleBeginSleepVerification();
       } else {
+          setIsActionStaked(true); // Manually set for now
           handleCivicAction();
       }
 
@@ -237,9 +226,9 @@ export default function Home() {
     }
   };
   
-    const handleUnstake = async (amountToUnstake: string) => {
+    const handleWithdraw = async () => {
         if (!walletConnected || !selector) {
-            toast({ variant: "destructive", title: "Wallet not connected", description: "Please connect your wallet to unstake." });
+            toast({ variant: "destructive", title: "Wallet not connected", description: "Please connect your wallet to withdraw." });
             return;
         }
         const wallet = await selector.wallet();
@@ -249,40 +238,68 @@ export default function Home() {
         }
 
         try {
-            const amountInYocto = utils.format.parseNearAmount(amountToUnstake);
-            if(!amountInYocto) {
-                toast({ variant: "destructive", title: "Error", description: "Invalid unstake amount" });
-                return;
-            }
-
             await wallet.signAndSendTransaction({
                 receiverId: CONTRACT_ID,
                 actions: [
                     {
                         type: 'FunctionCall',
                         params: {
-                            methodName: 'unstake',
-                            args: { amount: amountInYocto },
-                            gas: THIRTY_TGAS,
+                            methodName: 'withdraw',
+                            args: {},
+                            gas: THIRTY_TGAS, // Withdraw might need more gas for transfers
                             deposit: "0",
                         },
                     },
                 ],
             });
             toast({
-                title: "Commitment Returned",
-                description: `Your commitment of ${amountToUnstake} NEAR (plus rewards) has been returned.`,
+                title: "Withdrawal Successful",
+                description: `Your commitment has been returned.`,
             });
-            await getStakedBalance();
+            await getStakerInfo();
         } catch (error) {
-            console.error("Unstake failed:", error);
+            console.error("Withdrawal failed:", error);
             toast({
                 variant: "destructive",
-                title: "Return Failed",
+                title: "Withdrawal Failed",
                 description: (error as Error).message,
             });
         }
     };
+    
+    // This is a placeholder for the logic to approve bonus. In a real app,
+    // this would be triggered by an admin action based on some condition.
+    // For the demo, we can call this manually from the frontend if we are the owner.
+    const handleApproveBonus = async () => {
+        if (!walletConnected || !selector || !signedAccountId) {
+            toast({ variant: "destructive", title: "Wallet not connected" });
+            return;
+        }
+        const wallet = await selector.wallet();
+        if (!wallet) return;
+
+        try {
+            await wallet.signAndSendTransaction({
+                receiverId: CONTRACT_ID,
+                actions: [
+                    {
+                        type: 'FunctionCall',
+                        params: {
+                            methodName: 'approve_bonus',
+                            args: { staker_id: signedAccountId },
+                            gas: THIRTY_TGAS,
+                            deposit: "0",
+                        },
+                    },
+                ],
+            });
+            toast({ title: "Bonus Approved!", description: "The user's bonus has been approved." });
+            await getStakerInfo();
+        } catch(error) {
+             toast({ variant: "destructive", title: "Approval Failed", description: (error as Error).message });
+        }
+    }
+
 
   const handleBeginSleepVerification = () => {
     setUploadedImage(null);
@@ -383,17 +400,31 @@ export default function Home() {
       reader.onload = (e) => {
         const text = e.target?.result as string;
         try {
-          const lines = text.split('\n');
+          const lines = text.split('\n').filter(line => line.trim() !== '');
           if (lines.length < 2) {
             throw new Error("CSV is empty or has no header.");
           }
+          
           const headerLine = lines[0].trim();
           const header = headerLine.split(',');
           const rows = lines.slice(1);
 
           const getIndex = (name: string) => {
-            const index = header.findIndex(h => h.trim() === name);
+            const index = header.findIndex(h => h.trim().toLowerCase() === name.toLowerCase());
             if (index === -1) {
+              // Be flexible with column names
+              const alternateNames: {[key: string]: string[]} = {
+                  'Cycle start time': ['date'],
+                  'In bed duration (min)': ['time in bed (min)'],
+                  'Asleep duration (min)': ['sleep duration (min)', 'asleep (min)'],
+              }
+              const alternatives = alternateNames[name];
+              if(alternatives) {
+                  for(const alt of alternatives) {
+                      const altIndex = header.findIndex(h => h.trim().toLowerCase() === alt.toLowerCase());
+                      if(altIndex !== -1) return altIndex;
+                  }
+              }
               throw new Error(`Required column "${name}" not found in CSV header.`);
             }
             return index;
@@ -466,6 +497,13 @@ export default function Home() {
         await runProgress(1000);
 
         if (result.isSleepingSurface) {
+            
+            // In a real app, this is where you'd call `approve_bonus`
+            // For now, we simulate this happening instantly for demo purposes
+            if(walletConnected) {
+                await handleApproveBonus(); // This would normally be a backend/owner action
+            }
+
             setAppState('sleeping');
             await runProgress(3000);
 
@@ -475,7 +513,7 @@ export default function Home() {
             setAppState('minting_dew');
             await runProgress(2000, async () => {
                 if(walletConnected) {
-                    await handleUnstake(stakeAmount);
+                    await handleWithdraw();
                 }
             });
 
@@ -531,7 +569,9 @@ export default function Home() {
         setGardenFlowers(prev => prev + 1);
         setDreamDew(prev => Math.max(0, prev - 10));
         if (walletConnected) {
-            await handleUnstake(CIVIC_ACTION_STAKE);
+            // This part is tricky as the civic action stake is not separated in the contract.
+            // For now, we just update the UI state.
+             setIsActionStaked(false);
         }
     });
 
@@ -654,7 +694,7 @@ export default function Home() {
       case 'generating_sleep_proof':
         return { icon: <KeyRound className="animate-spin text-primary" />, text: 'Generating ZK-Proof of Rest...' };
       case 'minting_dew':
-        return { icon: <Zap className="futuristic-glow text-primary" />, text: 'Returning your commitment...' };
+        return { icon: <Zap className="futuristic-glow text-primary" />, text: 'Withdrawing your commitment...' };
       case 'taking_action':
         return { icon: <Mail className="text-primary" />, text: 'Sending secure email...' };
       case 'generating_action_proof':
@@ -780,15 +820,30 @@ export default function Home() {
                                 <Bed className="h-6 w-6 text-primary" />
                                 <h3 className="font-headline text-lg">Proof of Rest</h3>
                             </div>
-                            <p className="text-sm text-muted-foreground">Commit NEAR as a pledge to your sleep. Your commitment is returned with a reward after successful verification.</p>
+                            <p className="text-sm text-muted-foreground">Commit NEAR to verify your sleep. After verification, your commitment is returned with a bonus.</p>
                             
-                            {isRestStaked && walletConnected ? (
-                                <div className='p-4 bg-secondary rounded-md'>
-                                    <p className='text-sm font-semibold'>You have <span className="font-bold text-primary">{stakedBalance} NEAR</span> committed.</p>
-                                    <p className="text-xs text-muted-foreground mt-1">Complete the sleep verification to get it back with a reward.</p>
-                                    <Button onClick={handleBeginSleepVerification} disabled={appState !== 'idle'} className="w-full mt-3">
-                                        Verify Sleep
-                                    </Button>
+                            {stakerInfo && walletConnected ? (
+                                <div className='p-4 bg-secondary rounded-md space-y-3'>
+                                    <div>
+                                        <p className='text-sm font-semibold'>You have <span className="font-bold text-primary">{utils.format.formatNearAmount(stakerInfo.amount)} NEAR</span> committed.</p>
+                                        <p className="text-xs text-muted-foreground mt-1">Complete sleep verification to get it back with a bonus.</p>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm">
+                                        <span>Bonus Status:</span>
+                                        {stakerInfo.bonus_approved ? (
+                                            <span className='font-medium text-green-600 flex items-center gap-1'><CheckCircle2 size={16}/> Approved</span>
+                                        ) : (
+                                            <span className='font-medium text-muted-foreground flex items-center gap-1'><Loader size={16} className="animate-spin" /> Pending</span>
+                                        )}
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button onClick={handleBeginSleepVerification} disabled={appState !== 'idle' || stakerInfo.bonus_approved} className="w-full">
+                                            Verify Sleep
+                                        </Button>
+                                        <Button onClick={handleWithdraw} disabled={appState !== 'idle' || !stakerInfo.bonus_approved} className="w-full" variant="outline">
+                                            Withdraw
+                                        </Button>
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="flex items-end gap-2">
@@ -796,7 +851,7 @@ export default function Home() {
                                         <Label htmlFor="stake-amount">Commitment (NEAR)</Label>
                                         <Input id="stake-amount" type="number" value={stakeAmount} onChange={(e) => setStakeAmount(e.target.value)} className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                                     </div>
-                                    <Button onClick={() => handleStake(stakeAmount, 'rest')} disabled={appState !== 'idle' || Number(stakeAmount) <= 0}>
+                                    <Button onClick={() => handleStake(stakeAmount, 'rest')} disabled={appState !== 'idle' || !walletConnected || Number(stakeAmount) <= 0}>
                                         Commit & Begin
                                     </Button>
                                 </div>
@@ -808,7 +863,7 @@ export default function Home() {
                                 <Mail className="h-6 w-6 text-primary" />
                                 <h3 className="font-headline text-lg">Proof of Action</h3>
                             </div>
-                            <p className="text-sm text-muted-foreground">Commit a small amount of {CIVIC_ACTION_STAKE} NEAR and spend 10 Dream Dew to prove you've contacted a representative. Your anonymous action will be added to the public registry, and your commitment returned.</p>
+                            <p className="text-sm text-muted-foreground">Commit {CIVIC_ACTION_STAKE} NEAR and spend 10 Dream Dew to prove you've contacted a representative. Your anonymous action will be added to the public registry, and your commitment returned.</p>
 
                             {isActionStaked && walletConnected ? (
                                 <div className='p-4 bg-secondary rounded-md'>
@@ -818,7 +873,7 @@ export default function Home() {
                                     </Button>
                                 </div>
                             ) : (
-                                <Button onClick={() => handleStake(CIVIC_ACTION_STAKE, 'action')} disabled={appState !== 'idle' || dreamDew < 10} variant="outline" className="w-full">
+                                <Button onClick={() => handleStake(CIVIC_ACTION_STAKE, 'action')} disabled={appState !== 'idle' || !walletConnected || dreamDew < 10} variant="outline" className="w-full">
                                     {dreamDew < 10 ? 'Need 10 Dream Dew' : `Commit ${CIVIC_ACTION_STAKE} NEAR & Plant Seed`}
                                 </Button>
                             )}
