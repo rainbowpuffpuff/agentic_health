@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload } from 'lucide-react';
+import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, UserCog } from 'lucide-react';
 import DewDropIcon from '@/components/icons/DewDropIcon';
 import FlowerIcon from '@/components/icons/FlowerIcon';
 import { cn } from '@/lib/utils';
@@ -17,17 +17,28 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { detectSleepingSurface } from '@/ai/flows/detect-sleeping-surface-flow';
+import { scoreDataContribution } from '@/ai/flows/score-data-contribution-flow';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useWalletSelector } from '@/components/WalletProvider';
 import { CONTRACT_ID } from '@/lib/constants';
-import { utils } from 'near-api-js';
+import { utils, providers } from 'near-api-js';
+import type { CodeResult } from "near-api-js/lib/providers/provider";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type JournalEntry = {
   id: number;
   date: string;
   sleep: string;
   imageUrl: string;
+};
+
+type PairedDataEntry = {
+  id: number;
+  date: string;
+  fnirsFile: string;
+  glucoseLevel: number;
+  contributionScore: number;
 };
 
 type SwarmKeys = {
@@ -53,7 +64,14 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
+type StakerInfo = {
+    amount: string; // Comes as a string from the contract
+    bonus_approved: boolean;
+};
+
+
 const THIRTY_TGAS = "30000000000000";
+const CIVIC_ACTION_STAKE = "0.1"; // 0.1 NEAR for civic action stake
 
 export default function Home() {
   const [dreamDew, setDreamDew] = useState(200); // Start with enough dew to test
@@ -64,7 +82,7 @@ export default function Home() {
 
 
   const [isLoading, setIsLoading] = useState(true);
-  const [appState, setAppState] = useState<'idle' | 'sleeping' | 'generating_sleep_proof' | 'minting_dew' | 'taking_action' | 'generating_action_proof' | 'planting_seed' | 'taking_photo' | 'analyzing_photo'>('idle');
+  const [appState, setAppState] = useState<'idle' | 'sleeping' | 'generating_sleep_proof' | 'minting_dew' | 'taking_action' | 'generating_action_proof' | 'planting_seed' | 'taking_photo' | 'analyzing_photo' | 'uploading_data'>('idle');
   const [progress, setProgress] = useState(0);
   const { toast } = useToast();
 
@@ -72,10 +90,9 @@ export default function Home() {
   const walletConnected = !!signedAccountId;
 
   // Staking state
-  const [isStaked, setIsStaked] = useState(false);
-  const [stakeAmount, setStakeAmount] = useState("1"); // In NEAR
-  const [stakedBalance, setStakedBalance] = useState("0");
-
+  const [stakerInfo, setStakerInfo] = useState<StakerInfo | null>(null);
+  const [stakeAmount, setStakeAmount] = useState("0.1"); // In NEAR for sleep
+  const [isActionStaked, setIsActionStaked] = useState(false); // We'll keep this separate for civic action for now
 
   // Swarm State
   const [swarmState, setSwarmState] = useState<'idle' | 'generating_keys' | 'keys_generated' | 'funding' | 'buying_stamps' | 'ready_to_upload'>('idle');
@@ -90,10 +107,23 @@ export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const whoopInputRef = useRef<HTMLInputElement>(null);
+  const fnirsInputRef = useRef<HTMLInputElement>(null);
   const [uploadedImage, setUploadedImage] = useState<{url: string, date: string} | null>(null);
 
   // Whoop Data
   const [whoopData, setWhoopData] = useState<WhoopData>([]);
+  
+  // Data Contribution State
+  const [glucoseLevel, setGlucoseLevel] = useState('');
+  const [fnirsFile, setFnirsFile] = useState<File | null>(null);
+  const [pairedDataHistory, setPairedDataHistory] = useState<PairedDataEntry[]>([]);
+
+  // Admin state
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [contractOwner, setContractOwner] = useState<string | null>(null);
+  const [stakerIdToApprove, setStakerIdToApprove] = useState('');
+  const [infoForAddress, setInfoForAddress] = useState<StakerInfo | null>(null);
+  const [isCheckingAddress, setIsCheckingAddress] = useState(false);
 
 
   useEffect(() => {
@@ -101,44 +131,96 @@ export default function Home() {
     setTimeout(() => setIsLoading(false), 1000);
   }, []);
 
-  const getStakedBalance = useCallback(async () => {
-    if (!selector || !signedAccountId) return;
+  const getContractOwner = useCallback(async () => {
+    if (!selector) return;
     const { network } = selector.options;
-    const provider = new utils.JsonRpcProvider({ url: network.nodeUrl });
+    const provider = new providers.JsonRpcProvider({ url: network.nodeUrl });
 
     try {
-        const balance = await provider.query({
+      const res = await provider.query<CodeResult>({
         request_type: "call_function",
         finality: "final",
         account_id: CONTRACT_ID,
-        method_name: "get_staked_balance",
-        args_base64: btoa(JSON.stringify({ account_id: signedAccountId })),
+        method_name: "get_owner",
+        args_base64: btoa(JSON.stringify({})),
       });
-      
-      const staked = JSON.parse(Buffer.from((balance as any).result).toString());
-      const formattedBalance = utils.format.formatNearAmount(staked);
-      setStakedBalance(formattedBalance);
-      setIsStaked(Number(formattedBalance) > 0);
-
+      const owner = JSON.parse(Buffer.from(res.result).toString());
+      setContractOwner(owner);
     } catch (error) {
-      console.error("Failed to get staked balance:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to fetch staked balance.",
-      });
+      console.error("Failed to get contract owner:", error);
     }
+  }, [selector]);
+  
+  const getStakerInfo = useCallback(async (stakerId: string) => {
+    if (!selector) return null;
+    const { network } = selector.options;
+    const provider = new providers.JsonRpcProvider({ url: network.nodeUrl });
 
-  }, [selector, signedAccountId, toast]);
-
+    try {
+        const res = await provider.query<CodeResult>({
+            request_type: "call_function",
+            finality: "final",
+            account_id: CONTRACT_ID,
+            method_name: "get_stake_info",
+            args_base64: btoa(JSON.stringify({ staker_id: stakerId })),
+        });
+      
+      const info = JSON.parse(Buffer.from(res.result).toString());
+      return info;
+    } catch (error) {
+      console.error(`Failed to get staker info for ${stakerId}:`, error);
+      return null;
+    }
+  }, [selector]);
 
   useEffect(() => {
-    if(walletConnected) {
-        getStakedBalance();
-    }
-  }, [walletConnected, getStakedBalance]);
+    getContractOwner();
+  }, [getContractOwner]);
 
-  
+  useEffect(() => {
+    async function checkAdminStatus() {
+        if (walletConnected && signedAccountId && contractOwner) {
+            setIsAdmin(signedAccountId === contractOwner);
+        } else {
+            setIsAdmin(false);
+        }
+    }
+    checkAdminStatus();
+  }, [walletConnected, signedAccountId, contractOwner]);
+
+  useEffect(() => {
+    async function fetchUserInfo() {
+        if (walletConnected && signedAccountId) {
+            const info = await getStakerInfo(signedAccountId);
+            setStakerInfo(info);
+        } else {
+            setStakerInfo(null);
+        }
+    }
+    fetchUserInfo();
+  }, [walletConnected, signedAccountId, getStakerInfo]);
+
+  useEffect(() => {
+    const checkAddressInfo = async () => {
+        if(stakerIdToApprove.endsWith('.near') && stakerIdToApprove.length > 5) { // Basic validation
+            setIsCheckingAddress(true);
+            const info = await getStakerInfo(stakerIdToApprove);
+            setInfoForAddress(info);
+            setIsCheckingAddress(false);
+        } else {
+            setInfoForAddress(null);
+        }
+    }
+    
+    const debounceCheck = setTimeout(() => {
+        checkAddressInfo();
+    }, 500);
+
+    return () => clearTimeout(debounceCheck);
+
+  }, [stakerIdToApprove, getStakerInfo]);
+
+
   const runProgress = async (duration: number, onComplete?: () => void) => {
     let startTime: number | null = null;
     const animate = (time: number) => {
@@ -156,10 +238,10 @@ export default function Home() {
     requestAnimationFrame(animate);
     await new Promise(resolve => setTimeout(resolve, duration));
   };
-
-  const handleStake = async () => {
-    if (!selector) {
-      toast({ variant: "destructive", title: "Wallet not connected" });
+  
+  const handleStake = async (amount: string, stakeType: 'rest' | 'action') => {
+    if (!walletConnected || !selector) {
+      toast({ variant: "destructive", title: "Wallet not connected", description: "Please connect your NEAR wallet to make a commitment." });
       return;
     }
     const wallet = await selector.wallet();
@@ -169,7 +251,7 @@ export default function Home() {
     }
 
     try {
-      const result = await wallet.signAndSendTransaction({
+      await wallet.signAndSendTransaction({
         receiverId: CONTRACT_ID,
         actions: [
           {
@@ -178,31 +260,40 @@ export default function Home() {
               methodName: 'stake',
               args: {},
               gas: THIRTY_TGAS,
-              deposit: utils.format.parseNearAmount(stakeAmount) || "0",
+              deposit: utils.format.parseNearAmount(amount) || "0",
             },
           },
         ],
       });
-      console.log("Stake successful:", result);
+      
       toast({
-        title: "Stake Successful",
-        description: `You have staked ${stakeAmount} NEAR.`,
+        title: "Commitment Successful",
+        description: `You have committed ${amount} NEAR.`,
       });
-      getStakedBalance();
+      
+      const updatedInfo = await getStakerInfo(signedAccountId!);
+      setStakerInfo(updatedInfo);
+      
+      if(stakeType === 'rest') {
+          handleBeginSleepVerification();
+      } else {
+          setIsActionStaked(true); // Manually set for now
+          handleCivicAction();
+      }
 
     } catch (error) {
       console.error("Stake failed:", error);
       toast({
         variant: "destructive",
-        title: "Stake Failed",
+        title: "Commitment Failed",
         description: (error as Error).message,
       });
     }
   };
   
-    const handleUnstake = async () => {
-        if (!selector) {
-            toast({ variant: "destructive", title: "Wallet not connected" });
+    const handleWithdraw = async () => {
+        if (!walletConnected || !selector) {
+            toast({ variant: "destructive", title: "Wallet not connected", description: "Please connect your wallet to withdraw." });
             return;
         }
         const wallet = await selector.wallet();
@@ -212,43 +303,72 @@ export default function Home() {
         }
 
         try {
-            const amountInYocto = utils.format.parseNearAmount(stakedBalance);
-            if(!amountInYocto) {
-                toast({ variant: "destructive", title: "Error", description: "Invalid staked balance" });
-                return;
-            }
-
-            const result = await wallet.signAndSendTransaction({
+            await wallet.signAndSendTransaction({
                 receiverId: CONTRACT_ID,
                 actions: [
                     {
                         type: 'FunctionCall',
                         params: {
-                            methodName: 'unstake',
-                            args: { amount: amountInYocto },
+                            methodName: 'withdraw',
+                            args: {},
+                            gas: THIRTY_TGAS, // Withdraw might need more gas for transfers
+                            deposit: "0",
+                        },
+                    },
+                ],
+            });
+            toast({
+                title: "Withdrawal Successful",
+                description: `Your commitment has been returned.`,
+            });
+            const updatedInfo = await getStakerInfo(signedAccountId!);
+            setStakerInfo(updatedInfo);
+        } catch (error) {
+            console.error("Withdrawal failed:", error);
+            toast({
+                variant: "destructive",
+                title: "Withdrawal Failed",
+                description: (error as Error).message,
+            });
+        }
+    };
+    
+    const handleApproveBonus = async (stakerId: string) => {
+        if (!walletConnected || !selector || !isAdmin) {
+            toast({ variant: "destructive", title: "Permission Denied", description: "Only the admin can approve bonuses." });
+            return;
+        }
+        const wallet = await selector.wallet();
+        if (!wallet) return;
+
+        try {
+            await wallet.signAndSendTransaction({
+                receiverId: CONTRACT_ID,
+                actions: [
+                    {
+                        type: 'FunctionCall',
+                        params: {
+                            methodName: 'approve_bonus',
+                            args: { staker_id: stakerId },
                             gas: THIRTY_TGAS,
                             deposit: "0",
                         },
                     },
                 ],
             });
-            console.log("Unstake successful:", result);
-            toast({
-                title: "Unstake Successful",
-                description: `You have unstaked your ${stakedBalance} NEAR plus rewards.`,
-            });
-            getStakedBalance();
-        } catch (error) {
-            console.error("Unstake failed:", error);
-            toast({
-                variant: "destructive",
-                title: "Unstake Failed",
-                description: (error as Error).message,
-            });
-        }
-    };
+            toast({ title: "Bonus Approved!", description: `Bonus for ${stakerId} has been approved.` });
+            
+            // Refresh the info for the address
+            const info = await getStakerInfo(stakerId);
+            setInfoForAddress(info);
 
-  const handleBeginSleepRitual = () => {
+        } catch(error) {
+             toast({ variant: "destructive", title: "Approval Failed", description: (error as Error).message });
+        }
+    }
+
+
+  const handleBeginSleepVerification = () => {
     setUploadedImage(null);
     setAppState('taking_photo');
   };
@@ -340,49 +460,84 @@ export default function Home() {
     }
   };
 
-    const handleWhoopImport = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const text = e.target?.result as string;
-                try {
-                    const rows = text.split('\n').slice(1); // Skip header
-                    const parsedData = rows.map(row => {
-                        const columns = row.split(',');
-                        // Assuming CSV format: Date, ... some columns ..., Time in Bed (seconds), Sleep Duration (seconds)
-                        // This will need adjustment based on the actual CSV structure
-                        const date = new Date(columns[0]).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                        const timeInBed = parseFloat(columns[19]) / 3600; // Example column
-                        const sleep = parseFloat(columns[20]) / 3600; // Example column
-                        
-                        if (!date || isNaN(timeInBed) || isNaN(sleep)) return null;
+  const handleWhoopImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        try {
+          const lines = text.split('\n').filter(line => line.trim() !== '');
+          if (lines.length < 2) {
+            throw new Error("CSV is empty or has no header.");
+          }
+          
+          const headerLine = lines[0].trim();
+          const header = headerLine.split(',');
+          const rows = lines.slice(1);
 
-                        return { date, 'Time in Bed (hours)': timeInBed, 'Sleep (hours)': sleep };
-                    }).filter(Boolean) as WhoopData;
-                    
-                    if(parsedData.length === 0) {
-                        throw new Error("CSV format is not as expected or file is empty.");
-                    }
+          const getIndex = (name: string) => {
+            const index = header.findIndex(h => h.trim().toLowerCase() === name.toLowerCase());
+            if (index === -1) {
+              const alternateNames: {[key: string]: string[]} = {
+                  'cycle start time': ['date'],
+                  'in bed duration (min)': ['time in bed (min)'],
+                  'asleep duration (min)': ['sleep duration (min)', 'asleep (min)'],
+              }
+              const alternatives = alternateNames[name.toLowerCase()];
+              if(alternatives) {
+                  for(const alt of alternatives) {
+                      const altIndex = header.findIndex(h => h.trim().toLowerCase() === alt.toLowerCase());
+                      if(altIndex !== -1) return altIndex;
+                  }
+              }
+              throw new Error(`Required column "${name}" not found in CSV header.`);
+            }
+            return index;
+          };
 
-                    setWhoopData(parsedData.slice(-7)); // Show last 7 days
-                    toast({
-                        title: "Import Successful",
-                        description: `Imported ${parsedData.length} sleep records.`,
-                    });
-                } catch (err) {
-                    console.error("Error parsing Whoop CSV:", err);
-                    toast({
-                        variant: "destructive",
-                        title: "Import Failed",
-                        description: "The CSV file could not be parsed. Please ensure it's a valid Whoop sleep data export.",
-                        duration: 5000,
-                    });
-                }
-            };
-            reader.readAsText(file);
+          const dateIndex = getIndex('Cycle start time');
+          const timeInBedIndex = getIndex('In bed duration (min)');
+          const sleepIndex = getIndex('Asleep duration (min)');
+
+          const parsedData = rows.map(row => {
+            const columns = row.split(',');
+            if (columns.length < header.length) return null;
+
+            const dateStr = columns[dateIndex];
+            if (!dateStr) return null;
+
+            const date = new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const timeInBed = parseFloat(columns[timeInBedIndex]) / 60;
+            const sleep = parseFloat(columns[sleepIndex]) / 60;
+            
+            if (!date || isNaN(timeInBed) || isNaN(sleep)) return null;
+
+            return { date, 'Time in Bed (hours)': timeInBed, 'Sleep (hours)': sleep };
+          }).filter(Boolean) as WhoopData;
+          
+          if (parsedData.length === 0) {
+            throw new Error("No valid sleep records could be parsed from the file.");
+          }
+
+          setWhoopData(parsedData.slice(-7)); // Show last 7 days
+          toast({
+            title: "Import Successful",
+            description: `Imported ${parsedData.length} sleep records.`,
+          });
+        } catch (err: any) {
+          console.error("Error parsing Whoop CSV:", err);
+          toast({
+            variant: "destructive",
+            title: "Import Failed",
+            description: err.message || "The CSV file could not be parsed. Please ensure it's a valid Whoop sleep data export.",
+            duration: 5000,
+          });
         }
-    };
+      };
+      reader.readAsText(file);
+    }
+  };
 
 
   const handleConfirmPhoto = async () => {
@@ -408,6 +563,12 @@ export default function Home() {
         await runProgress(1000);
 
         if (result.isSleepingSurface) {
+            
+            if(walletConnected && signedAccountId && contractOwner === signedAccountId) {
+                // If the admin is testing, approve their own bonus for the demo
+                await handleApproveBonus(signedAccountId);
+            }
+
             setAppState('sleeping');
             await runProgress(3000);
 
@@ -415,9 +576,10 @@ export default function Home() {
             await runProgress(2500);
             
             setAppState('minting_dew');
-            await runProgress(2000, () => {
-                // Only unstake if the sleep ritual is successful
-                handleUnstake();
+            await runProgress(2000, async () => {
+                if(walletConnected) {
+                    await handleWithdraw();
+                }
             });
 
             const newDew = Math.floor(Math.random() * 5) + 5;
@@ -468,9 +630,14 @@ export default function Home() {
     await runProgress(3000);
     
     setAppState('planting_seed');
-    await runProgress(1500, () => {
+    await runProgress(1500, async () => {
         setGardenFlowers(prev => prev + 1);
         setDreamDew(prev => Math.max(0, prev - 10));
+        if (walletConnected) {
+            // This part is tricky as the civic action stake is not separated in the contract.
+            // For now, we just update the UI state.
+             setIsActionStaked(false);
+        }
     });
 
     setAppState('idle');
@@ -481,6 +648,66 @@ export default function Home() {
     if (dreamDew >= cost) {
       setDreamDew(prev => prev - cost);
       setHasDevice(true);
+    }
+  };
+  
+  const handleDataContribution = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fnirsFile || !glucoseLevel) {
+        toast({ variant: "destructive", title: "Missing Information", description: "Please provide both a fNIRS data file and a glucose reading." });
+        return;
+    }
+
+    setAppState('uploading_data');
+    await runProgress(1000);
+
+    try {
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            const fnirsData = event.target?.result as string;
+            
+            const result = await scoreDataContribution({
+                fnirsData: fnirsData,
+                glucoseLevel: Number(glucoseLevel),
+            });
+            
+            await runProgress(1000);
+
+            const newEntry: PairedDataEntry = {
+                id: Date.now(),
+                date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                fnirsFile: fnirsFile.name,
+                glucoseLevel: Number(glucoseLevel),
+                contributionScore: result.contributionScore,
+            };
+            
+            setPairedDataHistory(prev => [newEntry, ...prev]);
+            setDreamDew(prev => prev + result.reward);
+
+            toast({
+                title: "Contribution Scored!",
+                description: `${result.reason} You earned ${result.reward} Dream Dew.`,
+            });
+
+            // Reset form
+            setFnirsFile(null);
+            setGlucoseLevel('');
+            if (fnirsInputRef.current) {
+                fnirsInputRef.current.value = '';
+            }
+            setAppState('idle');
+            setProgress(0);
+        };
+        reader.readAsText(fnirsFile);
+    } catch(error) {
+        console.error("Error scoring data:", error);
+        toast({
+            variant: "destructive",
+            title: "Scoring Error",
+            description: "Could not score the data contribution. Please try again.",
+        });
+        setAppState('idle');
+        setProgress(0);
     }
   };
 
@@ -532,13 +759,15 @@ export default function Home() {
       case 'generating_sleep_proof':
         return { icon: <KeyRound className="animate-spin text-primary" />, text: 'Generating ZK-Proof of Rest...' };
       case 'minting_dew':
-        return { icon: <Zap className="futuristic-glow text-primary" />, text: 'Unstaking NEAR...' };
+        return { icon: <Zap className="futuristic-glow text-primary" />, text: 'Withdrawing your commitment...' };
       case 'taking_action':
         return { icon: <Mail className="text-primary" />, text: 'Sending secure email...' };
       case 'generating_action_proof':
         return { icon: <KeyRound className="animate-spin text-primary" />, text: 'Generating ZK-Proof of Action...' };
       case 'planting_seed':
         return { icon: <Sprout className="sprout text-primary" />, text: 'Verifying on Civic Action Registry...' };
+      case 'uploading_data':
+        return { icon: <UploadCloud className="animate-pulse text-primary" />, text: 'Analyzing and scoring your contribution...' };
       default:
         return { icon: null, text: '' };
     }
@@ -547,88 +776,102 @@ export default function Home() {
   if (isLoading) {
     return <div className="flex h-screen w-full items-center justify-center bg-background"><Loader className="h-12 w-12 animate-spin text-primary" /></div>;
   }
-
-  if (!walletConnected) {
-    return (
-      <main className="flex min-h-screen w-full items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md fade-in shadow-2xl shadow-primary/10 border-primary/20 bg-card">
-          <CardHeader>
-            <CardTitle className="font-headline text-3xl text-center">think2earn: Sovereign Edition</CardTitle>
-            <CardDescription className="text-center pt-2 text-muted-foreground">
-              Verifiable Rest, Provable Action.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center space-y-4">
-            <div className="flex items-center space-x-4 p-4 rounded-lg bg-secondary">
-                <Network className="h-8 w-8 text-primary" />
-                <p>An on-chain identity requires a NEAR wallet.</p>
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button className="w-full futuristic-glow" onClick={logIn} disabled={isLoggingIn}>
-              <Wallet className="mr-2 h-4 w-4" />
-              {isLoggingIn ? 'Connecting...' : 'Connect NEAR Wallet'}
-            </Button>
-          </CardFooter>
-        </Card>
-      </main>
-    );
-  }
+  
+  const renderAdminDashboard = () => (
+    <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5">
+        <CardHeader>
+            <CardTitle className="font-headline text-2xl flex items-center gap-3"><UserCog className="text-primary"/>Admin Dashboard</CardTitle>
+            <CardDescription>Approve staking bonuses for users.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+             <div className="space-y-2">
+                <Label htmlFor="staker-id">Staker Account ID</Label>
+                <div className="flex items-start gap-2">
+                    <div className="flex-grow space-y-2">
+                        <Input 
+                            id="staker-id" 
+                            value={stakerIdToApprove}
+                            onChange={(e) => setStakerIdToApprove(e.target.value)}
+                            placeholder="e.g. user.near"
+                        />
+                        {isCheckingAddress && <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader className="animate-spin" size={16}/> Checking...</p>}
+                        {infoForAddress && (
+                            <Alert>
+                                <AlertTitle className="flex items-center gap-2">
+                                    {infoForAddress.bonus_approved ? <CheckCircle2 className="text-green-500" /> : <AlertTriangle className="text-yellow-500" />}
+                                    Staker Information
+                                </AlertTitle>
+                                <AlertDescription>
+                                    <p>Stake: {utils.format.formatNearAmount(infoForAddress.amount, 4)} NEAR</p>
+                                    <p>Bonus Approved: {infoForAddress.bonus_approved ? 'Yes' : 'No'}</p>
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                        {!isCheckingAddress && stakerIdToApprove.length > 5 && !infoForAddress && (
+                             <Alert variant="destructive">
+                                <AlertTriangle className="h-4 w-4" />
+                                <AlertTitle>Staker Not Found</AlertTitle>
+                                <AlertDescription>
+                                    This account has no stake in this contract.
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                    </div>
+                    <Button 
+                        onClick={() => handleApproveBonus(stakerIdToApprove)} 
+                        disabled={!infoForAddress || infoForAddress.bonus_approved}
+                    >
+                        Approve Bonus
+                    </Button>
+                </div>
+             </div>
+        </CardContent>
+    </Card>
+  );
 
   return (
     <div className="min-h-screen w-full bg-background text-foreground fade-in">
       <header className="sticky top-0 z-10 border-b border-border/50 bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
           <h1 className="font-headline text-xl md:text-2xl text-primary">think2earn</h1>
-          <div className="flex items-center gap-2 md:gap-4 rounded-full border border-border/50 bg-card px-3 md:px-4 py-2 text-sm shadow-sm">
-            <div className="flex items-center gap-2">
-              <DewDropIcon className="h-5 w-5 text-accent" />
-              <span className="font-bold text-base md:text-lg">{dreamDew}</span>
-              <span className="text-muted-foreground hidden sm:inline">Dream Dew</span>
+          <div className="flex items-center gap-2 md:gap-4">
+            <div className="flex items-center gap-2 rounded-full border border-border/50 bg-card px-3 md:px-4 py-2 text-sm shadow-sm">
+                <DewDropIcon className="h-5 w-5 text-accent" />
+                <span className="font-bold text-base md:text-lg">{dreamDew}</span>
+                <span className="text-muted-foreground hidden sm:inline">Dream Dew</span>
             </div>
-            <div className="h-6 w-px bg-border hidden sm:block" />
-            <div className="flex items-center gap-2">
-              <Wallet className="h-5 w-5 text-primary" />
-              <span className="font-mono text-muted-foreground text-xs md:text-sm truncate">{signedAccountId || "think2earn.near"}</span>
-            </div>
-            {walletConnected && <Button variant="ghost" size="sm" onClick={logOut}>Logout</Button>}
+            
+            {walletConnected ? (
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 rounded-full border border-border/50 bg-card px-3 md:px-4 py-2 text-sm shadow-sm">
+                        <Wallet className="h-5 w-5 text-primary" />
+                        <span className="font-mono text-muted-foreground text-xs md:text-sm truncate max-w-[100px] sm:max-w-none">{signedAccountId}</span>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={logOut}>Logout</Button>
+                </div>
+            ) : (
+                <Button onClick={logIn} disabled={isLoggingIn}>
+                    <Wallet className="mr-2 h-4 w-4" />
+                    {isLoggingIn ? 'Connecting...' : 'Connect NEAR Wallet'}
+                </Button>
+            )}
           </div>
         </div>
       </header>
       
       <main className="container mx-auto p-4">
       <Input type="file" accept=".csv" ref={whoopInputRef} onChange={handleWhoopImport} className="hidden" />
+      <Input type="file" accept=".csv,.txt" ref={fnirsInputRef} onChange={(e) => setFnirsFile(e.target.files?.[0] || null)} className="hidden" />
+
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
             
-            {/* Staking and Rituals Column */}
+            {/* Main Column */}
             <div className="lg:col-span-2 space-y-6">
-                {!isStaked && appState === 'idle' && (
-                    <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5">
-                    <CardHeader>
-                        <CardTitle className="font-headline text-2xl flex items-center gap-3">
-                        <ShieldCheck className="text-primary"/> Secure Your Stake
-                        </CardTitle>
-                        <CardDescription>Commit NEAR to a contract to participate in sleep rituals.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <p className="text-sm text-muted-foreground">To ensure commitment and data integrity, a stake is required before you can begin verifying your sleep. This stake is refundable with a reward upon successful verification.</p>
-                        <div className="flex items-center space-x-2">
-                            <Label htmlFor="stake-amount">Stake Amount (NEAR)</Label>
-                            <Input id="stake-amount" type="number" value={stakeAmount} onChange={(e) => setStakeAmount(e.target.value)} className="w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                        </div>
-                    </CardContent>
-                    <CardFooter>
-                        <Button onClick={handleStake} disabled={!walletConnected || Number(stakeAmount) <= 0} className="w-full">
-                            Stake {stakeAmount} NEAR
-                        </Button>
-                    </CardFooter>
-                    </Card>
-                )}
 
                 {appState === 'taking_photo' && (
                     <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5">
                         <CardHeader>
-                            <CardTitle className="font-headline text-2xl">Begin Sleep Ritual</CardTitle>
+                            <CardTitle className="font-headline text-2xl">Provide Evidence of Rest</CardTitle>
                             <CardDescription>Take a photo of your bed or upload one from your gallery.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -638,20 +881,20 @@ export default function Home() {
                                 ) : (
                                     <>
                                         <video ref={videoRef} className={cn("h-full w-full object-cover", { 'hidden': hasCameraPermission !== true })} autoPlay muted playsInline />
-                                        {hasCameraPermission === false && <p className='text-muted-foreground'>Camera not available.</p>}
+                                        {hasCameraPermission === false && 
+                                            <Alert variant="default" className='m-4'>
+                                                <AlertTriangle className="h-4 w-4" />
+                                                <AlertTitle>Camera Unavailable</AlertTitle>
+                                                <AlertDescription>
+                                                    No problem. Please upload a photo from your gallery instead. Note that manual uploads may take longer to process for verification.
+                                                </AlertDescription>
+                                            </Alert>
+                                        }
                                         {hasCameraPermission === null && !videoRef.current?.srcObject && <Loader className="h-8 w-8 animate-spin text-primary" />}
                                     </>
                                 )}
                             </div>
-                            {hasCameraPermission === false && !uploadedImage && (
-                                <Alert>
-                                    <AlertTriangle className="h-4 w-4" />
-                                    <AlertTitle>Camera Unavailable</AlertTitle>
-                                    <AlertDescription>
-                                        Please upload a photo from your gallery instead. Manual uploads may take longer to process for verification.
-                                    </AlertDescription>
-                                </Alert>
-                            )}
+
                             {uploadedImage && (
                                 <Alert variant="default">
                                     <AlertTriangle className="h-4 w-4" />
@@ -682,11 +925,12 @@ export default function Home() {
                     </Card>
                 )}
 
-                {isStaked && appState !== 'taking_photo' && appState !== 'analyzing_photo' && (
+                {appState !== 'taking_photo' && (
+                  isAdmin && walletConnected ? renderAdminDashboard() : (
                     <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5">
                     <CardHeader>
-                        <CardTitle className="font-headline text-2xl">Daily Rituals</CardTitle>
-                        <CardDescription>Generate proofs of your positive actions.</CardDescription>
+                        <CardTitle className="font-headline text-2xl">Daily Positive Actions</CardTitle>
+                        <CardDescription>Generate proofs of your positive actions by making a commitment.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div className="space-y-4 rounded-lg border p-4 hover:border-primary/20 transition-colors">
@@ -694,10 +938,42 @@ export default function Home() {
                                 <Bed className="h-6 w-6 text-primary" />
                                 <h3 className="font-headline text-lg">Proof of Rest</h3>
                             </div>
-                            <p className="text-sm text-muted-foreground">You have staked <span className="font-bold text-primary">{stakedBalance} NEAR</span>. Complete the sleep ritual to verify your rest and get your stake back with a reward.</p>
-                            <Button onClick={handleBeginSleepRitual} disabled={appState !== 'idle'} className="w-full">
-                                {appState === 'idle' ? 'Begin Sleep Ritual' : 'Ritual in Progress...'}
-                            </Button>
+                            <p className="text-sm text-muted-foreground">Commit NEAR to verify your sleep. After verification, your commitment is returned with a bonus.</p>
+                            
+                            {stakerInfo && walletConnected ? (
+                                <div className='p-4 bg-secondary rounded-md space-y-3'>
+                                    <div>
+                                        <p className='text-sm font-semibold'>You have <span className="font-bold text-primary">{utils.format.formatNearAmount(stakerInfo.amount)} NEAR</span> committed.</p>
+                                        <p className="text-xs text-muted-foreground mt-1">Complete sleep verification to get it back with a bonus.</p>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm">
+                                        <span>Bonus Status:</span>
+                                        {stakerInfo.bonus_approved ? (
+                                            <span className='font-medium text-green-600 flex items-center gap-1'><CheckCircle2 size={16}/> Approved</span>
+                                        ) : (
+                                            <span className='font-medium text-muted-foreground flex items-center gap-1'><Loader size={16} className="animate-spin" /> Pending</span>
+                                        )}
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button onClick={handleBeginSleepVerification} disabled={appState !== 'idle' || stakerInfo.bonus_approved} className="w-full">
+                                            Verify Sleep
+                                        </Button>
+                                        <Button onClick={handleWithdraw} disabled={appState !== 'idle' || !stakerInfo.bonus_approved} className="w-full" variant="outline">
+                                            Withdraw
+                                        </Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex items-end gap-2">
+                                    <div className="flex-grow">
+                                        <Label htmlFor="stake-amount">Commitment (NEAR)</Label>
+                                        <Input id="stake-amount" type="number" value={stakeAmount} onChange={(e) => setStakeAmount(e.target.value)} className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                                    </div>
+                                    <Button onClick={() => handleStake(stakeAmount, 'rest')} disabled={appState !== 'idle' || !walletConnected || Number(stakeAmount) <= 0}>
+                                        Commit & Begin
+                                    </Button>
+                                </div>
+                            )}
                         </div>
 
                         <div className="space-y-4 rounded-lg border p-4 hover:border-primary/20 transition-colors">
@@ -705,10 +981,20 @@ export default function Home() {
                                 <Mail className="h-6 w-6 text-primary" />
                                 <h3 className="font-headline text-lg">Proof of Action</h3>
                             </div>
-                            <p className="text-sm text-muted-foreground">Spend 10 Dream Dew to plant a flower in your garden. Use ZK-Email to prove you've contacted a representative, and your anonymous action will be added to the public registry.</p>
-                            <Button onClick={handleCivicAction} disabled={appState !== 'idle' || dreamDew < 10} variant="outline" className="w-full">
-                                {dreamDew < 10 ? 'Need 10 Dream Dew' : 'Plant a Seed of Action'}
-                            </Button>
+                            <p className="text-sm text-muted-foreground">Commit {CIVIC_ACTION_STAKE} NEAR and spend 10 Dream Dew to prove you've contacted a representative. Your anonymous action will be added to the public registry, and your commitment returned.</p>
+
+                            {isActionStaked && walletConnected ? (
+                                <div className='p-4 bg-secondary rounded-md'>
+                                    <p className='text-sm font-semibold'>You have a civic action commitment active.</p>
+                                    <Button onClick={handleCivicAction} disabled={appState !== 'idle'} className="w-full mt-3">
+                                        Verify Action
+                                    </Button>
+                                </div>
+                            ) : (
+                                <Button onClick={() => handleStake(CIVIC_ACTION_STAKE, 'action')} disabled={appState !== 'idle' || !walletConnected || dreamDew < 10} variant="outline" className="w-full">
+                                    {dreamDew < 10 ? 'Need 10 Dream Dew' : `Commit ${CIVIC_ACTION_STAKE} NEAR & Plant Seed`}
+                                </Button>
+                            )}
                         </div>
 
                         {appState !== 'idle' && appState !== 'taking_photo' && (
@@ -722,25 +1008,9 @@ export default function Home() {
                         )}
                     </CardContent>
                     </Card>
+                  )
                 )}
 
-                {(appState === 'analyzing_photo') && (
-                    <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5">
-                        <CardHeader>
-                            <CardTitle className="font-headline text-2xl">Daily Rituals</CardTitle>
-                            <CardDescription>Generate proofs of your positive actions.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="mt-4 space-y-3 p-4 bg-secondary/50 rounded-lg fade-in">
-                                <div className="flex items-center gap-3 text-sm font-medium">
-                                {getStateDescription().icon}
-                                <span>{getStateDescription().text}</span>
-                                </div>
-                                <Progress value={progress} className="w-full h-2" />
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
                  <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '100ms'}}>
                     <CardHeader>
                     <CardTitle className="font-headline text-2xl">My Action Garden</CardTitle>
@@ -756,7 +1026,7 @@ export default function Home() {
                     </CardContent>
                 </Card>
 
-                <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '400ms'}}>
+                 <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '400ms'}}>
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl flex items-center gap-3"><ShoppingCart className="text-primary"/> Device Store</CardTitle>
                         <CardDescription>Acquire the tools to contribute to glucose monitoring research.</CardDescription>
@@ -791,20 +1061,85 @@ export default function Home() {
                             </Button>
                         </Card>
                     </CardContent>
-                    {(hasFnirsDevice && hasAbbottDevice) &&
-                        <CardFooter>
-                            <Card className="p-4 w-full bg-secondary/50 border-primary/30">
-                                <div className="flex items-center gap-3">
-                                    <BrainCircuit className="h-6 w-6 text-primary" />
-                                    <h3 className="font-headline text-lg">Ready to Contribute</h3>
-                                </div>
-                                <p className="text-sm text-muted-foreground mt-2">You have both devices. Start pairing your data to help train the glucose prediction model and earn proportional rewards.</p>
-
-                                <Button className="mt-3 w-full">Begin Data Pairing</Button>
-                            </Card>
-                        </CardFooter>
-                    }
                 </Card>
+
+                {(hasFnirsDevice && hasAbbottDevice) && (
+                     <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '200ms'}}>
+                        <CardHeader>
+                            <CardTitle className="font-headline text-2xl flex items-center gap-3"><TestTube className="text-primary"/> Contribute Data</CardTitle>
+                            <CardDescription>Pair your fNIRS data with a certified glucose reading to help train the model.</CardDescription>
+                        </CardHeader>
+                        <form onSubmit={handleDataContribution}>
+                        <CardContent className="space-y-4">
+                            <div className="grid sm:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="fnirs-file">1. Upload fNIRS Data</Label>
+                                    <Button type="button" variant="outline" className="w-full justify-start text-left font-normal" onClick={() => fnirsInputRef.current?.click()}>
+                                        <FilePlus2 className="mr-2" />
+                                        {fnirsFile ? <span className='truncate'>{fnirsFile.name}</span> : 'Select a .csv or .txt file'}
+                                    </Button>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="glucose-level">2. Pair Glucose Reading (mg/dL)</Label>
+                                    <Input 
+                                        id="glucose-level" 
+                                        type="number" 
+                                        value={glucoseLevel}
+                                        onChange={(e) => setGlucoseLevel(e.target.value)}
+                                        placeholder="e.g. 95"
+                                    />
+                                </div>
+                            </div>
+                             {appState === 'uploading_data' && (
+                                <div className="mt-4 space-y-3 p-4 bg-secondary/50 rounded-lg fade-in">
+                                    <div className="flex items-center gap-3 text-sm font-medium">
+                                        {getStateDescription().icon}
+                                        <span>{getStateDescription().text}</span>
+                                    </div>
+                                    <Progress value={progress} className="w-full h-2" />
+                                </div>
+                            )}
+                        </CardContent>
+                        <CardFooter>
+                             <Button type="submit" className="w-full" disabled={!fnirsFile || !glucoseLevel || appState === 'uploading_data'}>
+                                {appState === 'uploading_data' ? 'Submitting...' : 'Submit Paired Data'}
+                             </Button>
+                        </CardFooter>
+                        </form>
+                     </Card>
+                )}
+                
+                {pairedDataHistory.length > 0 && (
+                     <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '300ms'}}>
+                        <CardHeader>
+                            <CardTitle className="font-headline text-2xl">Contribution History</CardTitle>
+                            <CardDescription>Your history of data contributions to the model.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>fNIRS File</TableHead>
+                                        <TableHead>Glucose (mg/dL)</TableHead>
+                                        <TableHead className="text-right">Contribution Score</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {pairedDataHistory.map(entry => (
+                                        <TableRow key={entry.id}>
+                                            <TableCell>{entry.date}</TableCell>
+                                            <TableCell className="truncate max-w-[150px]">{entry.fnirsFile}</TableCell>
+                                            <TableCell>{entry.glucoseLevel}</TableCell>
+                                            <TableCell className="text-right font-medium text-primary">{entry.contributionScore}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                )}
+
 
                 {hasFnirsDevice && (
                     <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '500ms'}}>
@@ -904,14 +1239,14 @@ export default function Home() {
                 )}
             </div>
             
-            {/* Sleep Log Column */}
+            {/* Side Column */}
             <div className="lg:col-span-1 space-y-6">
-                <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '300ms'}}>
+                 <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '300ms'}}>
                     <CardHeader>
                         <div className='flex items-start justify-between gap-4'>
                             <div>
                                 <CardTitle className="font-headline text-2xl">Sleep Log</CardTitle>
-                                <CardDescription>Your private, encrypted memories of rest.</CardDescription>
+                                <CardDescription>Your private, encrypted records of rest.</CardDescription>
                             </div>
                             <Button variant="outline" size="sm" onClick={() => whoopInputRef.current?.click()}>
                                 <UploadCloud className="mr-2 h-4 w-4" />
@@ -947,7 +1282,7 @@ export default function Home() {
                                     </div>
                                     </div>
                                 ))}
-                                {journalEntries.length === 0 && <p className="text-center text-muted-foreground pt-16">Complete a Sleep Ritual to start your log.</p>}
+                                {journalEntries.length === 0 && <p className="text-center text-muted-foreground pt-16">Complete a sleep verification to start your log.</p>}
                             </div>
                         </ScrollArea>
                     </CardContent>
@@ -959,3 +1294,4 @@ export default function Home() {
   );
 }
 
+    
