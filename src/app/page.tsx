@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, UserCog, FileText, Activity, Clock, BarChart2, Lock, PiggyBank } from 'lucide-react';
+import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, UserCog, FileText, Activity, Clock, BarChart2, Lock, PiggyBank, Image as ImageIcon } from 'lucide-react';
 import DewDropIcon from '@/components/icons/DewDropIcon';
 import FlowerIcon from '@/components/icons/FlowerIcon';
 import { cn } from '@/lib/utils';
@@ -629,6 +629,19 @@ export default function Home() {
     }
   };
 
+  const handleUseDefaultPhoto = () => {
+    const imageUrl = '/default-bed.jpg'; // Path to the image in the public folder
+    const timestamp = `Timestamp: ${new Date().toLocaleString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: true
+    })}`;
+    setUploadedImage({ url: imageUrl, date: timestamp });
+  };
+
   const handleWhoopImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -799,6 +812,17 @@ export default function Home() {
 
   const handleConfirmPhoto = async () => {
     let photoUrl = uploadedImage?.url;
+    // Special case for local default image, we need to fetch it as a data URI
+    if(photoUrl === '/default-bed.jpg') {
+        const response = await fetch(photoUrl);
+        const blob = await response.blob();
+        photoUrl = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target?.result as string);
+            reader.readAsDataURL(blob);
+        });
+    }
+
     if (!photoUrl) {
       photoUrl = takePhoto();
     }
@@ -907,6 +931,7 @@ export default function Home() {
         const emailContent = event.target?.result as string;
 
         setAppState('generating_action_proof');
+        setProgress(0);
         await runProgress(2000);
 
         // Simple regex to check for DKIM-Signature header
@@ -1016,6 +1041,7 @@ export default function Home() {
     }
   
     setAppState('uploading_data');
+    setProgress(0);
     await runProgress(1000);
   
     try {
@@ -1078,7 +1104,7 @@ export default function Home() {
             // DEV ONLY: Mock the AI call to prevent rate limiting
             const result = {
               contributionScore: Math.floor(Math.random() * (95 - 75 + 1)) + 75, // Random score between 75-95
-              reward: 8,
+              reward: Math.floor((Math.random() * (95 - 75 + 1)) + 75 / 10),
               reason: "Great submission! The fNIRS data was clean and showed strong correlation with the provided glucose level.",
             };
             // const result = await scoreDataContribution({
@@ -1522,7 +1548,7 @@ export default function Home() {
             </a>
           <div className="flex items-center gap-2 md:gap-4">
             <div className="flex items-center gap-2 rounded-full border border-border/50 bg-card px-3 md:px-4 py-2 text-sm shadow-sm">
-                <DewDropIcon className="h-5 w-5 text-accent" />
+                <DewDropIcon className="h-5 w-5 text-primary" />
                 <span className="font-bold text-base md:text-lg">{intentionPoints}</span>
                 <span className="text-muted-foreground hidden sm:inline">Intention Points</span>
             </div>
@@ -1575,7 +1601,7 @@ export default function Home() {
                                                 <AlertTriangle className="h-4 w-4" />
                                                 <AlertTitle>Camera Unavailable</AlertTitle>
                                                 <AlertDescription>
-                                                    No problem. Please upload a photo from your gallery instead. Note that manual uploads may take longer to process for verification.
+                                                    No problem. Please upload a photo from your gallery or use the default image.
                                                 </AlertDescription>
                                             </Alert>
                                         }
@@ -1587,7 +1613,7 @@ export default function Home() {
                             {uploadedImage && (
                                 <Alert variant="default">
                                     <AlertTriangle className="h-4 w-4" />
-                                    <AlertTitle>Image Uploaded</AlertTitle>
+                                    <AlertTitle>Image Selected</AlertTitle>
                                     <AlertDescription>
                                         {uploadedImage.date}
                                     </AlertDescription>
@@ -1598,7 +1624,11 @@ export default function Home() {
                             {isVerifyingSleep && <ProgressDisplay state={appState} inCard={false} />}
                         </CardContent>
                         <CardFooter className="flex flex-col sm:flex-row gap-2">
-                            <Button variant="outline" onClick={() => takePhoto()} disabled={!hasCameraPermission} className="w-full">
+                           <Button variant="outline" onClick={() => handleUseDefaultPhoto()} className="w-full">
+                                <ImageIcon className="mr-2 h-4 w-4"/>
+                                Use Default Photo
+                            </Button>
+                             <Button variant="outline" onClick={() => takePhoto()} disabled={!hasCameraPermission} className="w-full">
                                 <Camera className="mr-2 h-4 w-4"/>
                                 Take Photo
                             </Button>
@@ -1606,7 +1636,8 @@ export default function Home() {
                                 <Upload className="mr-2 h-4 w-4"/>
                                 Upload from Gallery
                             </Button>
-                            <Button onClick={handleConfirmPhoto} disabled={!uploadedImage} className="w-full">
+                            <div className='flex-grow'/>
+                            <Button onClick={handleConfirmPhoto} disabled={!uploadedImage || isVerifyingSleep} className="w-full sm:w-auto">
                                 <ShieldCheck className="mr-2 h-4 w-4"/>
                                 Confirm and Verify
                             </Button>
@@ -1665,6 +1696,7 @@ export default function Home() {
                                             Withdraw
                                         </Button>
                                     </div>
+                                    {isVerifyingSleep && <ProgressDisplay state={appState} />}
                                 </div>
                             ) : (
                                 <div className="flex flex-col sm:flex-row items-stretch gap-2">
@@ -1677,7 +1709,7 @@ export default function Home() {
                                     </Button>
                                 </div>
                             )}
-                            {isVerifyingSleep && <ProgressDisplay state={appState} inCard={false} />}
+                            {isVerifyingSleep && !stakerInfo && <ProgressDisplay state={appState} />}
                         </div>
 
                         <div className="space-y-4 rounded-lg border p-4 hover:border-primary/20 transition-colors">
@@ -1732,7 +1764,7 @@ export default function Home() {
                                     )
                                 })}
                             </RadioGroup>
-                            {isVerifyingAction && <ProgressDisplay state={appState} inCard={false} />}
+                            {isVerifyingAction && <ProgressDisplay state={appState} />}
                         </div>
                     </CardContent>
                     </Card>
@@ -1771,7 +1803,7 @@ export default function Home() {
                     </CardHeader>
                     <CardContent className="grid sm:grid-cols-2 gap-4">
                         <Card className="p-4 flex flex-col items-start gap-4 hover:bg-secondary/50 transition-colors">
-                            <Image src="https://placehold.co/600x400?text=fNIRS+Device" alt="Futuristic fNIRS armband wearable" width={600} height={400} className="rounded-lg self-center aspect-video object-cover" data-ai-hint="futuristic armband" />
+                            <Image src="https://placehold.co/600x400/000000/FFFFFF/png?text=fNIRS+Device" alt="Futuristic fNIRS armband wearable" width={600} height={400} className="rounded-lg self-center aspect-video object-cover" data-ai-hint="futuristic armband" />
                             <div className="flex-grow space-y-2">
                                 <h3 className="font-headline text-lg">fNIRS Armband</h3>
                                 <p className="text-sm text-muted-foreground">Open-hardware fNIRS device for continuous, non-invasive data collection.</p>
@@ -1785,7 +1817,7 @@ export default function Home() {
                             </Button>
                         </Card>
                         <Card className="p-4 flex flex-col items-start gap-4 hover:bg-secondary/50 transition-colors">
-                            <Image src="https://placehold.co/400x400?text=Glucose+Monitor" alt="Small, circular glucose monitoring device" width={400} height={400} className="rounded-lg self-center aspect-square object-cover" data-ai-hint="medical sensor" />
+                            <Image src="https://placehold.co/400x400/000000/FFFFFF/png?text=Glucose+Monitor" alt="Small, circular glucose monitoring device" width={400} height={400} className="rounded-lg self-center aspect-square object-cover" data-ai-hint="medical sensor" />
                             <div className="flex-grow space-y-2">
                                 <h3 className="font-headline text-lg">Abbott Glucose Monitor</h3>
                                 <p className="text-sm text-muted-foreground">Certified medical device for providing baseline glucose data to train the model.</p>
@@ -1827,7 +1859,7 @@ export default function Home() {
                                     <FileInfoDisplay info={glucoseInfo} />
                                 </div>
                             </div>
-                             {isUploadingData && <ProgressDisplay state={appState} inCard={false} />}
+                             {isUploadingData && <ProgressDisplay state={appState} />}
                         </CardContent>
                         <CardFooter>
                              <Button type="submit" className="w-full" disabled={!fnirsFile || !glucoseFile || isUploadingData}>
@@ -1900,7 +1932,7 @@ export default function Home() {
                                 <AlertTriangle className="h-5 w-5 mr-3 mt-1 text-destructive" />
                                 <div>
                                 <h4 className="font-bold text-destructive">Save These Credentials!</h4>
-                                <p className="text-sm text-destructive-foreground">this is generated locally in your browser so it cannot be retrieved by anyone else</p>
+                                <p className="text-sm text-destructive-foreground/90">This is generated locally in your browser so it cannot be retrieved by anyone else.</p>
                                 </div>
                             </div>
                             </div>
@@ -1978,4 +2010,3 @@ export default function Home() {
     </TooltipProvider>
   );
 }
-
