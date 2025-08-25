@@ -1,4 +1,4 @@
-# think2earn: Sovereign Edition
+.# think2earn
 
 This is a Next.js application that gamifies positive actions like sleep and civic engagement through a sovereign identity model on the NEAR blockchain. It was built with Firebase Studio.
 
