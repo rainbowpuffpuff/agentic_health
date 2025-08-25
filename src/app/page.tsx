@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, UserCog, FileText, Activity, Clock, BarChart2, Lock } from 'lucide-react';
+import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, UserCog, FileText, Activity, Clock, BarChart2, Lock, PiggyBank } from 'lucide-react';
 import DewDropIcon from '@/components/icons/DewDropIcon';
 import FlowerIcon from '@/components/icons/FlowerIcon';
 import { cn } from '@/lib/utils';
@@ -154,6 +154,7 @@ export default function Home() {
   // Staking state
   const [stakerInfo, setStakerInfo] = useState<StakerInfo | null>(null);
   const [stakeAmount, setStakeAmount] = useState("0.1"); // In NEAR for sleep
+  const [rewardPoolBalance, setRewardPoolBalance] = useState<string | null>(null);
 
   // Civic Action State
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign>('chat_control');
@@ -259,9 +260,30 @@ export default function Home() {
     }
   }, [selector]);
 
+  const getRewardPoolBalance = useCallback(async () => {
+    if (!selector) return;
+    const { network } = selector.options;
+    const provider = new providers.JsonRpcProvider({ url: network.nodeUrl });
+    try {
+        const res = await provider.query<CodeResult>({
+            request_type: "call_function",
+            finality: "final",
+            account_id: CONTRACT_ID,
+            method_name: "get_reward_pool_balance",
+            args_base64: btoa(JSON.stringify({})),
+        });
+        const balance = JSON.parse(Buffer.from(res.result).toString());
+        setRewardPoolBalance(balance);
+    } catch (error) {
+        console.error("Failed to get reward pool balance:", error);
+    }
+  }, [selector]);
+
+
   useEffect(() => {
     getContractOwner();
-  }, [getContractOwner]);
+    getRewardPoolBalance();
+  }, [getContractOwner, getRewardPoolBalance, walletConnected]);
 
   useEffect(() => {
     async function checkAdminStatus() {
@@ -412,6 +434,7 @@ export default function Home() {
             });
             const updatedInfo = await getStakerInfo(signedAccountId!);
             setStakerInfo(updatedInfo);
+            await getRewardPoolBalance();
         } catch (error: any) {
             if (error.message.includes("User closed the window")) {
                 toast({
@@ -1170,9 +1193,23 @@ export default function Home() {
     <Card className="lg:col-span-2 slide-in-from-bottom transition-all hover:shadow-primary/5">
         <CardHeader>
             <CardTitle className="font-headline text-2xl flex items-center gap-3"><UserCog className="text-primary"/>Admin Dashboard</CardTitle>
-            <CardDescription>Approve staking bonuses for users.</CardDescription>
+            <CardDescription>Approve staking bonuses for users and monitor the reward pool.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+             <div className="p-4 rounded-lg bg-secondary flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <PiggyBank className="text-primary" size={20}/>
+                    <div >
+                        <p className="font-semibold">Reward Pool Balance</p>
+                        <p className="text-sm text-muted-foreground">Funds available for bonuses.</p>
+                    </div>
+                </div>
+                {rewardPoolBalance !== null ? (
+                    <p className="font-bold text-lg text-primary">{utils.format.formatNearAmount(rewardPoolBalance, 4)} NEAR</p>
+                ) : (
+                    <Loader className="animate-spin" size={20} />
+                )}
+             </div>
              <div className="space-y-2">
                 <Label htmlFor="staker-id">Staker Account ID</Label>
                 <div className="flex items-start gap-2">
@@ -1533,7 +1570,13 @@ export default function Home() {
                                 <h3 className="font-headline text-lg">Proof of Rest</h3>
                             </div>
                             <p className="text-sm text-muted-foreground">Commit NEAR to verify your sleep. After verification, your commitment is returned with a bonus.</p>
-                            
+                             {rewardPoolBalance !== null && (
+                                <div className="text-xs text-muted-foreground flex items-center gap-2">
+                                    <PiggyBank size={14}/>
+                                    <span>Available Rewards: {utils.format.formatNearAmount(rewardPoolBalance, 4)} NEAR</span>
+                                </div>
+                            )}
+
                             {stakerInfo && walletConnected ? (
                                 <div className='p-4 bg-secondary rounded-md space-y-3'>
                                     <div>
@@ -1669,7 +1712,7 @@ export default function Home() {
                     </CardHeader>
                     <CardContent className="grid sm:grid-cols-2 gap-4">
                         <Card className="p-4 flex flex-col items-start gap-4 hover:bg-secondary/50 transition-colors">
-                            <Image src="https://placehold.co/600x400/171717/808080?text=fNIRS+Device" alt="Futuristic fNIRS armband wearable" width={600} height={400} className="rounded-lg self-center aspect-video object-cover" />
+                            <Image src="https://placehold.co/600x400/171717/808080?text=fNIRS+Device" alt="Futuristic fNIRS armband wearable" width={600} height={400} className="rounded-lg self-center aspect-video object-cover" data-ai-hint="futuristic armband" />
                             <div className="flex-grow space-y-2">
                                 <h3 className="font-headline text-lg">fNIRS Armband</h3>
                                 <p className="text-sm text-muted-foreground">Open-hardware fNIRS device for continuous, non-invasive data collection.</p>
@@ -1683,7 +1726,7 @@ export default function Home() {
                             </Button>
                         </Card>
                         <Card className="p-4 flex flex-col items-start gap-4 hover:bg-secondary/50 transition-colors">
-                            <Image src="https://placehold.co/400x400/171717/808080?text=Glucose+Monitor" alt="Small, circular glucose monitoring device" width={400} height={400} className="rounded-lg self-center aspect-square object-cover" />
+                            <Image src="https://placehold.co/400x400/171717/808080?text=Glucose+Monitor" alt="Small, circular glucose monitoring device" width={400} height={400} className="rounded-lg self-center aspect-square object-cover" data-ai-hint="medical sensor" />
                             <div className="flex-grow space-y-2">
                                 <h3 className="font-headline text-lg">Abbott Glucose Monitor</h3>
                                 <p className="text-sm text-muted-foreground">Certified medical device for providing baseline glucose data to train the model.</p>
@@ -1725,7 +1768,7 @@ export default function Home() {
                                     <FileInfoDisplay info={glucoseInfo} />
                                 </div>
                             </div>
-                             {isUploadingData && <ProgressDisplay state={appState} inCard={false} />}
+                             {isUploadingData && <ProgressDisplay state={appstate} inCard={false} />}
                         </CardContent>
                         <CardFooter>
                              <Button type="submit" className="w-full" disabled={!fnirsFile || !glucoseFile || isUploadingData}>
