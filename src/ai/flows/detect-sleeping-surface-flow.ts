@@ -1,4 +1,4 @@
-'use server';
+git rev-list --count HEAD'use server';
 /**
  * @fileOverview An AI agent to detect sleeping surfaces in images.
  *
