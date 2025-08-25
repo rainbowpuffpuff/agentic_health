@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, UserCog, FileText } from 'lucide-react';
+import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, UserCog, FileText, Activity } from 'lucide-react';
 import DewDropIcon from '@/components/icons/DewDropIcon';
 import FlowerIcon from '@/components/icons/FlowerIcon';
 import { cn } from '@/lib/utils';
@@ -20,18 +20,24 @@ import { Label } from '@/components/ui/label';
 import { detectSleepingSurface } from '@/ai/flows/detect-sleeping-surface-flow';
 import { scoreDataContribution } from '@/ai/flows/score-data-contribution-flow';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useWalletSelector } from '@/components/WalletProvider';
 import { CONTRACT_ID } from '@/lib/constants';
 import { utils, providers } from 'near-api-js';
 import type { CodeResult } from "near-api-js/lib/providers/provider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
+type MotionDataPoint = {
+  time: number;
+  magnitude: number;
+};
+
 type JournalEntry = {
   id: number;
   date: string;
   sleep: string;
   imageUrl: string;
+  motionData?: MotionDataPoint[];
 };
 
 type PairedDataEntry = {
@@ -54,7 +60,7 @@ type WhoopData = {
     'Sleep (hours)': number;
 }[];
 
-const chartConfig = {
+const whoopChartConfig = {
   timeInBed: {
     label: "Time in Bed",
     color: "hsl(var(--chart-1))",
@@ -64,6 +70,14 @@ const chartConfig = {
     color: "hsl(var(--chart-2))",
   },
 } satisfies ChartConfig
+
+const motionChartConfig = {
+    movement: {
+      label: "Movement",
+      color: "hsl(var(--primary))",
+    },
+} satisfies ChartConfig
+
 
 type StakerInfo = {
     amount: string; // Comes as a string from the contract
@@ -137,6 +151,10 @@ export default function Home() {
   const [stakerIdToApprove, setStakerIdToApprove] = useState('');
   const [infoForAddress, setInfoForAddress] = useState<StakerInfo | null>(null);
   const [isCheckingAddress, setIsCheckingAddress] = useState(false);
+  
+  // Motion Sensor State
+  const [motionData, setMotionData] = useState<MotionDataPoint[]>([]);
+  const motionStartTimeRef = useRef<number | null>(null);
 
 
   useEffect(() => {
@@ -552,6 +570,46 @@ export default function Home() {
     }
   };
 
+  const handleMotion = useCallback((event: DeviceMotionEvent) => {
+    if (event.acceleration?.x && event.acceleration?.y && event.acceleration?.z) {
+        const { x, y, z } = event.acceleration;
+        const magnitude = Math.sqrt(x*x + y*y + z*z);
+        if (motionStartTimeRef.current === null) {
+            motionStartTimeRef.current = Date.now();
+        }
+        const time = (Date.now() - motionStartTimeRef.current) / 1000; // in seconds
+        setMotionData(prevData => [...prevData, { time, magnitude }]);
+    }
+  }, []);
+
+  const startMotionTracking = useCallback(async () => {
+    // Feature detection
+    if (typeof (DeviceMotionEvent as any)?.requestPermission === 'function') {
+        // iOS 13+
+        try {
+            const permissionState = await (DeviceMotionEvent as any).requestPermission();
+            if (permissionState === 'granted') {
+                window.addEventListener('devicemotion', handleMotion);
+            }
+        } catch(error) {
+            console.error("DeviceMotionEvent permission request failed", error);
+            toast({variant: "destructive", title: "Motion Sensor Error", description: "Could not get permission to access motion sensors."})
+        }
+    } else {
+        // Other browsers
+        if ('DeviceMotionEvent' in window) {
+           window.addEventListener('devicemotion', handleMotion);
+        } else {
+            toast({title: "Motion Sensors Not Supported", description: "Your device does not support motion tracking."})
+        }
+    }
+  }, [handleMotion, toast]);
+
+  const stopMotionTracking = useCallback(() => {
+    window.removeEventListener('devicemotion', handleMotion);
+    motionStartTimeRef.current = null;
+  }, [handleMotion]);
+
 
   const handleConfirmPhoto = async () => {
     let photoUrl = uploadedImage?.url;
@@ -581,9 +639,14 @@ export default function Home() {
                 // If the admin is testing, approve their own bonus for the demo
                 await handleApproveBonus(signedAccountId);
             }
-
+            
+            setMotionData([]); // Clear previous data
+            startMotionTracking();
+            
             setAppState('sleeping');
-            await runProgress(3000);
+            await runProgress(3000); // Simulate sleep duration
+
+            stopMotionTracking();
 
             setAppState('generating_sleep_proof');
             await runProgress(2500);
@@ -603,12 +666,14 @@ export default function Home() {
               date: uploadedImage?.date || new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' }),
               sleep: `${(newDew - 0.5).toFixed(1)} hours verified`,
               imageUrl: photoUrl,
+              motionData: [...motionData] // snapshot the data
             };
             setJournalEntries(prev => [newEntry, ...prev]);
 
             setAppState('idle');
             setUploadedImage(null);
             setProgress(0);
+            setMotionData([]); // Clear for next run
 
         } else {
             toast({
@@ -913,6 +978,58 @@ export default function Home() {
         </Alert>
     )
   }
+
+  const MotionChart = ({ data }: { data: MotionDataPoint[] }) => {
+    if (!data || data.length === 0) {
+      return <p className="text-sm text-muted-foreground text-center py-4">No motion data recorded for this session.</p>;
+    }
+  
+    return (
+      <div className="mt-4">
+        <h4 className="font-headline text-lg mb-2">Motion Analysis</h4>
+        <ChartContainer config={motionChartConfig} className="h-[150px] w-full">
+          <LineChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+            <CartesianGrid vertical={false} strokeDasharray="3 3" />
+            <XAxis 
+                dataKey="time" 
+                type="number" 
+                domain={['dataMin', 'dataMax']} 
+                tickFormatter={(tick) => `${Math.round(tick)}s`}
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                />
+            <YAxis 
+                label={{ value: 'm/s²', angle: -90, position: 'insideLeft', offset: 10, style: { textAnchor: 'middle' } }}
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+            />
+            <RechartsTooltip 
+                cursor={{ strokeDasharray: '3 3' }} 
+                content={({ active, payload, label }) => 
+                    active && payload && payload.length ? (
+                    <div className="rounded-lg border bg-background p-2 shadow-sm">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex flex-col">
+                          <span className="text-[0.70rem] uppercase text-muted-foreground">Time</span>
+                          <span className="font-bold text-muted-foreground">{label}s</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[0.70rem] uppercase text-muted-foreground">Movement</span>
+                          <span className="font-bold text-primary">{payload[0].value?.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null
+                }
+            />
+            <Line type="monotone" dataKey="magnitude" stroke="var(--color-movement)" strokeWidth={2} dot={false} name="Movement"/>
+          </LineChart>
+        </ChartContainer>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen w-full bg-background text-foreground fade-in">
@@ -1350,7 +1467,7 @@ export default function Home() {
                         {whoopData.length > 0 && (
                             <div className="mb-6">
                                 <h4 className="text-lg font-headline mb-2">Recent Sleep Performance</h4>
-                                <ChartContainer config={chartConfig} className="h-[200px] w-full">
+                                <ChartContainer config={whoopChartConfig} className="h-[200px] w-full">
                                     <BarChart accessibilityLayer data={whoopData} margin={{ top: 20, right: 20, bottom: 5, left: 0 }}>
                                         <CartesianGrid vertical={false} />
                                         <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
@@ -1366,12 +1483,15 @@ export default function Home() {
                         <ScrollArea className="h-[280px] pr-4">
                             <div className="space-y-4">
                                 {journalEntries.map(entry => (
-                                    <div key={entry.id} className="flex items-center gap-4 rounded-lg border p-3 bg-card hover:bg-secondary/50 transition-colors" data-ai-hint="bed bedroom">
-                                    <Image src={entry.imageUrl} alt="A photo of a bed" width={80} height={60} className="rounded-md object-cover aspect-[4/3]" data-ai-hint="night sleep" />
-                                    <div className="flex-grow">
-                                        <p className="font-semibold">{entry.date}</p>
-                                        <p className="text-sm text-primary">{entry.sleep}</p>
-                                    </div>
+                                    <div key={entry.id} className="flex flex-col gap-4 rounded-lg border p-3 bg-card hover:bg-secondary/50 transition-colors" data-ai-hint="bed bedroom">
+                                        <div className="flex items-center gap-4">
+                                            <Image src={entry.imageUrl} alt="A photo of a bed" width={80} height={60} className="rounded-md object-cover aspect-[4/3]" data-ai-hint="night sleep" />
+                                            <div className="flex-grow">
+                                                <p className="font-semibold">{entry.date}</p>
+                                                <p className="text-sm text-primary">{entry.sleep}</p>
+                                            </div>
+                                        </div>
+                                        {entry.motionData && entry.motionData.length > 0 && <MotionChart data={entry.motionData} />}
                                     </div>
                                 ))}
                                 {journalEntries.length === 0 && <p className="text-center text-muted-foreground pt-16">Complete a sleep verification to start your log.</p>}
@@ -1385,3 +1505,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
