@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -360,13 +361,21 @@ export default function Home() {
       
       handleBeginSleepVerification();
 
-    } catch (error) {
-      console.error("Stake failed:", error);
-      toast({
-        variant: "destructive",
-        title: "Commitment Failed",
-        description: (error as Error).message,
-      });
+    } catch (error: any) {
+       if (error.message.includes("User closed the window")) {
+                toast({
+                    variant: "default",
+                    title: "Transaction Cancelled",
+                    description: "You cancelled the transaction in your wallet.",
+                });
+            } else {
+                console.error("Stake failed:", error);
+                toast({
+                    variant: "destructive",
+                    title: "Commitment Failed",
+                    description: error.message || "An unknown error occurred.",
+                });
+            }
     }
   };
   
@@ -402,13 +411,21 @@ export default function Home() {
             });
             const updatedInfo = await getStakerInfo(signedAccountId!);
             setStakerInfo(updatedInfo);
-        } catch (error) {
-            console.error("Withdrawal failed:", error);
-            toast({
-                variant: "destructive",
-                title: "Withdrawal Failed",
-                description: (error as Error).message,
-            });
+        } catch (error: any) {
+            if (error.message.includes("User closed the window")) {
+                toast({
+                    variant: "default",
+                    title: "Transaction Cancelled",
+                    description: "You cancelled the transaction in your wallet.",
+                });
+            } else {
+                console.error("Withdrawal failed:", error);
+                toast({
+                    variant: "destructive",
+                    title: "Withdrawal Failed",
+                    description: error.message || "An unknown error occurred.",
+                });
+            }
         }
     };
     
@@ -441,8 +458,17 @@ export default function Home() {
             const info = await getStakerInfo(stakerId);
             setInfoForAddress(info);
 
-        } catch(error) {
-             toast({ variant: "destructive", title: "Approval Failed", description: (error as Error).message });
+        } catch(error: any) {
+             if (error.message.includes("User closed the window")) {
+                toast({
+                    variant: "default",
+                    title: "Transaction Cancelled",
+                    description: "You cancelled the transaction in your wallet.",
+                });
+            } else {
+                console.error("Approval failed:", error);
+                 toast({ variant: "destructive", title: "Approval Failed", description: (error as Error).message });
+            }
         }
     }
 
@@ -1783,3 +1809,5 @@ export default function Home() {
     </TooltipProvider>
   );
 }
+
+    
