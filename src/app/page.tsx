@@ -17,6 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { detectSleepingSurface } from '@/ai/flows/detect-sleeping-surface-flow';
+import { scoreDataContribution } from '@/ai/flows/score-data-contribution-flow';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useWalletSelector } from '@/components/WalletProvider';
@@ -387,7 +388,7 @@ export default function Home() {
                     const parsedData = rows.map(row => {
                         const columns = row.split(',');
                         // Assuming CSV format: Date, ... some columns ..., Time in Bed (seconds), Sleep Duration (seconds)
-                        // This will need adjustment based on the actual CSV structure
+                        // This will need to be adjusted based on the actual CSV structure
                         const date = new Date(columns[0]).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                         const timeInBed = parseFloat(columns[19]) / 3600; // Example column
                         const sleep = parseFloat(columns[20]) / 3600; // Example column
@@ -524,33 +525,42 @@ export default function Home() {
     }
   };
   
-    const handleDataContribution = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!fnirsFile || !glucoseLevel) {
-            toast({ variant: "destructive", title: "Missing Information", description: "Please provide both a fNIRS data file and a glucose reading." });
-            return;
-        }
+  const handleDataContribution = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fnirsFile || !glucoseLevel) {
+        toast({ variant: "destructive", title: "Missing Information", description: "Please provide both a fNIRS data file and a glucose reading." });
+        return;
+    }
 
-        setAppState('uploading_data');
-        await runProgress(2000, () => {
-             // This is where we would call the AI flow in the future
-            const contributionScore = Math.floor(Math.random() * 21) + 80; // Simulate a score between 80-100
-            const newDew = Math.floor(contributionScore / 10); // Reward based on score
+    setAppState('uploading_data');
+    await runProgress(1000);
+
+    try {
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            const fnirsData = event.target?.result as string;
+            
+            const result = await scoreDataContribution({
+                fnirsData: fnirsData,
+                glucoseLevel: Number(glucoseLevel),
+            });
+            
+            await runProgress(1000);
 
             const newEntry: PairedDataEntry = {
                 id: Date.now(),
                 date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
                 fnirsFile: fnirsFile.name,
                 glucoseLevel: Number(glucoseLevel),
-                contributionScore,
+                contributionScore: result.contributionScore,
             };
             
             setPairedDataHistory(prev => [newEntry, ...prev]);
-            setDreamDew(prev => prev + newDew);
+            setDreamDew(prev => prev + result.reward);
 
             toast({
-                title: "Contribution Received!",
-                description: `Your data was analyzed. You earned ${newDew} Dream Dew for your contribution!`,
+                title: "Contribution Scored!",
+                description: `${result.reason} You earned ${result.reward} Dream Dew.`,
             });
 
             // Reset form
@@ -561,8 +571,19 @@ export default function Home() {
             }
             setAppState('idle');
             setProgress(0);
+        };
+        reader.readAsText(fnirsFile);
+    } catch(error) {
+        console.error("Error scoring data:", error);
+        toast({
+            variant: "destructive",
+            title: "Scoring Error",
+            description: "Could not score the data contribution. Please try again.",
         });
-    };
+        setAppState('idle');
+        setProgress(0);
+    }
+  };
 
   const handleSetupSwarm = () => {
     setSwarmState('generating_keys');
@@ -620,7 +641,7 @@ export default function Home() {
       case 'planting_seed':
         return { icon: <Sprout className="sprout text-primary" />, text: 'Verifying on Civic Action Registry...' };
       case 'uploading_data':
-        return { icon: <UploadCloud className="animate-pulse text-primary" />, text: 'Encrypting and uploading paired data...' };
+        return { icon: <UploadCloud className="animate-pulse text-primary" />, text: 'Analyzing and scoring your contribution...' };
       default:
         return { icon: null, text: '' };
     }
