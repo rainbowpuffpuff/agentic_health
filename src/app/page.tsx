@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -157,7 +158,7 @@ export default function Home() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to fetch staked balance.",
+        description: "Failed to fetch staked balance. The placeholder contract may not support this.",
       });
     }
 
@@ -191,7 +192,7 @@ export default function Home() {
 
   const handleStake = async (amount: string, stakeType: 'rest' | 'action') => {
     if (!walletConnected || !selector) {
-      toast({ variant: "destructive", title: "Wallet not connected", description: "Please connect your NEAR wallet to stake." });
+      toast({ variant: "destructive", title: "Wallet not connected", description: "Please connect your NEAR wallet to make a commitment." });
       return;
     }
     const wallet = await selector.wallet();
@@ -218,7 +219,7 @@ export default function Home() {
       
       toast({
         title: "Commitment Successful",
-        description: `You have staked ${amount} NEAR.`,
+        description: `You have committed ${amount} NEAR.`,
       });
       await getStakedBalance();
       
@@ -232,7 +233,7 @@ export default function Home() {
       console.error("Stake failed:", error);
       toast({
         variant: "destructive",
-        title: "Stake Failed",
+        title: "Commitment Failed",
         description: (error as Error).message,
       });
     }
@@ -271,15 +272,15 @@ export default function Home() {
                 ],
             });
             toast({
-                title: "Unstake Successful",
-                description: `You have unstaked ${amountToUnstake} NEAR plus rewards.`,
+                title: "Commitment Returned",
+                description: `Your commitment of ${amountToUnstake} NEAR (plus rewards) has been returned.`,
             });
             await getStakedBalance();
         } catch (error) {
             console.error("Unstake failed:", error);
             toast({
                 variant: "destructive",
-                title: "Unstake Failed",
+                title: "Return Failed",
                 description: (error as Error).message,
             });
         }
@@ -377,49 +378,67 @@ export default function Home() {
     }
   };
 
-    const handleWhoopImport = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const text = e.target?.result as string;
-                try {
-                    const rows = text.split('\n').slice(1); // Skip header
-                    const parsedData = rows.map(row => {
-                        const columns = row.split(',');
-                        // Assuming CSV format: Date, ... some columns ..., Time in Bed (seconds), Sleep Duration (seconds)
-                        // This will need to be adjusted based on the actual CSV structure
-                        const date = new Date(columns[0]).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                        const timeInBed = parseFloat(columns[19]) / 3600; // Example column
-                        const sleep = parseFloat(columns[20]) / 3600; // Example column
-                        
-                        if (!date || isNaN(timeInBed) || isNaN(sleep)) return null;
+  const handleWhoopImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        try {
+          const lines = text.split('\n');
+          if (lines.length < 2) {
+            throw new Error("CSV is empty or has no header.");
+          }
+          const header = lines[0].split(',');
+          const rows = lines.slice(1);
 
-                        return { date, 'Time in Bed (hours)': timeInBed, 'Sleep (hours)': sleep };
-                    }).filter(Boolean) as WhoopData;
-                    
-                    if(parsedData.length === 0) {
-                        throw new Error("CSV format is not as expected or file is empty.");
-                    }
+          const getIndex = (name: string) => {
+            const index = header.findIndex(h => h.trim() === name);
+            if (index === -1) {
+              throw new Error(`Required column "${name}" not found in CSV header.`);
+            }
+            return index;
+          };
 
-                    setWhoopData(parsedData.slice(-7)); // Show last 7 days
-                    toast({
-                        title: "Import Successful",
-                        description: `Imported ${parsedData.length} sleep records.`,
-                    });
-                } catch (err) {
-                    console.error("Error parsing Whoop CSV:", err);
-                    toast({
-                        variant: "destructive",
-                        title: "Import Failed",
-                        description: "The CSV file could not be parsed. Please ensure it's a valid Whoop sleep data export.",
-                        duration: 5000,
-                    });
-                }
-            };
-            reader.readAsText(file);
+          const dateIndex = getIndex('Cycle start time');
+          const timeInBedIndex = getIndex('In bed duration (min)');
+          const sleepIndex = getIndex('Asleep duration (min)');
+
+          const parsedData = rows.map(row => {
+            const columns = row.split(',');
+            if (columns.length < header.length) return null;
+
+            const date = new Date(columns[dateIndex]).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const timeInBed = parseFloat(columns[timeInBedIndex]) / 60;
+            const sleep = parseFloat(columns[sleepIndex]) / 60;
+            
+            if (!date || isNaN(timeInBed) || isNaN(sleep)) return null;
+
+            return { date, 'Time in Bed (hours)': timeInBed, 'Sleep (hours)': sleep };
+          }).filter(Boolean) as WhoopData;
+          
+          if (parsedData.length === 0) {
+            throw new Error("No valid sleep records could be parsed from the file.");
+          }
+
+          setWhoopData(parsedData.slice(-7)); // Show last 7 days
+          toast({
+            title: "Import Successful",
+            description: `Imported ${parsedData.length} sleep records.`,
+          });
+        } catch (err: any) {
+          console.error("Error parsing Whoop CSV:", err);
+          toast({
+            variant: "destructive",
+            title: "Import Failed",
+            description: err.message || "The CSV file could not be parsed. Please ensure it's a valid Whoop sleep data export.",
+            duration: 5000,
+          });
         }
-    };
+      };
+      reader.readAsText(file);
+    }
+  };
 
 
   const handleConfirmPhoto = async () => {
@@ -633,7 +652,7 @@ export default function Home() {
       case 'generating_sleep_proof':
         return { icon: <KeyRound className="animate-spin text-primary" />, text: 'Generating ZK-Proof of Rest...' };
       case 'minting_dew':
-        return { icon: <Zap className="futuristic-glow text-primary" />, text: 'Returning your stake...' };
+        return { icon: <Zap className="futuristic-glow text-primary" />, text: 'Returning your commitment...' };
       case 'taking_action':
         return { icon: <Mail className="text-primary" />, text: 'Sending secure email...' };
       case 'generating_action_proof':
@@ -750,7 +769,7 @@ export default function Home() {
                 {appState !== 'taking_photo' && (
                     <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5">
                     <CardHeader>
-                        <CardTitle className="font-headline text-2xl">Daily Actions</CardTitle>
+                        <CardTitle className="font-headline text-2xl">Daily Positive Actions</CardTitle>
                         <CardDescription>Generate proofs of your positive actions by making a commitment.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
@@ -759,11 +778,11 @@ export default function Home() {
                                 <Bed className="h-6 w-6 text-primary" />
                                 <h3 className="font-headline text-lg">Proof of Rest</h3>
                             </div>
-                            <p className="text-sm text-muted-foreground">Commit NEAR as a pledge to your sleep. Your stake is returned with a reward after successful verification.</p>
+                            <p className="text-sm text-muted-foreground">Commit NEAR as a pledge to your sleep. Your commitment is returned with a reward after successful verification.</p>
                             
                             {isRestStaked && walletConnected ? (
                                 <div className='p-4 bg-secondary rounded-md'>
-                                    <p className='text-sm font-semibold'>You have <span className="font-bold text-primary">{stakedBalance} NEAR</span> staked.</p>
+                                    <p className='text-sm font-semibold'>You have <span className="font-bold text-primary">{stakedBalance} NEAR</span> committed.</p>
                                     <p className="text-xs text-muted-foreground mt-1">Complete the sleep verification to get it back with a reward.</p>
                                     <Button onClick={handleBeginSleepVerification} disabled={appState !== 'idle'} className="w-full mt-3">
                                         Verify Sleep
@@ -787,7 +806,7 @@ export default function Home() {
                                 <Mail className="h-6 w-6 text-primary" />
                                 <h3 className="font-headline text-lg">Proof of Action</h3>
                             </div>
-                            <p className="text-sm text-muted-foreground">Commit a small stake of {CIVIC_ACTION_STAKE} NEAR and spend 10 Dream Dew to prove you've contacted a representative. Your anonymous action will be added to the public registry, and your stake returned.</p>
+                            <p className="text-sm text-muted-foreground">Commit a small amount of {CIVIC_ACTION_STAKE} NEAR and spend 10 Dream Dew to prove you've contacted a representative. Your anonymous action will be added to the public registry, and your commitment returned.</p>
 
                             {isActionStaked && walletConnected ? (
                                 <div className='p-4 bg-secondary rounded-md'>
