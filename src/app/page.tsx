@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -790,16 +789,20 @@ export default function Home() {
                             <CardDescription>Create and deploy your own personal staking contract on the NEAR blockchain. This contract will be owned by you and used for your commitments.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                           <p className="text-sm text-muted-foreground">Enter a unique name for your contract account. This will be created as a sub-account of your main wallet address (e.g., <code className="bg-muted px-1 py-0.5 rounded">your-name.{signedAccountId}</code>).</p>
-                           <div className="flex items-end gap-2">
-                                <div className="flex-grow">
-                                    <Label htmlFor="new-contract-name">New Contract Name</Label>
-                                    <Input id="new-contract-name" value={newContractName} onChange={(e) => setNewContractName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} placeholder="e.g., my-staking-contract"/>
+                           <p className="text-sm text-muted-foreground">Enter a unique name for your contract sub-account. It will be created on your main wallet address.</p>
+                           <div className="flex flex-col sm:flex-row items-end gap-2">
+                                <div className="flex-grow w-full">
+                                    <Label htmlFor="new-contract-name">New Sub-Account Name</Label>
+                                    <div className='flex items-center gap-2'>
+                                      <Input id="new-contract-name" value={newContractName} onChange={(e) => setNewContractName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} placeholder="e.g., my-staking-contract"/>
+                                      <span className="text-muted-foreground font-mono text-sm hidden sm:block">.{signedAccountId}</span>
+                                    </div>
                                 </div>
-                                <Button onClick={handleDeployContract} disabled={isDeploying || !newContractName}>
+                                <Button onClick={handleDeployContract} disabled={isDeploying || !newContractName} className="w-full sm:w-auto">
                                     {isDeploying ? <><Loader className="animate-spin mr-2" />Deploying...</> : 'Deploy Contract'}
                                 </Button>
                            </div>
+                           {newContractName && <p className="text-xs text-muted-foreground">Full contract ID will be: <code className="bg-muted px-1 py-0.5 rounded">{newContractName}.{signedAccountId}</code></p>}
                         </CardContent>
                      </Card>
                 )}
@@ -1229,3 +1232,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
