@@ -1704,128 +1704,130 @@ export default function Home() {
                 )}
 
                 {appState !== 'taking_photo' && (
-                  isAdmin && walletConnected ? renderAdminDashboard() : (
+                  <>
+                    {isAdmin && walletConnected && renderAdminDashboard()}
+
                     <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5">
-                    <CardHeader>
-                        <CardTitle className="font-headline text-2xl">Daily Positive Actions</CardTitle>
-                        <CardDescription>Generate proofs of your positive actions by making a commitment.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="space-y-4 rounded-lg border p-4 hover:border-primary/20 transition-colors">
-                            <div className="flex items-center gap-3">
-                                <Bed className="h-6 w-6 text-primary" />
-                                <h3 className="font-headline text-lg">Proof of Rest</h3>
-                            </div>
-                            <p className="text-sm text-muted-foreground">Commit NEAR to verify your sleep. After verification, your commitment is returned with a bonus.</p>
-                             {rewardPoolBalance !== null && (
-                                <div className="text-xs text-muted-foreground flex items-center gap-2">
-                                    <PiggyBank size={14}/>
-                                    <span>Available Rewards: {utils.format.formatNearAmount(rewardPoolBalance, 4)} NEAR</span>
-                                </div>
-                            )}
+                      <CardHeader>
+                          <CardTitle className="font-headline text-2xl">Daily Positive Actions</CardTitle>
+                          <CardDescription>Generate proofs of your positive actions by making a commitment.</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                          <div className="space-y-4 rounded-lg border p-4 hover:border-primary/20 transition-colors">
+                              <div className="flex items-center gap-3">
+                                  <Bed className="h-6 w-6 text-primary" />
+                                  <h3 className="font-headline text-lg">Proof of Rest</h3>
+                              </div>
+                              <p className="text-sm text-muted-foreground">Commit NEAR to verify your sleep. After verification, your commitment is returned with a bonus.</p>
+                              {rewardPoolBalance !== null && (
+                                  <div className="text-xs text-muted-foreground flex items-center gap-2">
+                                      <PiggyBank size={14}/>
+                                      <span>Available Rewards: {utils.format.formatNearAmount(rewardPoolBalance, 4)} NEAR</span>
+                                  </div>
+                              )}
 
-                            {stakerInfo && walletConnected ? (
-                                <div className='p-4 bg-secondary rounded-md space-y-3'>
-                                    <div>
-                                        <p className='text-sm font-semibold'>You have <span className="font-bold text-primary">{utils.format.formatNearAmount(stakerInfo.amount, 4)} NEAR</span> committed.</p>
-                                        <p className="text-xs text-muted-foreground mt-1">Complete sleep verification to get it back with a bonus.</p>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-sm">
-                                        <span>Bonus Status:</span>
-                                        {stakerInfo.bonus_approved ? (
-                                            <span className='font-medium text-green-600 flex items-center gap-1'><CheckCircle2 size={16}/> Approved</span>
-                                        ) : (
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <span className='font-medium text-muted-foreground flex items-center gap-1 cursor-help'><Clock size={16} /> Pending</span>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Bonus is approved manually by the admin.<br/> It may take a few moments to be verified.</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        )}
-                                    </div>
-                                    <div className="flex flex-col sm:flex-row gap-2">
-                                        <Button onClick={handleBeginSleepVerification} disabled={isVerifyingSleep || stakerInfo.bonus_approved} className="w-full">
-                                            Verify Sleep
-                                        </Button>
-                                        <Button onClick={handleWithdraw} disabled={isVerifyingSleep || !stakerInfo.bonus_approved} className="w-full" variant="outline">
-                                            Withdraw
-                                        </Button>
-                                    </div>
-                                    {isVerifyingSleep && <ProgressDisplay state={appState} />}
-                                </div>
-                            ) : (
-                                <div className="flex flex-col sm:flex-row items-stretch gap-2">
-                                    <div className="flex-grow">
-                                        <Label htmlFor="stake-amount" className="sr-only">Commitment (NEAR)</Label>
-                                        <Input id="stake-amount" type="number" value={stakeAmount} onChange={(e) => setStakeAmount(e.target.value)} placeholder="Commitment (NEAR)" className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                                    </div>
-                                    <Button onClick={handleStake} disabled={isVerifyingSleep || !walletConnected || Number(stakeAmount) <= 0} className="w-full sm:w-auto">
-                                        Commit & Begin
-                                    </Button>
-                                </div>
-                            )}
-                            {isVerifyingSleep && !stakerInfo && <ProgressDisplay state={appState} />}
-                        </div>
+                              {stakerInfo && walletConnected ? (
+                                  <div className='p-4 bg-secondary rounded-md space-y-3'>
+                                      <div>
+                                          <p className='text-sm font-semibold'>You have <span className="font-bold text-primary">{utils.format.formatNearAmount(stakerInfo.amount, 4)} NEAR</span> committed.</p>
+                                          <p className="text-xs text-muted-foreground mt-1">Complete sleep verification to get it back with a bonus.</p>
+                                      </div>
+                                      <div className="flex items-center gap-2 text-sm">
+                                          <span>Bonus Status:</span>
+                                          {stakerInfo.bonus_approved ? (
+                                              <span className='font-medium text-green-600 flex items-center gap-1'><CheckCircle2 size={16}/> Approved</span>
+                                          ) : (
+                                              <Tooltip>
+                                                  <TooltipTrigger asChild>
+                                                      <span className='font-medium text-muted-foreground flex items-center gap-1 cursor-help'><Clock size={16} /> Pending</span>
+                                                  </TooltipTrigger>
+                                                  <TooltipContent>
+                                                      <p>Bonus is approved manually by the admin.<br/> It may take a few moments to be verified.</p>
+                                                  </TooltipContent>
+                                              </Tooltip>
+                                          )}
+                                      </div>
+                                      <div className="flex flex-col sm:flex-row gap-2">
+                                          <Button onClick={handleBeginSleepVerification} disabled={isVerifyingSleep || stakerInfo.bonus_approved} className="w-full">
+                                              Verify Sleep
+                                          </Button>
+                                          <Button onClick={handleWithdraw} disabled={isVerifyingSleep || !stakerInfo.bonus_approved} className="w-full" variant="outline">
+                                              Withdraw
+                                          </Button>
+                                      </div>
+                                      {isVerifyingSleep && <ProgressDisplay state={appState} />}
+                                  </div>
+                              ) : (
+                                  <div className="flex flex-col sm:flex-row items-stretch gap-2">
+                                      <div className="flex-grow">
+                                          <Label htmlFor="stake-amount" className="sr-only">Commitment (NEAR)</Label>
+                                          <Input id="stake-amount" type="number" value={stakeAmount} onChange={(e) => setStakeAmount(e.target.value)} placeholder="Commitment (NEAR)" className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                                      </div>
+                                      <Button onClick={handleStake} disabled={isVerifyingSleep || !walletConnected || Number(stakeAmount) <= 0} className="w-full sm:w-auto">
+                                          Commit & Begin
+                                      </Button>
+                                  </div>
+                              )}
+                              {isVerifyingSleep && !stakerInfo && <ProgressDisplay state={appState} />}
+                          </div>
 
-                        <div className="space-y-4 rounded-lg border p-4 hover:border-primary/20 transition-colors">
-                            <div className="flex items-center gap-3">
-                                <Mail className="h-6 w-6 text-primary" />
-                                <h3 className="font-headline text-lg">Proof of Action</h3>
-                            </div>
-                            <p className="text-sm text-muted-foreground">Select a campaign and send a signed email to prove you've taken action. Costs 10 Intention Points.</p>
-                             <RadioGroup value={selectedCampaign} onValueChange={(value) => setSelectedCampaign(value as Campaign)} className="space-y-2">
-                                {Object.keys(CAMPAIGN_DETAILS).map((campaignKey) => {
-                                    const campaign = campaignKey as Campaign;
-                                    const details = CAMPAIGN_DETAILS[campaign];
-                                    const campaignState = campaignStates[campaign];
+                          <div className="space-y-4 rounded-lg border p-4 hover:border-primary/20 transition-colors">
+                              <div className="flex items-center gap-3">
+                                  <Mail className="h-6 w-6 text-primary" />
+                                  <h3 className="font-headline text-lg">Proof of Action</h3>
+                              </div>
+                              <p className="text-sm text-muted-foreground">Select a campaign and send a signed email to prove you've taken action. Costs 10 Intention Points.</p>
+                              <RadioGroup value={selectedCampaign} onValueChange={(value) => setSelectedCampaign(value as Campaign)} className="space-y-2">
+                                  {Object.keys(CAMPAIGN_DETAILS).map((campaignKey) => {
+                                      const campaign = campaignKey as Campaign;
+                                      const details = CAMPAIGN_DETAILS[campaign];
+                                      const campaignState = campaignStates[campaign];
 
-                                    return (
-                                        <Label key={campaign} htmlFor={campaign} className={cn("flex flex-col gap-2 rounded-md border p-3 cursor-pointer", {'border-primary ring-2 ring-primary': selectedCampaign === campaign, 'opacity-50 cursor-not-allowed': campaignState === 'verified'})}>
-                                            <div className="flex items-start gap-3">
-                                                <RadioGroupItem value={campaign} id={campaign} className="mt-1" disabled={campaignState === 'verified'} />
-                                                <div className="flex-grow space-y-1">
-                                                    <p className="font-medium">{details.title}</p>
-                                                    <p className="text-sm text-muted-foreground">{details.description}</p>
-                                                </div>
-                                            </div>
-                                            {selectedCampaign === campaign && campaignState !== 'verified' && (
-                                                <div className="pt-2 pl-7">
-                                                    {campaignState === 'idle' && (
-                                                        <Button onClick={() => handleSendEmail(campaign)} disabled={isVerifyingAction || intentionPoints < 10} className="w-full" size="sm">
-                                                            <Mail className="mr-2"/>
-                                                            {intentionPoints < 10 ? 'Need 10 Points' : 'Send Email for 10 Points'}
-                                                        </Button>
-                                                    )}
-                                                    {campaignState === 'email_pending' && (
-                                                         <Button onClick={() => emailUploadRef.current?.click()} disabled={isVerifyingAction} className="w-full" size="sm" variant="outline">
-                                                             <Upload className="mr-2"/>
-                                                            Upload Signed Email (.eml/.txt)
-                                                         </Button>
-                                                    )}
-                                                </div>
-                                            )}
-                                            {campaignState === 'verified' && (
-                                                 <div className="pt-2 pl-7">
-                                                    <Alert variant="default" className="border-green-500 text-green-700">
-                                                        <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                                        <AlertTitle>Action Verified!</AlertTitle>
-                                                        <AlertDescription>
-                                                           You have successfully completed this action.
-                                                        </AlertDescription>
-                                                    </Alert>
-                                                 </div>
-                                            )}
-                                        </Label>
-                                    )
-                                })}
-                            </RadioGroup>
-                            {isVerifyingAction && <ProgressDisplay state={appState} />}
-                        </div>
-                    </CardContent>
-                    </Card>
-                  )
+                                      return (
+                                          <Label key={campaign} htmlFor={campaign} className={cn("flex flex-col gap-2 rounded-md border p-3 cursor-pointer", {'border-primary ring-2 ring-primary': selectedCampaign === campaign, 'opacity-50 cursor-not-allowed': campaignState === 'verified'})}>
+                                              <div className="flex items-start gap-3">
+                                                  <RadioGroupItem value={campaign} id={campaign} className="mt-1" disabled={campaignState === 'verified'} />
+                                                  <div className="flex-grow space-y-1">
+                                                      <p className="font-medium">{details.title}</p>
+                                                      <p className="text-sm text-muted-foreground">{details.description}</p>
+                                                  </div>
+                                              </div>
+                                              {selectedCampaign === campaign && campaignState !== 'verified' && (
+                                                  <div className="pt-2 pl-7">
+                                                      {campaignState === 'idle' && (
+                                                          <Button onClick={() => handleSendEmail(campaign)} disabled={isVerifyingAction || intentionPoints < 10} className="w-full" size="sm">
+                                                              <Mail className="mr-2"/>
+                                                              {intentionPoints < 10 ? 'Need 10 Points' : 'Send Email for 10 Points'}
+                                                          </Button>
+                                                      )}
+                                                      {campaignState === 'email_pending' && (
+                                                          <Button onClick={() => emailUploadRef.current?.click()} disabled={isVerifyingAction} className="w-full" size="sm" variant="outline">
+                                                              <Upload className="mr-2"/>
+                                                              Upload Signed Email (.eml/.txt)
+                                                          </Button>
+                                                      )}
+                                                  </div>
+                                              )}
+                                              {campaignState === 'verified' && (
+                                                  <div className="pt-2 pl-7">
+                                                      <Alert variant="default" className="border-green-500 text-green-700">
+                                                          <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                                          <AlertTitle>Action Verified!</AlertTitle>
+                                                          <AlertDescription>
+                                                            You have successfully completed this action.
+                                                          </AlertDescription>
+                                                      </Alert>
+                                                  </div>
+                                              )}
+                                          </Label>
+                                      )
+                                  })}
+                              </RadioGroup>
+                              {isVerifyingAction && <ProgressDisplay state={appState} />}
+                          </div>
+                      </CardContent>
+                      </Card>
+                  </>
                 )}
 
                  <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5" style={{animationDelay: '100ms'}}>
@@ -2067,5 +2069,3 @@ export default function Home() {
     </TooltipProvider>
   );
 }
-
-    
