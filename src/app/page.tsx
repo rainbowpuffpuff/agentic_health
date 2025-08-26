@@ -629,8 +629,16 @@ export default function Home() {
     }
   };
 
-  const handleUseDefaultPhoto = () => {
+  const handleUseDefaultPhoto = async () => {
     const imageUrl = '/default-bed.jpg'; // Path to the image in the public folder
+    const response = await fetch(imageUrl);
+    const blob = await response.blob();
+    const dataUrl = await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target?.result as string);
+      reader.readAsDataURL(blob);
+    });
+
     const timestamp = `Timestamp: ${new Date().toLocaleString('en-US', {
         month: 'long',
         day: 'numeric',
@@ -639,7 +647,7 @@ export default function Home() {
         minute: 'numeric',
         hour12: true
     })}`;
-    setUploadedImage({ url: imageUrl, date: timestamp });
+    setUploadedImage({ url: dataUrl, date: timestamp });
   };
 
   const handleWhoopImport = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -812,16 +820,6 @@ export default function Home() {
 
   const handleConfirmPhoto = async () => {
     let photoUrl = uploadedImage?.url;
-    // Special case for local default image, we need to fetch it as a data URI
-    if(photoUrl === '/default-bed.jpg') {
-        const response = await fetch(photoUrl);
-        const blob = await response.blob();
-        photoUrl = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target?.result as string);
-            reader.readAsDataURL(blob);
-        });
-    }
 
     if (!photoUrl) {
       photoUrl = takePhoto();
@@ -1042,7 +1040,6 @@ export default function Home() {
   
     setAppState('uploading_data');
     setProgress(0);
-    await runProgress(1000);
   
     try {
       const fnirsReader = new FileReader();
@@ -1101,6 +1098,7 @@ export default function Home() {
 
             const averageGlucose = glucoseValuesMgDl.reduce((sum, val) => sum + val, 0) / glucoseValuesMgDl.length;
             
+            await runProgress(1000);
             // DEV ONLY: Mock the AI call to prevent rate limiting
             const result = {
               contributionScore: Math.floor(Math.random() * (95 - 75 + 1)) + 75, // Random score between 75-95
@@ -1624,7 +1622,7 @@ export default function Home() {
                             {isVerifyingSleep && <ProgressDisplay state={appState} inCard={false} />}
                         </CardContent>
                         <CardFooter className="flex flex-col sm:flex-row gap-2">
-                           <Button variant="outline" onClick={() => handleUseDefaultPhoto()} className="w-full">
+                           <Button variant="outline" onClick={handleUseDefaultPhoto} className="w-full">
                                 <ImageIcon className="mr-2 h-4 w-4"/>
                                 Use Default Photo
                             </Button>
