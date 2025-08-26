@@ -1547,7 +1547,7 @@ export default function Home() {
           <div className="flex items-center gap-2 md:gap-4">
             <div className="flex items-center gap-2 rounded-full border border-border/50 bg-card px-3 md:px-4 py-2 text-sm shadow-sm">
                 <DewDropIcon className="h-5 w-5 text-primary" />
-                <span className="font-bold text-base md:text-lg">{intentionPoints}</span>
+                <span className="text-base md:text-lg">{intentionPoints}</span>
                 <span className="text-muted-foreground hidden sm:inline">Intention Points</span>
             </div>
             
