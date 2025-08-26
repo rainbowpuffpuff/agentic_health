@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, UserCog, FileText, Activity, Clock, BarChart2, Lock, PiggyBank, Image as ImageIcon } from 'lucide-react';
+import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, UserCog, FileText, Activity, Clock, BarChart2, Lock, PiggyBank, Image as ImageIcon, ExternalLink } from 'lucide-react';
 import DewDropIcon from '@/components/icons/DewDropIcon';
 import FlowerIcon from '@/components/icons/FlowerIcon';
 import { cn } from '@/lib/utils';
@@ -25,7 +25,7 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as
 import { useWalletSelector } from '@/components/WalletProvider';
 import { CONTRACT_ID } from '@/lib/constants';
 import { utils, providers } from 'near-api-js';
-import type { CodeResult } from "near-api-js/lib/providers/provider";
+import type { CodeResult, FinalExecutionOutcome } from "near-api-js/lib/providers/provider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import FlowerIconTwo from '@/components/icons/FlowerIconTwo';
@@ -156,6 +156,7 @@ export default function Home() {
   const [stakeAmount, setStakeAmount] = useState("0.1"); // In NEAR for sleep
   const [rewardPoolBalance, setRewardPoolBalance] = useState<string | null>(null);
   const [depositAmount, setDepositAmount] = useState("1");
+  const [accountBalance, setAccountBalance] = useState<string | null>(null);
 
 
   // Civic Action State
@@ -280,12 +281,38 @@ export default function Home() {
         console.error("Failed to get reward pool balance:", error);
     }
   }, [selector]);
+  
+    const getAccountBalance = useCallback(async (accountId: string) => {
+    if (!selector) return;
+    try {
+      const { network } = selector.options;
+      const provider = new providers.JsonRpcProvider({ url: network.nodeUrl });
+      const account = await provider.query({
+        request_type: "view_account",
+        finality: "final",
+        account_id: accountId,
+      });
+      // @ts-ignore: 'amount' is a valid property on the response
+      setAccountBalance(utils.format.formatNearAmount(account.amount, 4));
+    } catch (error) {
+      console.error("Failed to get account balance:", error);
+      setAccountBalance(null);
+    }
+  }, [selector]);
 
 
   useEffect(() => {
     getContractOwner();
     getRewardPoolBalance();
   }, [getContractOwner, getRewardPoolBalance, walletConnected]);
+
+  useEffect(() => {
+    if (signedAccountId) {
+        getAccountBalance(signedAccountId);
+    } else {
+        setAccountBalance(null);
+    }
+  }, [signedAccountId, getAccountBalance]);
 
   useEffect(() => {
     async function checkAdminStatus() {
@@ -329,6 +356,22 @@ export default function Home() {
     return () => clearTimeout(debounceCheck);
 
   }, [stakerIdToApprove, getStakerInfo]);
+  
+  const showTransactionToast = (txHash: string, title: string) => {
+    toast({
+        title: title,
+        description: "Your transaction is being processed.",
+        variant: 'default',
+        action: (
+            <a href={`https://nearblocks.io/txns/${txHash}`} target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" size="sm">
+                    View on Explorer
+                    <ExternalLink className="ml-2 h-4 w-4" />
+                </Button>
+            </a>
+        ),
+    });
+  };
 
 
   const runProgress = async (duration: number, onComplete?: () => void) => {
@@ -361,7 +404,7 @@ export default function Home() {
     }
 
     try {
-      await wallet.signAndSendTransaction({
+      const result = await wallet.signAndSendTransaction({
         receiverId: CONTRACT_ID,
         actions: [
           {
@@ -376,15 +419,16 @@ export default function Home() {
         ],
       });
       
-      toast({
-        title: "Commitment Successful",
-        description: `You have committed ${stakeAmount} NEAR.`,
-      });
+      const txHash = (result as FinalExecutionOutcome).transaction_outcome.id;
+      showTransactionToast(txHash, "Commitment Successful!");
       
+      // Optimistically update UI and then refresh from chain
+      handleBeginSleepVerification();
+      await new Promise(resolve => setTimeout(resolve, 1000));
       const updatedInfo = await getStakerInfo(signedAccountId!);
       setStakerInfo(updatedInfo);
+      getAccountBalance(signedAccountId!);
       
-      handleBeginSleepVerification();
 
     } catch (error: any) {
        if (error.message.includes("User closed the window")) {
@@ -416,7 +460,7 @@ export default function Home() {
         }
 
         try {
-            await wallet.signAndSendTransaction({
+            const result = await wallet.signAndSendTransaction({
                 receiverId: CONTRACT_ID,
                 actions: [
                     {
@@ -430,13 +474,17 @@ export default function Home() {
                     },
                 ],
             });
-            toast({
-                title: "Withdrawal Successful",
-                description: `Your commitment has been returned.`,
-            });
+            const txHash = (result as FinalExecutionOutcome).transaction_outcome.id;
+            showTransactionToast(txHash, "Withdrawal Successful!");
+
+            // Optimistic update
+            setStakerInfo(null); 
+            await new Promise(resolve => setTimeout(resolve, 1000));
             const updatedInfo = await getStakerInfo(signedAccountId!);
             setStakerInfo(updatedInfo);
             await getRewardPoolBalance();
+            await getAccountBalance(signedAccountId!);
+            
         } catch (error: any) {
             if (error.message.includes("User closed the window")) {
                 toast({
@@ -464,7 +512,7 @@ export default function Home() {
         if (!wallet) return;
 
         try {
-            await wallet.signAndSendTransaction({
+            const result = await wallet.signAndSendTransaction({
                 receiverId: CONTRACT_ID,
                 actions: [
                     {
@@ -478,9 +526,11 @@ export default function Home() {
                     },
                 ],
             });
-            toast({ title: "Bonus Approved!", description: `Bonus for ${stakerId} has been approved.` });
+            const txHash = (result as FinalExecutionOutcome).transaction_outcome.id;
+            showTransactionToast(txHash, "Bonus Approved!");
             
             // Refresh the info for the address
+            await new Promise(resolve => setTimeout(resolve, 1000));
             const info = await getStakerInfo(stakerId);
             setInfoForAddress(info);
 
@@ -507,7 +557,7 @@ export default function Home() {
         if (!wallet) return;
 
         try {
-            await wallet.signAndSendTransaction({
+            const result = await wallet.signAndSendTransaction({
                 receiverId: CONTRACT_ID,
                 actions: [
                     {
@@ -521,8 +571,12 @@ export default function Home() {
                     },
                 ],
             });
-            toast({ title: "Deposit Successful!", description: `You deposited ${depositAmount} NEAR to the reward pool.` });
+            const txHash = (result as FinalExecutionOutcome).transaction_outcome.id;
+            showTransactionToast(txHash, "Deposit Successful!");
+            
+            await new Promise(resolve => setTimeout(resolve, 1000));
             await getRewardPoolBalance(); // Refresh balance
+            await getAccountBalance(signedAccountId!);
         } catch(error: any) {
             if (error.message.includes("User closed the window")) {
                 toast({
@@ -1547,17 +1601,22 @@ export default function Home() {
           <div className="flex items-center gap-2 md:gap-4">
             <div className="flex items-center gap-2 rounded-full border border-border/50 bg-card px-3 md:px-4 py-2 text-sm shadow-sm">
                 <DewDropIcon className="h-5 w-5 text-primary" />
-                <span className="text-base md:text-lg">{intentionPoints}</span>
+                <span className="text-base md:text-lg font-medium">{intentionPoints}</span>
                 <span className="text-muted-foreground hidden sm:inline">Intention Points</span>
             </div>
             
             {walletConnected ? (
                 <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-2 rounded-full border border-border/50 bg-card px-3 md:px-4 py-2 text-sm shadow-sm">
-                        <Wallet className="h-5 w-5 text-primary" />
-                        <span className="font-mono text-muted-foreground text-xs md:text-sm truncate max-w-[100px] sm:max-w-none">{signedAccountId}</span>
+                    <div className="flex items-center gap-2 rounded-full border border-border/50 bg-card pl-3 pr-2 md:pl-4 py-1 text-sm shadow-sm">
+                        <div className='text-right'>
+                           <p className="font-mono text-xs md:text-sm truncate max-w-[100px] sm:max-w-none">{signedAccountId}</p>
+                           <p className='text-xs text-primary font-semibold'>{accountBalance !== null ? `${accountBalance} NEAR` : <Loader size={12} className="inline-block animate-spin"/>}</p>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={logOut}>
+                            <Wallet className="h-5 w-5 text-muted-foreground hover:text-primary" />
+                            <span className='sr-only'>Logout</span>
+                        </Button>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={logOut}>Logout</Button>
                 </div>
             ) : (
                 <Button onClick={logIn} disabled={isLoggingIn}>
@@ -2008,3 +2067,5 @@ export default function Home() {
     </TooltipProvider>
   );
 }
+
+    
