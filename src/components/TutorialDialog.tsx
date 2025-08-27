@@ -51,6 +51,8 @@ export default function TutorialDialog({ open, onOpenChange }: TutorialDialogPro
       setStep(s => s + 1);
     } else {
       onOpenChange(false);
+      // Reset to first step for next time it opens
+      setTimeout(() => setStep(0), 200);
     }
   };
 
@@ -61,7 +63,13 @@ export default function TutorialDialog({ open, onOpenChange }: TutorialDialogPro
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+        onOpenChange(isOpen);
+        if(!isOpen) {
+            // Reset to first step when dialog is closed
+            setTimeout(() => setStep(0), 200);
+        }
+    }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 mb-4">
