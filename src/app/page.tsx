@@ -116,6 +116,13 @@ export default function Home() {
     { id: 4, Icon: require('@/components/icons/FlowerIcon').default, unlocked: false },
     { id: 5, Icon: require('@/components/icons/FlowerIconTwo').default, unlocked: false },
   ]);
+   const [sleepFlowers, setSleepFlowers] = useState<GardenFlower[]>([
+    { id: 1, Icon: require('@/components/icons/FlowerIconThree').default, unlocked: false },
+    { id: 2, Icon: require('@/components/icons/FlowerIcon').default, unlocked: false },
+    { id: 3, Icon: require('@/components/icons/FlowerIconTwo').default, unlocked: false },
+    { id: 4, Icon: require('@/components/icons/FlowerIconThree').default, unlocked: false },
+    { id: 5, Icon: require('@/components/icons/FlowerIcon').default, unlocked: false },
+  ]);
   const [hasFnirsDevice, setHasFnirsDevice] = useState(false);
   const [hasAbbottDevice, setHasAbbottDevice] = useState(false);
   const [isSleepLogUnlocked, setIsSleepLogUnlocked] = useState(false);
@@ -922,6 +929,17 @@ export default function Home() {
             };
             setJournalEntries(prev => [newEntry, ...prev]);
 
+            setSleepFlowers(prev => {
+                const firstUnlockedIndex = prev.findIndex(f => !f.unlocked);
+                if (firstUnlockedIndex !== -1) {
+                    const newFlowers = [...prev];
+                    newFlowers[firstUnlockedIndex] = { ...newFlowers[firstUnlockedIndex], unlocked: true };
+                    return newFlowers;
+                }
+                return prev;
+            });
+
+
             setAppState('idle');
             setUploadedImage(null);
             setProgress(0);
@@ -1361,6 +1379,7 @@ export default function Home() {
                   handleConfirmPhoto={handleConfirmPhoto}
                   setAppState={setAppState}
                   setUploadedImage={setUploadedImage}
+                  sleepFlowers={sleepFlowers}
                 />
                 
                 <ProofOfAction
