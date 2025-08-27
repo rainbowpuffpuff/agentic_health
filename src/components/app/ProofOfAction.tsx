@@ -9,7 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Mail, CheckCircle2, Upload, BrainCircuit, KeyRound, Sprout, FileQuestion } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Campaign, CampaignState } from '@/app/page';
+import type { Campaign, CampaignState, GardenFlower } from '@/app/page';
 import { CAMPAIGN_DETAILS } from '@/app/page';
 
 type ProofOfActionProps = {
@@ -20,6 +20,7 @@ type ProofOfActionProps = {
     campaignStates: Record<Campaign, CampaignState>;
     isVerifyingAction: boolean;
     intentionPoints: number;
+    gardenFlowers: GardenFlower[];
     handleSendEmail: (campaign: Campaign) => void;
     emailUploadRef: React.RefObject<HTMLInputElement>;
     handleUseBoilerplateEmail: (campaign: Campaign) => void;
@@ -71,6 +72,7 @@ export default function ProofOfAction({
     campaignStates,
     isVerifyingAction,
     intentionPoints,
+    gardenFlowers,
     handleSendEmail,
     emailUploadRef,
     handleUseBoilerplateEmail,
@@ -78,8 +80,27 @@ export default function ProofOfAction({
     return (
         <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5">
             <CardHeader>
-                <CardTitle className="font-headline text-2xl">Civic Action</CardTitle>
-                <CardDescription>Generate proof of your civic engagement.</CardDescription>
+                <div className="flex justify-between items-start">
+                    <div>
+                        <CardTitle className="font-headline text-2xl">Civic Action</CardTitle>
+                        <CardDescription>Generate proof of your civic engagement.</CardDescription>
+                    </div>
+                    <div className="flex gap-2">
+                        {gardenFlowers.map((flower, i) => {
+                            const { Icon, unlocked } = flower;
+                            return (
+                                <Icon
+                                    key={i}
+                                    className={cn(
+                                        "h-8 w-8 transition-all duration-500",
+                                        unlocked ? "text-primary sprout" : "text-gray-300 opacity-50",
+                                    )}
+                                    style={{ animationDelay: `${i * 50}ms` }}
+                                />
+                            )
+                        })}
+                    </div>
+                </div>
             </CardHeader>
             <CardContent>
                 <div className="space-y-4 rounded-lg border p-4 hover:border-primary/20 transition-colors">
