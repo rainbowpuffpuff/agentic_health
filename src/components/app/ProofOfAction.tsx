@@ -61,7 +61,7 @@ const ProgressDisplay = ({ state, inCard = true } : { state: string; inCard?: bo
       return <div className="mt-4 p-4 bg-secondary/50 rounded-lg">{content}</div>;
     }
     
-    return content
+    return content;
 };
 
 export default function ProofOfAction({
@@ -134,13 +134,13 @@ export default function ProofOfAction({
                                             )}
                                             {campaignState === 'email_pending' && (
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                    <Button onClick={() => handleUseBoilerplateEmail(campaign)} disabled={isVerifyingAction} className="w-full" size="sm" variant="secondary">
-                                                        <FileQuestion className="mr-2" />
-                                                        Use Sample
-                                                    </Button>
                                                     <Button onClick={() => emailUploadRef.current?.click()} disabled={isVerifyingAction} className="w-full" size="sm" variant="outline">
                                                         <Upload className="mr-2" />
                                                         Upload Email
+                                                    </Button>
+                                                    <Button onClick={() => handleUseBoilerplateEmail(campaign)} disabled={isVerifyingAction} className="w-full" size="sm" variant="secondary">
+                                                        <FileQuestion className="mr-2" />
+                                                        Use Sample
                                                     </Button>
                                                 </div>
                                             )}
