@@ -13,7 +13,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Bed, PiggyBank, Clock, CheckCircle2, BrainCircuit, KeyRound, Zap, Camera, Upload, ShieldCheck, ImageIcon, AlertTriangle, Loader, FileQuestion, Smartphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { utils } from 'near-api-js';
-import type { StakerInfo } from '@/app/page';
+import type { StakerInfo, GardenFlower } from '@/app/page';
 
 type ProofOfRestProps = {
     appState: string;
@@ -39,6 +39,7 @@ type ProofOfRestProps = {
     handleConfirmPhoto?: () => void;
     setAppState?: (state: string) => void;
     setUploadedImage?: (image: { url: string, date: string } | null) => void;
+    sleepFlowers: GardenFlower[];
 };
 
 
@@ -109,6 +110,7 @@ export default function ProofOfRest({
     handleConfirmPhoto,
     setAppState,
     setUploadedImage,
+    sleepFlowers,
 }: ProofOfRestProps) {
 
     if (appState === 'taking_photo') {
@@ -179,23 +181,44 @@ export default function ProofOfRest({
     return (
         <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5">
             <CardHeader>
-                <CardTitle className="font-headline text-2xl flex items-center gap-3">
-                    <Bed className="h-6 w-6" />
-                    Proof of Rest
-                </CardTitle>
-                <CardDescription>Commit NEAR to verify your sleep. After verification, your commitment is returned with a bonus.</CardDescription>
+                <div className="flex justify-between items-start">
+                    <div>
+                        <CardTitle className="font-headline text-2xl flex items-center gap-3">
+                            <Bed className="h-6 w-6" />
+                            Proof of Rest
+                        </CardTitle>
+                        <CardDescription>Commit NEAR to verify your sleep. After verification, your commitment is returned with a bonus.</CardDescription>
+                    </div>
+                     <div className="flex gap-2">
+                        {sleepFlowers.map((flower, i) => {
+                            const { Icon, unlocked } = flower;
+                            return (
+                                <Icon
+                                    key={i}
+                                    className={cn(
+                                        "h-8 w-8 transition-all duration-500",
+                                        unlocked ? "text-primary sprout" : "text-gray-300 opacity-50",
+                                    )}
+                                    style={{ animationDelay: `${i * 50}ms` }}
+                                />
+                            )
+                        })}
+                    </div>
+                </div>
             </CardHeader>
             <CardContent>
                 <div className="space-y-4 rounded-lg border p-4 hover:border-primary/20 transition-colors">
                     <Accordion type="single" collapsible className="w-full">
                         <AccordionItem value="item-1" className='border-0'>
                             <Alert>
-                                <AccordionTrigger className="flex w-full items-center justify-between text-sm font-medium hover:no-underline [&_svg]:h-4 [&_svg]:w-4 p-0">
-                                    <div className='flex items-center gap-2'>
-                                        <FileQuestion className="h-4 w-4" />
-                                        <AlertTitle className="mb-0">How does this work?</AlertTitle>
-                                    </div>
-                                </AccordionTrigger>
+                                <div className='flex items-center gap-2'>
+                                     <AccordionTrigger className="flex w-full items-center justify-between text-sm font-medium hover:no-underline [&_svg]:h-4 [&_svg]:w-4 p-0">
+                                        <div className='flex items-center gap-2'>
+                                            <FileQuestion className="h-4 w-4" />
+                                            <AlertTitle className="mb-0">How does this work?</AlertTitle>
+                                        </div>
+                                    </AccordionTrigger>
+                                </div>
                                 <AccordionContent className='pt-2'>
                                     <AlertDescription>
                                         We use a combination of a photo of your sleeping surface and your phone's motion sensors to prove you were resting.
