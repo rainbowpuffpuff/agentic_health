@@ -1337,57 +1337,46 @@ export default function Home() {
                   />
                 )}
 
-                {appState === 'taking_photo' && (
-                    <ProofOfRest
-                      appState={appState}
-                      progress={progress}
-                      uploadedImage={uploadedImage}
-                      videoRef={videoRef}
-                      canvasRef={canvasRef}
-                      fileInputRef={fileInputRef}
-                      hasCameraPermission={hasCameraPermission}
-                      isVerifyingSleep={isVerifyingSleep}
-                      handleUseDefaultPhoto={handleUseDefaultPhoto}
-                      takePhoto={takePhoto}
-                      handleFileUpload={handleFileUpload}
-                      handleConfirmPhoto={handleConfirmPhoto}
-                      setAppState={setAppState}
-                      setUploadedImage={setUploadedImage}
-                    />
-                )}
-
-                {appState !== 'taking_photo' && (
-                  <>
-                    <ProofOfRest
-                      appState={appState}
-                      progress={progress}
-                      rewardPoolBalance={rewardPoolBalance}
-                      stakerInfo={stakerInfo}
-                      walletConnected={walletConnected}
-                      isVerifyingSleep={isVerifyingSleep}
-                      stakeAmount={stakeAmount}
-                      setStakeAmount={setStakeAmount}
-                      handleStake={handleStake}
-                      handleBeginSleepVerification={handleBeginSleepVerification}
-                      handleWithdraw={handleWithdraw}
-                    />
-                    
-                    <ProofOfAction
-                        appState={appState}
-                        progress={progress}
-                        selectedCampaign={selectedCampaign}
-                        setSelectedCampaign={setSelectedCampaign}
-                        campaignStates={campaignStates}
-                        isVerifyingAction={isVerifyingAction}
-                        intentionPoints={intentionPoints}
-                        gardenFlowers={gardenFlowers}
-                        handleEngageCampaign={handleEngageCampaign}
-                        handleSendEmail={handleSendEmail}
-                        emailUploadRef={emailUploadRef}
-                        handleUseBoilerplateEmail={handleUseBoilerplateEmail}
-                    />
-                  </>
-                )}
+                <ProofOfRest
+                  appState={appState}
+                  progress={progress}
+                  rewardPoolBalance={rewardPoolBalance}
+                  stakerInfo={stakerInfo}
+                  walletConnected={walletConnected}
+                  isVerifyingSleep={isVerifyingSleep}
+                  stakeAmount={stakeAmount}
+                  setStakeAmount={setStakeAmount}
+                  handleStake={handleStake}
+                  handleBeginSleepVerification={handleBeginSleepVerification}
+                  handleWithdraw={handleWithdraw}
+                  uploadedImage={uploadedImage}
+                  videoRef={videoRef}
+                  canvasRef={canvasRef}
+                  fileInputRef={fileInputRef}
+                  hasCameraPermission={hasCameraPermission}
+                  isMobile={isMobile}
+                  handleUseDefaultPhoto={handleUseDefaultPhoto}
+                  takePhoto={takePhoto}
+                  handleFileUpload={handleFileUpload}
+                  handleConfirmPhoto={handleConfirmPhoto}
+                  setAppState={setAppState}
+                  setUploadedImage={setUploadedImage}
+                />
+                
+                <ProofOfAction
+                    appState={appState}
+                    progress={progress}
+                    selectedCampaign={selectedCampaign}
+                    setSelectedCampaign={setSelectedCampaign}
+                    campaignStates={campaignStates}
+                    isVerifyingAction={isVerifyingAction}
+                    intentionPoints={intentionPoints}
+                    gardenFlowers={gardenFlowers}
+                    handleEngageCampaign={handleEngageCampaign}
+                    handleSendEmail={handleSendEmail}
+                    emailUploadRef={emailUploadRef}
+                    handleUseBoilerplateEmail={handleUseBoilerplateEmail}
+                />
                 
                 <DeviceStore
                     intentionPoints={intentionPoints}

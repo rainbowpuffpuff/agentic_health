@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Bed, PiggyBank, Clock, CheckCircle2, BrainCircuit, KeyRound, Zap, Camera, Upload, ShieldCheck, ImageIcon, AlertTriangle, Loader } from 'lucide-react';
+import { Bed, PiggyBank, Clock, CheckCircle2, BrainCircuit, KeyRound, Zap, Camera, Upload, ShieldCheck, ImageIcon, AlertTriangle, Loader, FileQuestion, Smartphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { utils } from 'near-api-js';
 import type { StakerInfo } from '@/app/page';
@@ -31,6 +32,7 @@ type ProofOfRestProps = {
     canvasRef?: React.RefObject<HTMLCanvasElement>;
     fileInputRef?: React.RefObject<HTMLInputElement>;
     hasCameraPermission?: boolean | null;
+    isMobile: boolean | null;
     handleUseDefaultPhoto?: () => void;
     takePhoto?: () => string | null;
     handleFileUpload?: (event: React.ChangeEvent<HTMLInputElement>) => void;
@@ -100,6 +102,7 @@ export default function ProofOfRest({
     canvasRef,
     fileInputRef,
     hasCameraPermission,
+    isMobile,
     handleUseDefaultPhoto,
     takePhoto,
     handleFileUpload,
@@ -176,16 +179,34 @@ export default function ProofOfRest({
     return (
         <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5">
             <CardHeader>
-                <CardTitle className="font-headline text-2xl">Daily Positive Actions</CardTitle>
-                <CardDescription>Generate proofs of your positive actions by making a commitment.</CardDescription>
+                <CardTitle className="font-headline text-2xl flex items-center gap-3">
+                    <Bed className="h-6 w-6" />
+                    Proof of Rest
+                </CardTitle>
+                <CardDescription>Commit NEAR to verify your sleep. After verification, your commitment is returned with a bonus.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="space-y-4 rounded-lg border p-4 hover:border-primary/20 transition-colors">
-                    <div className="flex items-center gap-3">
-                        <Bed className="h-6 w-6 text-primary" />
-                        <h3 className="font-headline text-lg">Proof of Rest</h3>
-                    </div>
-                    <p className="text-sm text-muted-foreground">Commit NEAR to verify your sleep. After verification, your commitment is returned with a bonus.</p>
+                    <Accordion type="single" collapsible className="w-full">
+                        <AccordionItem value="item-1" className='border-0'>
+                            <Alert>
+                                <AccordionTrigger className="flex w-full items-center justify-between text-sm font-medium hover:no-underline [&_svg]:h-4 [&_svg]:w-4 p-0">
+                                    <div className='flex items-center gap-2'>
+                                        <FileQuestion className="h-4 w-4" />
+                                        <AlertTitle className="mb-0">How does this work?</AlertTitle>
+                                    </div>
+                                </AccordionTrigger>
+                                <AccordionContent className='pt-2'>
+                                    <AlertDescription>
+                                        We use a combination of a photo of your sleeping surface and your phone's motion sensors to prove you were resting.
+                                        {isMobile && <span className='flex items-center gap-1 mt-1'><Smartphone size={14}/> Your motion sensor is active.</span>}
+                                        This data is processed on your device to generate a private proof.
+                                    </AlertDescription>
+                                </AccordionContent>
+                            </Alert>
+                        </AccordionItem>
+                    </Accordion>
+                    
                     {rewardPoolBalance !== null && (
                         <div className="text-xs text-muted-foreground flex items-center gap-2">
                             <PiggyBank size={14} />
