@@ -81,8 +81,11 @@ export default function ProofOfAction({
             <CardHeader>
                 <div className="flex justify-between items-start">
                     <div>
-                        <CardTitle className="font-headline text-2xl">Civic Action</CardTitle>
-                        <CardDescription>Generate proof of your civic engagement.</CardDescription>
+                        <CardTitle className="font-headline text-2xl flex items-center gap-3">
+                            <Mail className="h-6 w-6" />
+                            Proof of Action
+                        </CardTitle>
+                        <CardDescription>Generate proof of your civic engagement by sending a signed email. Costs 10 Intention Points.</CardDescription>
                     </div>
                     <div className="flex gap-2">
                         {gardenFlowers.map((flower, i) => {
@@ -103,11 +106,6 @@ export default function ProofOfAction({
             </CardHeader>
             <CardContent>
                 <div className="space-y-4 rounded-lg border p-4 hover:border-primary/20 transition-colors">
-                    <div className="flex items-center gap-3">
-                        <Mail className="h-6 w-6 text-primary" />
-                        <h3 className="font-headline text-lg">Proof of Action</h3>
-                    </div>
-                    <p className="text-sm text-muted-foreground">Select a campaign and send a signed email to prove you've taken action. Costs 10 Intention Points.</p>
                      <Accordion type="single" collapsible className="w-full">
                         <AccordionItem value="item-1" className='border-0'>
                             <Alert>
