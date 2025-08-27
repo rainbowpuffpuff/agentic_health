@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Mail, CheckCircle2, Upload, KeyRound, Sprout, FileQuestion, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Campaign, CampaignState, GardenFlower } from '@/app/page';
@@ -105,16 +106,26 @@ export default function ProofOfAction({
                         <h3 className="font-headline text-lg">Proof of Action</h3>
                     </div>
                     <p className="text-sm text-muted-foreground">Select a campaign and send a signed email to prove you've taken action. Costs 10 Intention Points.</p>
-                     <Alert>
-                        <FileQuestion className="h-4 w-4" />
-                        <AlertTitle>How does this work?</AlertTitle>
-                        <AlertDescription>
-                            We use a Zero-Knowledge Proof (ZK-Proof) to verify the DKIM signature in your email. This proves you sent the email without revealing its content.
-                            <a href="https://docs.zk.email/architecture/dkim-verification" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium flex items-center gap-1 mt-1">
-                                Learn more <ExternalLink size={14}/>
-                            </a>
-                        </AlertDescription>
-                    </Alert>
+                     <Accordion type="single" collapsible className="w-full">
+                        <AccordionItem value="item-1" className='border-0'>
+                            <Alert className='p-0'>
+                                <AccordionTrigger className="flex items-center gap-2 text-sm font-medium hover:no-underline py-0">
+                                    <div className='flex items-center gap-2'>
+                                        <FileQuestion className="h-4 w-4" />
+                                        <AlertTitle>How does this work?</AlertTitle>
+                                    </div>
+                                </AccordionTrigger>
+                                <AccordionContent className='pt-2'>
+                                    <AlertDescription>
+                                        We use a Zero-Knowledge Proof (ZK-Proof) to verify the DKIM signature in your email. This proves you sent the email without revealing its content.
+                                        <a href="https://docs.zk.email/architecture/dkim-verification" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium flex items-center gap-1 mt-1">
+                                            Learn more <ExternalLink size={14}/>
+                                        </a>
+                                    </AlertDescription>
+                                </AccordionContent>
+                            </Alert>
+                        </AccordionItem>
+                    </Accordion>
                     <RadioGroup value={selectedCampaign} onValueChange={(value) => setSelectedCampaign(value as Campaign)} className="space-y-2">
                         {Object.keys(CAMPAIGN_DETAILS).map((campaignKey) => {
                             const campaign = campaignKey as Campaign;
