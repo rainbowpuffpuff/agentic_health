@@ -39,7 +39,7 @@ const getStateDescription = (state: string) => {
     }
 };
 
-const ProgressDisplay = ({ state }: { state: string }) => {
+const ProgressDisplay = ({ state, inCard = true }: { state: string, inCard?: boolean }) => {
     const statesToShow = [
         'generating_action_proof', 'planting_seed'
     ];
@@ -49,8 +49,8 @@ const ProgressDisplay = ({ state }: { state: string }) => {
 
     const { icon, text } = getStateDescription(state);
 
-    return (
-        <div className="mt-4 p-4 bg-secondary/50 rounded-lg space-y-3 fade-in">
+    const content = (
+        <div className="space-y-3 fade-in">
             <div className="flex items-center gap-3 text-sm font-medium">
                 {icon}
                 <span>{text}</span>
@@ -58,6 +58,10 @@ const ProgressDisplay = ({ state }: { state: string }) => {
             <Progress value={0} className="w-full h-2" />
         </div>
     );
+     if (inCard) {
+        return <div className="mt-4 p-4 bg-secondary/50 rounded-lg">{content}</div>;
+    }
+    return content;
 };
 
 export default function ProofOfAction({
@@ -108,11 +112,11 @@ export default function ProofOfAction({
                     <p className="text-sm text-muted-foreground">Select a campaign and send a signed email to prove you've taken action. Costs 10 Intention Points.</p>
                      <Accordion type="single" collapsible className="w-full">
                         <AccordionItem value="item-1" className='border-0'>
-                            <Alert className='p-0'>
-                                <AccordionTrigger className="flex items-center gap-2 text-sm font-medium hover:no-underline py-0">
+                            <Alert>
+                                <AccordionTrigger className="flex w-full items-center justify-between text-sm font-medium hover:no-underline [&_svg]:h-4 [&_svg]:w-4">
                                     <div className='flex items-center gap-2'>
                                         <FileQuestion className="h-4 w-4" />
-                                        <AlertTitle>How does this work?</AlertTitle>
+                                        <AlertTitle className="mb-0">How does this work?</AlertTitle>
                                     </div>
                                 </AccordionTrigger>
                                 <AccordionContent className='pt-2'>
