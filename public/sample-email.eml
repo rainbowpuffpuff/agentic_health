@@ -1,0 +1,25 @@
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20230601;
+        h=from:to:subject:date:message-id:mime-version:content-type;
+        bh=...;
+        b=...
+From: John Doe <john.doe@example.com>
+To: Member of Parliament <mp@example.gov>
+Subject: Regarding the 'Chat Control' Proposal
+Date: Mon, 15 Jul 2024 10:00:00 +0000
+Message-ID: <12345@example.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+
+Dear Member of Parliament,
+
+I am writing to express my strong opposition to the proposed "Chat Control" legislation. This proposal represents a significant overreach and would fundamentally undermine the privacy of all citizens.
+
+While I understand the goal is to combat serious crime, mass surveillance of private communications is not the answer. It is a disproportionate measure that would have a chilling effect on free expression and create a system ripe for abuse.
+
+I urge you to vote against this proposal and to seek alternative solutions that target criminals without sacrificing the fundamental rights of everyone else.
+
+Thank you for your time and consideration.
+
+Sincerely,
+A Concerned Citizen

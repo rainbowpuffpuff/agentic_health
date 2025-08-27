@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Wallet, Bed, Loader, KeyRound, Sprout, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, FileText, Image as ImageIcon, ExternalLink, Brain } from 'lucide-react';
+import { Wallet, Bed, Loader, KeyRound, Sprout, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, FileText, Image as ImageIcon, ExternalLink, Brain, FileQuestion } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { detectSleepingSurface } from '@/ai/flows/detect-sleeping-surface-flow';
@@ -962,6 +962,70 @@ export default function Home() {
     });
   };
 
+  const processEmailContent = async (emailContent: string, campaign: Campaign) => {
+    try {
+        const analysisResult = await analyzeEmailStance({
+            emailContent,
+            campaignTopic: CAMPAIGN_DETAILS[campaign].title,
+        });
+
+        toast({
+            title: (
+                <div className="flex items-center gap-2">
+                    <Brain size={16} /> AI Stance Analysis
+                </div>
+            ),
+            description: `You seem to be ${analysisResult.stance.toLowerCase()}. Reason: ${analysisResult.reason}`,
+        });
+
+    } catch (error) {
+        console.error("Error analyzing email stance:", error);
+        toast({
+            variant: "destructive",
+            title: "AI Analysis Failed",
+            description: "Could not analyze the email content.",
+        });
+    }
+
+    setAppState('generating_action_proof');
+    setProgress(0);
+    await runProgress(2000);
+
+    // Simple regex to check for DKIM-Signature header
+    const dkimRegex = /DKIM-Signature/i;
+    if (dkimRegex.test(emailContent)) {
+        setAppState('planting_seed');
+        await runProgress(1500);
+
+        setIntentionPoints(prev => Math.max(0, prev - 10));
+        setGardenFlowers(prev => {
+            const firstUnlockedIndex = prev.findIndex(f => !f.unlocked);
+            if (firstUnlockedIndex !== -1) {
+                const newFlowers = [...prev];
+                newFlowers[firstUnlockedIndex] = { ...newFlowers[firstUnlockedIndex], unlocked: true };
+                return newFlowers;
+            }
+            return prev;
+        });
+        
+        toast({
+            title: "Action Verified!",
+            description: "Your civic action has been recorded on-chain. A new flower has bloomed!",
+        });
+        setCampaignStates(prev => ({ ...prev, [campaign]: 'verified' }));
+    } else {
+        toast({
+            variant: "destructive",
+            title: "Verification Failed",
+            description: "No DKIM signature found in the uploaded email. Please ensure you upload the correct .eml file.",
+            duration: 6000
+        });
+    }
+    setAppState('idle');
+    setProgress(0);
+  };
+
+
   const handleEmailUpload = (e: React.ChangeEvent<HTMLInputElement>, campaign: Campaign) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -969,72 +1033,29 @@ export default function Home() {
     const reader = new FileReader();
     reader.onload = async (event) => {
         const emailContent = event.target?.result as string;
-
-        try {
-            const analysisResult = await analyzeEmailStance({
-                emailContent,
-                campaignTopic: CAMPAIGN_DETAILS[campaign].title,
-            });
-
-            toast({
-                title: (
-                    <div className="flex items-center gap-2">
-                        <Brain size={16} /> AI Stance Analysis
-                    </div>
-                ),
-                description: `You seem to be ${analysisResult.stance.toLowerCase()}. Reason: ${analysisResult.reason}`,
-            });
-
-        } catch (error) {
-            console.error("Error analyzing email stance:", error);
-            toast({
-                variant: "destructive",
-                title: "AI Analysis Failed",
-                description: "Could not analyze the email content.",
-            });
-        }
-
-
-        setAppState('generating_action_proof');
-        setProgress(0);
-        await runProgress(2000);
-
-        // Simple regex to check for DKIM-Signature header
-        const dkimRegex = /DKIM-Signature/i;
-        if (dkimRegex.test(emailContent)) {
-            setAppState('planting_seed');
-            await runProgress(1500);
-
-            setIntentionPoints(prev => Math.max(0, prev - 10));
-            setGardenFlowers(prev => {
-                const firstUnlockedIndex = prev.findIndex(f => !f.unlocked);
-                if (firstUnlockedIndex !== -1) {
-                    const newFlowers = [...prev];
-                    newFlowers[firstUnlockedIndex] = { ...newFlowers[firstUnlockedIndex], unlocked: true };
-                    return newFlowers;
-                }
-                return prev;
-            });
-            
-            toast({
-                title: "Action Verified!",
-                description: "Your civic action has been recorded on-chain. A new flower has bloomed!",
-            });
-            setCampaignStates(prev => ({ ...prev, [campaign]: 'verified' }));
-        } else {
-            toast({
-                variant: "destructive",
-                title: "Verification Failed",
-                description: "No DKIM signature found in the uploaded email. Please ensure you upload the correct .eml file.",
-                duration: 6000
-            });
-        }
-        setAppState('idle');
-        setProgress(0);
+        await processEmailContent(emailContent, campaign);
         // Reset the input so the same file can be uploaded again if needed
         if (emailUploadRef.current) emailUploadRef.current.value = '';
     };
     reader.readAsText(file);
+  };
+
+  const handleUseBoilerplateEmail = async (campaign: Campaign) => {
+    try {
+        const response = await fetch('/sample-email.eml');
+        if (!response.ok) {
+            throw new Error('Failed to fetch sample email.');
+        }
+        const emailContent = await response.text();
+        await processEmailContent(emailContent, campaign);
+    } catch (error) {
+        console.error("Error using boilerplate email:", error);
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Could not load the sample email file.",
+        });
+    }
   };
 
 
@@ -1356,6 +1377,7 @@ export default function Home() {
                         intentionPoints={intentionPoints}
                         handleSendEmail={handleSendEmail}
                         emailUploadRef={emailUploadRef}
+                        handleUseBoilerplateEmail={handleUseBoilerplateEmail}
                     />
                   </>
                 )}

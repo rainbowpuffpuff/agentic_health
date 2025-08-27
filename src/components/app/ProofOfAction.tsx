@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Mail, CheckCircle2, Upload, BrainCircuit, KeyRound, Sprout } from 'lucide-react';
+import { Mail, CheckCircle2, Upload, BrainCircuit, KeyRound, Sprout, FileQuestion } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Campaign, CampaignState } from '@/app/page';
 import { CAMPAIGN_DETAILS } from '@/app/page';
@@ -22,6 +22,7 @@ type ProofOfActionProps = {
     intentionPoints: number;
     handleSendEmail: (campaign: Campaign) => void;
     emailUploadRef: React.RefObject<HTMLInputElement>;
+    handleUseBoilerplateEmail: (campaign: Campaign) => void;
 };
 
 const getStateDescription = (state: string) => {
@@ -72,6 +73,7 @@ export default function ProofOfAction({
     intentionPoints,
     handleSendEmail,
     emailUploadRef,
+    handleUseBoilerplateEmail,
 }: ProofOfActionProps) {
     return (
         <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5">
@@ -110,10 +112,16 @@ export default function ProofOfAction({
                                                 </Button>
                                             )}
                                             {campaignState === 'email_pending' && (
-                                                <Button onClick={() => emailUploadRef.current?.click()} disabled={isVerifyingAction} className="w-full" size="sm" variant="outline">
-                                                    <Upload className="mr-2" />
-                                                    Upload Signed Email (.eml/.txt)
-                                                </Button>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                    <Button onClick={() => handleUseBoilerplateEmail(campaign)} disabled={isVerifyingAction} className="w-full" size="sm" variant="secondary">
+                                                        <FileQuestion className="mr-2" />
+                                                        Use Sample
+                                                    </Button>
+                                                    <Button onClick={() => emailUploadRef.current?.click()} disabled={isVerifyingAction} className="w-full" size="sm" variant="outline">
+                                                        <Upload className="mr-2" />
+                                                        Upload Email
+                                                    </Button>
+                                                </div>
                                             )}
                                         </div>
                                     )}
