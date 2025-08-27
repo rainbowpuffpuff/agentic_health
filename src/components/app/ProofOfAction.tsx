@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Mail, CheckCircle2, Upload, BrainCircuit, KeyRound, Sprout, FileQuestion } from 'lucide-react';
+import { Mail, CheckCircle2, Upload, KeyRound, Sprout, FileQuestion, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Campaign, CampaignState, GardenFlower } from '@/app/page';
 import { CAMPAIGN_DETAILS } from '@/app/page';
@@ -105,6 +105,16 @@ export default function ProofOfAction({
                         <h3 className="font-headline text-lg">Proof of Action</h3>
                     </div>
                     <p className="text-sm text-muted-foreground">Select a campaign and send a signed email to prove you've taken action. Costs 10 Intention Points.</p>
+                     <Alert>
+                        <FileQuestion className="h-4 w-4" />
+                        <AlertTitle>How does this work?</AlertTitle>
+                        <AlertDescription>
+                            We use a Zero-Knowledge Proof (ZK-Proof) to verify the DKIM signature in your email. This proves you sent the email without revealing its content.
+                            <a href="https://docs.zk.email/architecture/dkim-verification" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium flex items-center gap-1 mt-1">
+                                Learn more <ExternalLink size={14}/>
+                            </a>
+                        </AlertDescription>
+                    </Alert>
                     <RadioGroup value={selectedCampaign} onValueChange={(value) => setSelectedCampaign(value as Campaign)} className="space-y-2">
                         {Object.keys(CAMPAIGN_DETAILS).map((campaignKey) => {
                             const campaign = campaignKey as Campaign;
@@ -124,7 +134,7 @@ export default function ProofOfAction({
                                         <div className="pt-2 pl-7 space-y-2">
                                             {campaignState === 'idle' && (
                                                 <Button onClick={() => handleEngageCampaign(campaign)} disabled={isVerifyingAction || intentionPoints < 10} className="w-full" size="sm">
-                                                    {intentionPoints < 10 ? 'Need 10 Points' : 'Engage for 10 Points'}
+                                                    {intentionPoints < 10 ? 'Need 10 Points' : 'Take Action for 10 Points'}
                                                 </Button>
                                             )}
                                             {campaignState === 'taking_action' && (
@@ -135,7 +145,7 @@ export default function ProofOfAction({
                                                     </Button>
                                                     <Button onClick={() => handleUseBoilerplateEmail(campaign)} disabled={isVerifyingAction} className="w-full" size="sm" variant="secondary">
                                                         <FileQuestion className="mr-2" />
-                                                        Use Sample
+                                                        Use Sample Email
                                                     </Button>
                                                 </div>
                                             )}
@@ -143,11 +153,11 @@ export default function ProofOfAction({
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                      <Button onClick={() => emailUploadRef.current?.click()} disabled={isVerifyingAction} className="w-full" size="sm" variant="outline">
                                                         <Upload className="mr-2" />
-                                                        Upload Email
+                                                        Upload Signed Email (.eml)
                                                     </Button>
                                                     <Button onClick={() => handleUseBoilerplateEmail(campaign)} disabled={isVerifyingAction} className="w-full" size="sm" variant="secondary">
                                                         <FileQuestion className="mr-2" />
-                                                        Use Sample
+                                                        Use Sample Email
                                                     </Button>
                                                 </div>
                                             )}
