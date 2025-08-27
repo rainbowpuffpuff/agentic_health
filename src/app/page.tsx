@@ -30,6 +30,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import FlowerIconTwo from '@/components/icons/FlowerIconTwo';
 import FlowerIconThree from '@/components/icons/FlowerIconThree';
+import TutorialDialog from '@/components/TutorialDialog';
 
 
 type MotionDataPoint = {
@@ -210,6 +211,9 @@ export default function Home() {
   const [hasMotionSensor, setHasMotionSensor] = useState<boolean|null>(null);
   const motionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Tutorial State
+  const [showTutorial, setShowTutorial] = useState(false);
+
   const isVerifyingSleep = ['analyzing_photo', 'sleeping', 'generating_sleep_proof', 'minting_dew'].includes(appState);
   const isVerifyingAction = ['generating_action_proof', 'planting_seed'].includes(appState);
   const isUploadingData = appState === 'uploading_data';
@@ -217,7 +221,14 @@ export default function Home() {
 
   useEffect(() => {
     // Simulate initial loading
-    setTimeout(() => setIsLoading(false), 1000);
+    setTimeout(() => {
+        setIsLoading(false);
+        // Show tutorial only once per session
+        if (!sessionStorage.getItem('tutorialSeen')) {
+            setShowTutorial(true);
+            sessionStorage.setItem('tutorialSeen', 'true');
+        }
+    }, 1000);
     startLiveMotionTracking(); // Attempt to start tracking on load
   }, []);
 
@@ -1589,6 +1600,7 @@ export default function Home() {
   return (
     <TooltipProvider>
     <div className="min-h-screen w-full bg-background text-foreground fade-in">
+      <TutorialDialog open={showTutorial} onOpenChange={setShowTutorial} />
       <header className="sticky top-0 z-10 border-b border-border/50 bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
             <a href="/" onClick={(e) => {
