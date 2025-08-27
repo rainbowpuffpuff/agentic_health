@@ -39,7 +39,7 @@ const getStateDescription = (state: string) => {
     }
 };
 
-const ProgressDisplay = ({ state, inCard = true }: { state: string, inCard?: boolean }) => {
+const ProgressDisplay = ({ state }: { state: string, inCard?: boolean }) => {
     const statesToShow = [
         'generating_action_proof', 'planting_seed'
     ];
@@ -58,10 +58,8 @@ const ProgressDisplay = ({ state, inCard = true }: { state: string, inCard?: boo
             <Progress value={0} className="w-full h-2" />
         </div>
     );
-     if (inCard) {
-        return <div className="mt-4 p-4 bg-secondary/50 rounded-lg">{content}</div>;
-    }
-    return content;
+
+    return <div className="mt-4 p-4 bg-secondary/50 rounded-lg">{content}</div>;
 };
 
 export default function ProofOfAction({
@@ -113,7 +111,7 @@ export default function ProofOfAction({
                      <Accordion type="single" collapsible className="w-full">
                         <AccordionItem value="item-1" className='border-0'>
                             <Alert>
-                                <AccordionTrigger className="flex w-full items-center justify-between text-sm font-medium hover:no-underline [&_svg]:h-4 [&_svg]:w-4">
+                                <AccordionTrigger className="flex w-full items-center justify-between text-sm font-medium hover:no-underline [&_svg]:h-4 [&_svg]:w-4 p-0">
                                     <div className='flex items-center gap-2'>
                                         <FileQuestion className="h-4 w-4" />
                                         <AlertTitle className="mb-0">How does this work?</AlertTitle>
@@ -141,7 +139,7 @@ export default function ProofOfAction({
                                     <div className="flex items-start gap-3">
                                         <RadioGroupItem value={campaign} id={campaign} className="mt-1" disabled={campaignState === 'verified'} />
                                         <div className="flex-grow space-y-1">
-                                            <p className="font-medium">{details.title}</p>
+                                            <p className="font-semibold text-card-foreground">{details.title}</p>
                                             <p className="text-sm text-muted-foreground">{details.description}</p>
                                         </div>
                                     </div>
