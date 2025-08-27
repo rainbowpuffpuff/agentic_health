@@ -21,7 +21,6 @@ import Header from '@/components/app/Header';
 import AdminDashboard from '@/components/app/AdminDashboard';
 import ProofOfRest from '@/components/app/ProofOfRest';
 import ProofOfAction from '@/components/app/ProofOfAction';
-import ActionGarden from '@/components/app/ActionGarden';
 import DeviceStore from '@/components/app/DeviceStore';
 import DataContribution from '@/components/app/DataContribution';
 import SwarmStorage from '@/components/app/SwarmStorage';
@@ -411,7 +410,7 @@ export default function Home() {
       showTransactionToast(txHash, "Commitment Successful!");
       
       // Optimistically update UI and then refresh from chain
-      handleBeginSleepVerification();
+      setStakerInfo({ amount: utils.format.parseNearAmount(stakeAmount) || '0', bonus_approved: false });
       await new Promise(resolve => setTimeout(resolve, 1000));
       const updatedInfo = await getStakerInfo(signedAccountId!);
       setStakerInfo(updatedInfo);
@@ -1318,6 +1317,20 @@ export default function Home() {
             {/* Main Column */}
             <div className="lg:col-span-2 space-y-6">
 
+                {isAdmin && walletConnected && (
+                  <AdminDashboard
+                    rewardPoolBalance={rewardPoolBalance}
+                    stakerIdToApprove={stakerIdToApprove}
+                    setStakerIdToApprove={setStakerIdToApprove}
+                    isCheckingAddress={isCheckingAddress}
+                    infoForAddress={infoForAddress}
+                    handleApproveBonus={handleApproveBonus}
+                    depositAmount={depositAmount}
+                    setDepositAmount={setDepositAmount}
+                    handleDepositRewardFunds={handleDepositRewardFunds}
+                  />
+                )}
+
                 {appState === 'taking_photo' && (
                     <ProofOfRest
                       appState={appState}
@@ -1339,20 +1352,6 @@ export default function Home() {
 
                 {appState !== 'taking_photo' && (
                   <>
-                    {isAdmin && walletConnected && (
-                      <AdminDashboard
-                        rewardPoolBalance={rewardPoolBalance}
-                        stakerIdToApprove={stakerIdToApprove}
-                        setStakerIdToApprove={setStakerIdToApprove}
-                        isCheckingAddress={isCheckingAddress}
-                        infoForAddress={infoForAddress}
-                        handleApproveBonus={handleApproveBonus}
-                        depositAmount={depositAmount}
-                        setDepositAmount={setDepositAmount}
-                        handleDepositRewardFunds={handleDepositRewardFunds}
-                      />
-                    )}
-
                     <ProofOfRest
                       appState={appState}
                       progress={progress}

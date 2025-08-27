@@ -116,7 +116,7 @@ export default function ProofOfAction({
                             const campaignState = campaignStates[campaign];
 
                             return (
-                                <Label key={campaign} htmlFor={campaign} className={cn("flex flex-col gap-2 rounded-md border p-3 cursor-pointer", { 'border-primary ring-2 ring-primary': selectedCampaign === campaign, 'opacity-50 cursor-not-allowed': campaignState === 'verified' })}>
+                                <Label key={campaign} htmlFor={campaign} className={cn("flex flex-col gap-2 rounded-md border p-3 cursor-pointer transition-colors", { 'border-primary ring-2 ring-primary': selectedCampaign === campaign, 'opacity-50 cursor-not-allowed': campaignState === 'verified' })}>
                                     <div className="flex items-start gap-3">
                                         <RadioGroupItem value={campaign} id={campaign} className="mt-1" disabled={campaignState === 'verified'} />
                                         <div className="flex-grow space-y-1">
@@ -125,7 +125,7 @@ export default function ProofOfAction({
                                         </div>
                                     </div>
                                     {selectedCampaign === campaign && campaignState !== 'verified' && (
-                                        <div className="pt-2 pl-7">
+                                        <div className="pt-2 pl-7 space-y-2">
                                             {campaignState === 'idle' && (
                                                 <Button onClick={() => handleSendEmail(campaign)} disabled={isVerifyingAction || intentionPoints < 10} className="w-full" size="sm">
                                                     <Mail className="mr-2" />

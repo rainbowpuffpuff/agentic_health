@@ -215,7 +215,7 @@ export default function ProofOfRest({
                                 )}
                             </div>
                             <div className="flex flex-col sm:flex-row gap-2">
-                                <Button onClick={handleBeginSleepVerification} disabled={isVerifyingSleep || stakerInfo.bonus_approved} className="w-full">
+                                <Button onClick={handleBeginSleepVerification} disabled={isVerifyingSleep} className="w-full">
                                     Verify Sleep
                                 </Button>
                                 <Button onClick={handleWithdraw} disabled={isVerifyingSleep || !stakerInfo.bonus_approved} className="w-full" variant="outline">
