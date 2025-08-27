@@ -81,7 +81,7 @@ export type FileInfo = {
 
 export type Campaign = 'chat_control' | 'sugar_tax' | 'sleep_compensation';
 
-export type CampaignState = 'idle' | 'email_pending' | 'verified';
+export type CampaignState = 'idle' | 'taking_action' | 'email_pending' | 'verified';
 
 export const CAMPAIGN_DETAILS: Record<Campaign, { title: string; description: string; subject: string }> = {
     chat_control: {
@@ -949,6 +949,10 @@ export default function Home() {
   };
 
 
+  const handleEngageCampaign = (campaign: Campaign) => {
+    setCampaignStates(prev => ({ ...prev, [campaign]: 'taking_action' }));
+  };
+
   const handleSendEmail = (campaign: Campaign) => {
     const details = CAMPAIGN_DETAILS[campaign];
     const mailtoLink = `mailto:test@gmail.com?subject=${encodeURIComponent(details.subject)}`;
@@ -1375,6 +1379,7 @@ export default function Home() {
                         isVerifyingAction={isVerifyingAction}
                         intentionPoints={intentionPoints}
                         gardenFlowers={gardenFlowers}
+                        handleEngageCampaign={handleEngageCampaign}
                         handleSendEmail={handleSendEmail}
                         emailUploadRef={emailUploadRef}
                         handleUseBoilerplateEmail={handleUseBoilerplateEmail}

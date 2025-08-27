@@ -21,6 +21,7 @@ type ProofOfActionProps = {
     isVerifyingAction: boolean;
     intentionPoints: number;
     gardenFlowers: GardenFlower[];
+    handleEngageCampaign: (campaign: Campaign) => void;
     handleSendEmail: (campaign: Campaign) => void;
     emailUploadRef: React.RefObject<HTMLInputElement>;
     handleUseBoilerplateEmail: (campaign: Campaign) => void;
@@ -28,27 +29,27 @@ type ProofOfActionProps = {
 
 const getStateDescription = (state: string) => {
     switch (state) {
-      case 'generating_action_proof':
-        return { icon: <KeyRound className="animate-spin text-primary" />, text: 'Generating ZK-Proof of Action...' };
-      case 'planting_seed':
-        return { icon: <Sprout className="sprout text-primary" />, text: 'Verifying on Civic Action Registry...' };
-      default:
-        return { icon: null, text: '' };
+        case 'generating_action_proof':
+            return { icon: <KeyRound className="animate-spin text-primary" />, text: 'Generating ZK-Proof of Action...' };
+        case 'planting_seed':
+            return { icon: <Sprout className="sprout text-primary" />, text: 'Verifying on Civic Action Registry...' };
+        default:
+            return { icon: null, text: '' };
     }
-  };
-  
-const ProgressDisplay = ({ state, inCard = true } : { state: string; inCard?: boolean }) => {
+};
+
+const ProgressDisplay = ({ state }: { state: string }) => {
     const statesToShow = [
-      'generating_action_proof', 'planting_seed'
+        'generating_action_proof', 'planting_seed'
     ];
     if (!statesToShow.includes(state)) {
-      return null;
+        return null;
     }
 
     const { icon, text } = getStateDescription(state);
 
-    const content = (
-        <div className="space-y-3 fade-in">
+    return (
+        <div className="mt-4 p-4 bg-secondary/50 rounded-lg space-y-3 fade-in">
             <div className="flex items-center gap-3 text-sm font-medium">
                 {icon}
                 <span>{text}</span>
@@ -56,12 +57,6 @@ const ProgressDisplay = ({ state, inCard = true } : { state: string; inCard?: bo
             <Progress value={0} className="w-full h-2" />
         </div>
     );
-    
-    if (inCard) {
-      return <div className="mt-4 p-4 bg-secondary/50 rounded-lg">{content}</div>;
-    }
-    
-    return content;
 };
 
 export default function ProofOfAction({
@@ -73,6 +68,7 @@ export default function ProofOfAction({
     isVerifyingAction,
     intentionPoints,
     gardenFlowers,
+    handleEngageCampaign,
     handleSendEmail,
     emailUploadRef,
     handleUseBoilerplateEmail,
@@ -127,14 +123,25 @@ export default function ProofOfAction({
                                     {selectedCampaign === campaign && campaignState !== 'verified' && (
                                         <div className="pt-2 pl-7 space-y-2">
                                             {campaignState === 'idle' && (
-                                                <Button onClick={() => handleSendEmail(campaign)} disabled={isVerifyingAction || intentionPoints < 10} className="w-full" size="sm">
-                                                    <Mail className="mr-2" />
-                                                    {intentionPoints < 10 ? 'Need 10 Points' : 'Send Email for 10 Points'}
+                                                <Button onClick={() => handleEngageCampaign(campaign)} disabled={isVerifyingAction || intentionPoints < 10} className="w-full" size="sm">
+                                                    {intentionPoints < 10 ? 'Need 10 Points' : 'Engage for 10 Points'}
                                                 </Button>
+                                            )}
+                                            {campaignState === 'taking_action' && (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                    <Button onClick={() => handleSendEmail(campaign)} disabled={isVerifyingAction} className="w-full" size="sm">
+                                                        <Mail className="mr-2" />
+                                                        Send Email
+                                                    </Button>
+                                                    <Button onClick={() => handleUseBoilerplateEmail(campaign)} disabled={isVerifyingAction} className="w-full" size="sm" variant="secondary">
+                                                        <FileQuestion className="mr-2" />
+                                                        Use Sample
+                                                    </Button>
+                                                </div>
                                             )}
                                             {campaignState === 'email_pending' && (
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                    <Button onClick={() => emailUploadRef.current?.click()} disabled={isVerifyingAction} className="w-full" size="sm" variant="outline">
+                                                     <Button onClick={() => emailUploadRef.current?.click()} disabled={isVerifyingAction} className="w-full" size="sm" variant="outline">
                                                         <Upload className="mr-2" />
                                                         Upload Email
                                                     </Button>
