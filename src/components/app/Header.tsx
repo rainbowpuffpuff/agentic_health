@@ -38,13 +38,9 @@ export default function Header({
           <h1 className="font-headline text-xl md:text-2xl text-primary">think2earn</h1>
         </a>
         <div className="flex items-center gap-2 md:gap-4">
-          <div className="flex items-center gap-2 rounded-full border border-border/50 bg-card px-3 md:px-4 py-1.5 text-sm shadow-sm">
-            <DewDropIcon className="h-5 w-5 text-primary" />
-            <span className="text-base">{intentionPoints}</span>
-            <span className="text-muted-foreground hidden sm:inline">Intention Points</span>
             <Tooltip>
                 <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowTutorial(true)}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowTutorial(true)}>
                     <GraduationCap className="h-5 w-5 text-muted-foreground hover:text-primary" />
                     <span className="sr-only">Show Tutorial</span>
                 </Button>
@@ -53,6 +49,10 @@ export default function Header({
                 <p>Show Tutorial</p>
                 </TooltipContent>
             </Tooltip>
+          <div className="flex items-center gap-2 rounded-full border border-border/50 bg-card px-3 md:px-4 py-1.5 text-sm shadow-sm">
+            <DewDropIcon className="h-5 w-5 text-primary" />
+            <span className="text-base">{intentionPoints}</span>
+            <span className="text-muted-foreground hidden sm:inline">Intention Points</span>
           </div>
 
           {walletConnected ? (
