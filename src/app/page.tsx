@@ -1375,14 +1375,13 @@ export default function Home() {
                         campaignStates={campaignStates}
                         isVerifyingAction={isVerifyingAction}
                         intentionPoints={intentionPoints}
+                        gardenFlowers={gardenFlowers}
                         handleSendEmail={handleSendEmail}
                         emailUploadRef={emailUploadRef}
                         handleUseBoilerplateEmail={handleUseBoilerplateEmail}
                     />
                   </>
                 )}
-
-                <ActionGarden gardenFlowers={gardenFlowers} />
                 
                 <DeviceStore
                     intentionPoints={intentionPoints}
