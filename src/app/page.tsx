@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, UserCog, FileText, Activity, Clock, BarChart2, Lock, PiggyBank, Image as ImageIcon, ExternalLink } from 'lucide-react';
+import { Wallet, Bed, Mail, Zap, Loader, KeyRound, Sprout, Network, ShoppingCart, BrainCircuit, HardDrive, FileUp, AlertTriangle, Copy, ShieldCheck, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, UserCog, FileText, Activity, Clock, BarChart2, Lock, PiggyBank, Image as ImageIcon, ExternalLink, GraduationCap } from 'lucide-react';
 import DewDropIcon from '@/components/icons/DewDropIcon';
 import FlowerIcon from '@/components/icons/FlowerIcon';
 import { cn } from '@/lib/utils';
@@ -1613,10 +1613,22 @@ export default function Home() {
           <div className="flex items-center gap-2 md:gap-4">
             <div className="flex items-center gap-2 rounded-full border border-border/50 bg-card px-3 md:px-4 py-2 text-sm shadow-sm">
                 <DewDropIcon className="h-5 w-5 text-primary" />
-                <span className="text-base md:text-lg font-medium">{intentionPoints}</span>
+                <span className="text-base md:text-lg">{intentionPoints}</span>
                 <span className="text-muted-foreground hidden sm:inline">Intention Points</span>
             </div>
             
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={() => setShowTutorial(true)}>
+                        <GraduationCap className="h-5 w-5 text-muted-foreground hover:text-primary" />
+                        <span className="sr-only">Show Tutorial</span>
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>Show Tutorial</p>
+                </TooltipContent>
+            </Tooltip>
+
             {walletConnected ? (
                 <div className="flex items-center gap-2">
                     <div className="flex items-center gap-2 rounded-full border border-border/50 bg-card pl-3 pr-2 md:pl-4 py-1 text-sm shadow-sm">
