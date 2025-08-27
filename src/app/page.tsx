@@ -26,6 +26,7 @@ import DataContribution from '@/components/app/DataContribution';
 import SwarmStorage from '@/components/app/SwarmStorage';
 import SleepLog from '@/components/app/SleepLog';
 import LiveMotion from '@/components/app/LiveMotion';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 
 export type MotionDataPoint = {
@@ -189,6 +190,8 @@ export default function Home() {
 
   // Tutorial State
   const [showTutorial, setShowTutorial] = useState(false);
+  const isMobile = useIsMobile();
+
 
   const isVerifyingSleep = ['analyzing_photo', 'sleeping', 'generating_sleep_proof', 'minting_dew'].includes(appState);
   const isVerifyingAction = ['generating_action_proof', 'planting_seed'].includes(appState);
@@ -1316,10 +1319,9 @@ export default function Home() {
       <Input type="file" accept=".eml,.txt" ref={emailUploadRef} onChange={(e) => handleEmailUpload(e, selectedCampaign)} className="hidden" />
 
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
+        <div className="grid grid-cols-1 gap-6 lg:gap-8">
             
-            {/* Main Column */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="space-y-6">
 
                 {isAdmin && walletConnected && (
                   <AdminDashboard
@@ -1435,11 +1437,7 @@ export default function Home() {
                         copyToClipboard={copyToClipboard}
                     />
                 )}
-            </div>
-            
-            {/* Side Column */}
-            <div className="lg:col-span-1 space-y-6">
-                <SleepLog
+                 <SleepLog
                     isSleepLogUnlocked={isSleepLogUnlocked}
                     intentionPoints={intentionPoints}
                     whoopInputRef={whoopInputRef}
@@ -1447,10 +1445,10 @@ export default function Home() {
                     journalEntries={journalEntries}
                     handleUnlockSleepLog={handleUnlockSleepLog}
                 />
-                <LiveMotion
+                {isMobile && <LiveMotion
                     liveMotionStatus={liveMotionStatus}
                     hasMotionSensor={hasMotionSensor}
-                />
+                />}
             </div>
         </div>
       </main>
