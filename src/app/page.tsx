@@ -5,11 +5,12 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Wallet, Bed, Loader, KeyRound, Sprout, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, FileText, Image as ImageIcon, ExternalLink } from 'lucide-react';
+import { Wallet, Bed, Loader, KeyRound, Sprout, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, FileText, Image as ImageIcon, ExternalLink, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { detectSleepingSurface } from '@/ai/flows/detect-sleeping-surface-flow';
 import { scoreDataContribution } from '@/ai/flows/score-data-contribution-flow';
+import { analyzeEmailStance } from '@/ai/flows/analyze-email-stance-flow';
 import { useWalletSelector } from '@/components/WalletProvider';
 import { CONTRACT_ID } from '@/lib/constants';
 import { utils, providers } from 'near-api-js';
@@ -969,6 +970,31 @@ export default function Home() {
     reader.onload = async (event) => {
         const emailContent = event.target?.result as string;
 
+        try {
+            const analysisResult = await analyzeEmailStance({
+                emailContent,
+                campaignTopic: CAMPAIGN_DETAILS[campaign].title,
+            });
+
+            toast({
+                title: (
+                    <div className="flex items-center gap-2">
+                        <Brain size={16} /> AI Stance Analysis
+                    </div>
+                ),
+                description: `You seem to be ${analysisResult.stance.toLowerCase()}. Reason: ${analysisResult.reason}`,
+            });
+
+        } catch (error) {
+            console.error("Error analyzing email stance:", error);
+            toast({
+                variant: "destructive",
+                title: "AI Analysis Failed",
+                description: "Could not analyze the email content.",
+            });
+        }
+
+
         setAppState('generating_action_proof');
         setProgress(0);
         await runProgress(2000);
@@ -1407,4 +1433,3 @@ export default function Home() {
     </TooltipProvider>
   );
 }
-
