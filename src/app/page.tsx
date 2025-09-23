@@ -383,66 +383,6 @@ export default function Home() {
             }
     }
   };
-  
-    const handleWithdraw = async () => {
-        if (!walletConnected || !selector) {
-            toast({ variant: "destructive", title: "Wallet not connected", description: "Please connect your wallet to withdraw." });
-            return;
-        }
-        const wallet = await selector.wallet();
-        if (!wallet) {
-            toast({ variant: "destructive", title: "Wallet not connected" });
-            return;
-        }
-
-        try {
-            // NOTE: In a real scenario, this would be called by the trusted agent, not the user.
-            // For this UI demo, we simulate this by having the user call it,
-            // but the contract will reject it unless the caller is the trusted agent.
-            const result = await wallet.signAndSendTransaction({
-                receiverId: CONTRACT_ID,
-                actions: [
-                    {
-                        type: 'FunctionCall',
-                        params: {
-                            methodName: 'withdraw',
-                            args: {
-                                staker_id: signedAccountId,
-                            },
-                            gas: THIRTY_TGAS, 
-                            deposit: "0",
-                        },
-                    },
-                ],
-            });
-            const txHash = (result as FinalExecutionOutcome).transaction_outcome.id;
-            showTransactionToast(txHash, "Withdrawal Successful!");
-
-            // Optimistic update
-            setStakerInfo(null); 
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            const updatedInfo = await getStakerInfo(signedAccountId!);
-            setStakerInfo(updatedInfo);
-            await getRewardPoolBalance();
-            await getAccountBalance(signedAccountId!);
-            
-        } catch (error: any) {
-            if (error.message.includes("User closed the window")) {
-                toast({
-                    variant: "default",
-                    title: "Transaction Cancelled",
-                    description: "You cancelled the transaction in your wallet.",
-                });
-            } else {
-                console.error("Withdrawal failed:", error);
-                toast({
-                    variant: "destructive",
-                    title: "Withdrawal Failed",
-                    description: "This action can only be performed by the trusted agent. " + (error.message || "An unknown error occurred."),
-                });
-            }
-        }
-    };
 
 
   const handleBeginSleepVerification = () => {
@@ -1221,7 +1161,6 @@ export default function Home() {
                   setStakeAmount={setStakeAmount}
                   handleStake={handleStake}
                   handleBeginSleepVerification={handleBeginSleepVerification}
-                  handleWithdraw={handleWithdraw}
                   uploadedImage={uploadedImage}
                   videoRef={videoRef}
                   canvasRef={canvasRef}
@@ -1319,5 +1258,3 @@ export default function Home() {
     </TooltipProvider>
   );
 }
-
-    
