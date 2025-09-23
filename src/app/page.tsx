@@ -398,8 +398,8 @@ export default function Home() {
 
         try {
             // NOTE: In a real scenario, this would be called by the trusted agent, not the user.
-            // The agent would pass the user's account ID as an argument.
-            // For this UI demo, the user calls it directly for themselves.
+            // For this UI demo, we simulate this by having the user call it,
+            // but the contract will reject it unless the caller is the trusted agent.
             const result = await wallet.signAndSendTransaction({
                 receiverId: CONTRACT_ID,
                 actions: [
@@ -439,7 +439,7 @@ export default function Home() {
                 toast({
                     variant: "destructive",
                     title: "Withdrawal Failed",
-                    description: error.message || "An unknown error occurred.",
+                    description: "This action can only be performed by the trusted agent. " + (error.message || "An unknown error occurred."),
                 });
             }
         }
@@ -752,9 +752,6 @@ export default function Home() {
 
         if (result.isSleepingSurface) {
             
-            // In a real scenario, the agent would be called here to verify and then call the contract.
-            // For the demo, we simulate this and call withdraw directly.
-            
             setMotionData([]); // Clear previous data
             startMotionTracking();
             
@@ -768,9 +765,15 @@ export default function Home() {
             
             setAppState('minting_dew');
             await runProgress(2000, async () => {
-                if(walletConnected) {
-                    await handleWithdraw();
-                }
+                // In a real app, the trusted agent would see the proof and call the 'withdraw' function.
+                // We simulate this by having a "Withdraw" button for the user to click.
+                // If the user clicks it, the contract will check if the caller is the agent.
+                // For this demo, the user can see what happens when a non-agent tries to call it.
+                toast({
+                  title: "Action Required",
+                  description: "Proof generated. A trusted agent can now trigger your withdrawal.",
+                  duration: 8000,
+                });
             });
 
             const newPoints = Math.floor(Math.random() * 5) + 5;
@@ -779,7 +782,7 @@ export default function Home() {
             const newEntry: JournalEntry = {
               id: Date.now(),
               date: uploadedImage?.date || new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' }),
-              sleep: `${(newPoints - 0.5).toFixed(1)} hours verified`,
+              sleep: `${(newPoints - 0.5).toFixed(1)} hours verified (simulation)`,
               imageUrl: photoUrl,
               motionData: [...motionData] // snapshot the data
             };
@@ -1067,16 +1070,22 @@ export default function Home() {
             const averageGlucose = glucoseValuesMgDl.reduce((sum, val) => sum + val, 0) / glucoseValuesMgDl.length;
             
             await runProgress(1000);
-            // DEV ONLY: Mock the AI call to prevent rate limiting
-            const result = {
-              contributionScore: Math.floor(Math.random() * (95 - 75 + 1)) + 75, // Random score between 75-95
-              reward: Math.floor((Math.random() * (95 - 75 + 1)) + 75 / 10),
-              reason: "Great submission! The fNIRS data was clean and showed strong correlation with the provided glucose level.",
-            };
-            // const result = await scoreDataContribution({
-            //   fnirsData: fnirsData,
-            //   glucoseLevel: averageGlucose,
-            // });
+            
+            // Call the local Python agent instead of the Genkit flow
+            const agentResponse = await fetch('http://localhost:8080/score', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    fnirsData: fnirsData,
+                    glucoseLevel: averageGlucose
+                })
+            });
+
+            if (!agentResponse.ok) {
+                throw new Error(`Agent returned an error: ${agentResponse.statusText}`);
+            }
+
+            const result = await agentResponse.json();
     
             await runProgress(1000);
     
@@ -1122,8 +1131,8 @@ export default function Home() {
       console.error("Error scoring data:", error);
       toast({
         variant: "destructive",
-        title: "Scoring Error",
-        description: "Could not score the data contribution. Please try again.",
+        title: "Agent Scoring Error",
+        description: "Could not connect to the local scoring agent. Is it running? " + (error.message || "Please try again."),
       });
       setAppState('idle');
       setProgress(0);
