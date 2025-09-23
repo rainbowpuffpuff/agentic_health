@@ -4,6 +4,7 @@ from flask import Flask, request, jsonify
 import pandas as pd
 from io import StringIO
 import numpy as np
+import re
 
 app = Flask(__name__)
 
@@ -134,6 +135,33 @@ def calculate_score(fnirs_data, glucose_level):
     }
 
 
+def analyze_email_stance(email_content, campaign_topic):
+    """
+    Analyzes the stance of an email based on keywords.
+    This is a simplified simulation of the logic from the Genkit prompt.
+    """
+    content = email_content.lower()
+    
+    # Define keywords for each stance
+    supporting_keywords = ['support', 'agree', 'in favor', 'good idea', 'approve', 'yes', 'pro-']
+    opposing_keywords = ['oppose', 'disagree', 'against', 'bad idea', 'reject', 'no', 'con-']
+
+    support_count = sum(1 for word in supporting_keywords if re.search(r'\b' + word + r'\b', content))
+    oppose_count = sum(1 for word in opposing_keywords if re.search(r'\b' + word + r'\b', content))
+
+    if support_count > oppose_count:
+        stance = "SUPPORTING"
+        reason = f"The email seems to support the '{campaign_topic}' based on keywords like '{', '.join([w for w in supporting_keywords if re.search(r'\b' + w + r'\b', content)])}'."
+    elif oppose_count > support_count:
+        stance = "OPPOSING"
+        reason = f"The email seems to oppose the '{campaign_topic}' based on keywords like '{', '.join([w for w in opposing_keywords if re.search(r'\b' + w + r'\b', content)])}'."
+    else:
+        stance = "NEUTRAL"
+        reason = "The email's stance on the topic is unclear or neutral, as no strong supporting or opposing keywords were found."
+    
+    return {"stance": stance, "reason": reason}
+
+
 @app.route('/score', methods=['POST'])
 def score_endpoint():
     """
@@ -156,6 +184,7 @@ def score_endpoint():
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": "Failed to process data", "details": str(e)}), 500
+
 
 @app.route('/verify-rest', methods=['POST'])
 def verify_rest_endpoint():
@@ -188,6 +217,29 @@ def verify_rest_endpoint():
             "isSleepingSurface": False,
             "reason": "The provided image data was not a valid data URI.",
         })
+
+
+@app.route('/analyze-email', methods=['POST'])
+def analyze_email_endpoint():
+    """
+    API endpoint to analyze the stance of a submitted email.
+    Expects JSON payload with 'emailContent' and 'campaign'.
+    """
+    if not request.is_json:
+        return jsonify({"error": "Request must be JSON"}), 400
+
+    data = request.get_json()
+    email_content = data.get('emailContent')
+    campaign = data.get('campaign')
+
+    if not email_content or not campaign:
+        return jsonify({"error": "Missing 'emailContent' or 'campaign' in request"}), 400
+
+    try:
+        result = analyze_email_stance(email_content, campaign)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": "Failed to process email", "details": str(e)}), 500
 
 
 if __name__ == "__main__":
