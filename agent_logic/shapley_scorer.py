@@ -146,15 +146,15 @@ def analyze_email_stance(email_content, campaign_topic):
     supporting_keywords = ['support', 'agree', 'in favor', 'good idea', 'approve', 'yes', 'pro-']
     opposing_keywords = ['oppose', 'disagree', 'against', 'bad idea', 'reject', 'no', 'con-']
 
-    support_count = sum(1 for word in supporting_keywords if re.search(r'\b' + word + r'\b', content))
-    oppose_count = sum(1 for word in opposing_keywords if re.search(r'\b' + word + r'\b', content))
+    support_count = sum(1 for word in supporting_keywords if re.search(r'\\b' + word + r'\\b', content))
+    oppose_count = sum(1 for word in opposing_keywords if re.search(r'\\b' + word + r'\\b', content))
 
     if support_count > oppose_count:
         stance = "SUPPORTING"
-        reason = f"The email seems to support the '{campaign_topic}' based on keywords like '{', '.join([w for w in supporting_keywords if re.search(r'\b' + w + r'\b', content)])}'."
+        reason = f"The email seems to support the '{campaign_topic}' based on keywords like '{', '.join([w for w in supporting_keywords if re.search(r'\\b' + w + r'\\b', content)])}'."
     elif oppose_count > support_count:
         stance = "OPPOSING"
-        reason = f"The email seems to oppose the '{campaign_topic}' based on keywords like '{', '.join([w for w in opposing_keywords if re.search(r'\b' + w + r'\b', content)])}'."
+        reason = f"The email seems to oppose the '{campaign_topic}' based on keywords like '{', '.join([w for w in opposing_keywords if re.search(r'\\b' + w + r'\\b', content)])}'."
     else:
         stance = "NEUTRAL"
         reason = "The email's stance on the topic is unclear or neutral, as no strong supporting or opposing keywords were found."
@@ -203,7 +203,8 @@ def verify_rest_endpoint():
     
     # In a real TEE, we would perform actual image analysis here.
     # For this simulation, we'll just check if the data URI looks like a valid image.
-    if 'data:image' in photo_data_uri and 'base64' in photo_data_uri:
+    # The regex is improved to handle different MIME types and optional metadata.
+    if re.match(r"data:image/([a-zA-Z]*);base64,([^\"]*)", photo_data_uri):
         # The agent, after successful verification, would then sign and send a transaction
         # to the main application smart contract to trigger the reward payout.
         # We simulate this success response.
