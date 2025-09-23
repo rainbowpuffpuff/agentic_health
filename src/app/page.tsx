@@ -9,7 +9,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Wallet, Bed, Loader, KeyRound, Sprout, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, FileText, Image as ImageIcon, ExternalLink, Brain, FileQuestion } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
-import { analyzeEmailStance } from '@/ai/flows/analyze-email-stance-flow';
 import { useWalletSelector } from '@/components/WalletProvider';
 import { CONTRACT_ID } from '@/lib/constants';
 import { utils, providers } from 'near-api-js';
@@ -795,64 +794,45 @@ export default function Home() {
   };
 
   const processEmailContent = async (emailContent: string, campaign: Campaign) => {
-    try {
-        const analysisResult = await analyzeEmailStance({
-            emailContent,
-            campaignTopic: CAMPAIGN_DETAILS[campaign].title,
-        });
-
-        toast({
-            title: (
-                <div className="flex items-center gap-2">
-                    <Brain size={16} /> AI Stance Analysis
-                </div>
-            ),
-            description: `You seem to be ${analysisResult.stance.toLowerCase()}. Reason: ${analysisResult.reason}`,
-        });
-
-    } catch (error) {
-        console.error("Error analyzing email stance:", error);
-        toast({
-            variant: "destructive",
-            title: "AI Analysis Failed",
-            description: "Could not analyze the email content.",
-        });
-    }
-
     setAppState('generating_action_proof');
     setProgress(0);
-    await runProgress(2000);
-
-    // Simple regex to check for DKIM-Signature header
+    
+    // Simple regex to check for DKIM-Signature header as a pre-check
     const dkimRegex = /DKIM-Signature/i;
-    if (dkimRegex.test(emailContent)) {
-        setAppState('planting_seed');
-        await runProgress(1500);
-
-        setIntentionPoints(prev => Math.max(0, prev - 10));
-        setGardenFlowers(prev => {
-            const firstUnlockedIndex = prev.findIndex(f => !f.unlocked);
-            if (firstUnlockedIndex !== -1) {
-                const newFlowers = [...prev];
-                newFlowers[firstUnlockedIndex] = { ...newFlowers[firstUnlockedIndex], unlocked: true };
-                return newFlowers;
-            }
-            return prev;
-        });
-        
-        toast({
-            title: "Action Verified!",
-            description: "Your civic action has been recorded on-chain. A new flower has bloomed!",
-        });
-        setCampaignStates(prev => ({ ...prev, [campaign]: 'verified' }));
-    } else {
-        toast({
+    if (!dkimRegex.test(emailContent)) {
+       toast({
             variant: "destructive",
             title: "Verification Failed",
             description: "No DKIM signature found in the uploaded email. Please ensure you upload the correct .eml file.",
             duration: 6000
         });
+        setAppState('idle');
+        setProgress(0);
+        return;
     }
+
+    await runProgress(2000);
+
+    setAppState('planting_seed');
+    await runProgress(1500);
+
+    setIntentionPoints(prev => Math.max(0, prev - 10));
+    setGardenFlowers(prev => {
+        const firstUnlockedIndex = prev.findIndex(f => !f.unlocked);
+        if (firstUnlockedIndex !== -1) {
+            const newFlowers = [...prev];
+            newFlowers[firstUnlockedIndex] = { ...newFlowers[firstUnlockedIndex], unlocked: true };
+            return newFlowers;
+        }
+        return prev;
+    });
+    
+    toast({
+        title: "Action Verified!",
+        description: "Your civic action has been recorded on-chain. A new flower has bloomed!",
+    });
+    setCampaignStates(prev => ({ ...prev, [campaign]: 'verified' }));
+
     setAppState('idle');
     setProgress(0);
   };
@@ -1259,5 +1239,7 @@ export default function Home() {
     </TooltipProvider>
   );
 }
+
+    
 
     
