@@ -8,7 +8,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Wallet, Bed, Loader, KeyRound, Sprout, UploadCloud, Camera, Upload, TestTube, FilePlus2, CheckCircle2, FileText, Image as ImageIcon, ExternalLink, Brain, FileQuestion } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
-import { detectSleepingSurface } from '@/ai/flows/detect-sleeping-surface-flow';
 import { analyzeEmailStance } from '@/ai/flows/analyze-email-stance-flow';
 import { useWalletSelector } from '@/components/WalletProvider';
 import { CONTRACT_ID } from '@/lib/constants';
@@ -25,6 +24,7 @@ import SwarmStorage from '@/components/app/SwarmStorage';
 import SleepLog from '@/components/app/SleepLog';
 import LiveMotion from '@/components/app/LiveMotion';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
 export type MotionDataPoint = {
@@ -746,7 +746,19 @@ export default function Home() {
     await runProgress(1000);
 
     try {
-        const result = await detectSleepingSurface({ photoDataUri: photoUrl });
+        const agentResponse = await fetch('http://localhost:8080/verify-rest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ photoDataUri: photoUrl })
+        });
+
+        if (!agentResponse.ok) {
+            const errorText = await agentResponse.text();
+            throw new Error(`Agent returned an error: ${agentResponse.status} ${agentResponse.statusText}. ${errorText}`);
+        }
+        
+        const result = await agentResponse.json();
+
         await runProgress(1000);
 
         if (result.isSleepingSurface) {
@@ -764,13 +776,9 @@ export default function Home() {
             
             setAppState('minting_dew');
             await runProgress(2000, async () => {
-                // In a real app, the trusted agent would see the proof and call the 'withdraw' function.
-                // We simulate this by having a "Withdraw" button for the user to click.
-                // If the user clicks it, the contract will check if the caller is the agent.
-                // For this demo, the user can see what happens when a non-agent tries to call it.
                 toast({
-                  title: "Action Required",
-                  description: "Proof generated. A trusted agent can now trigger your withdrawal.",
+                  title: "Agent Verification Complete",
+                  description: result.next_step,
                   duration: 8000,
                 });
             });
@@ -814,12 +822,13 @@ export default function Home() {
             setUploadedImage(null); // Allow user to try again
             setProgress(0);
         }
-    } catch (error) {
-        console.error("Error analyzing photo:", error);
+    } catch (error: any) {
+        console.error("Error analyzing photo with agent:", error);
         toast({
             variant: "destructive",
-            title: "Analysis Error",
-            description: "Could not analyze the photo. Please try again.",
+            title: "Agent Verification Error",
+            description: "Could not connect to the local verification agent. Is it running? " + (error.message || "Please try again."),
+            duration: 7000,
         });
         setAppState('taking_photo');
         setUploadedImage(null);

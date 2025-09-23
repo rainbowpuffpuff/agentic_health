@@ -157,6 +157,38 @@ def score_endpoint():
     except Exception as e:
         return jsonify({"error": "Failed to process data", "details": str(e)}), 500
 
+@app.route('/verify-rest', methods=['POST'])
+def verify_rest_endpoint():
+    """
+    API endpoint to verify a user's "Proof of Rest".
+    Expects JSON payload with 'photoDataUri'.
+    """
+    if not request.is_json:
+        return jsonify({"error": "Request must be JSON"}), 400
+
+    data = request.get_json()
+    photo_data_uri = data.get('photoDataUri')
+
+    if not photo_data_uri:
+        return jsonify({"error": "Missing 'photoDataUri' in request"}), 400
+    
+    # In a real TEE, we would perform actual image analysis here.
+    # For this simulation, we'll just check if the data URI looks like a valid image.
+    if 'data:image' in photo_data_uri and 'base64' in photo_data_uri:
+        # The agent, after successful verification, would then sign and send a transaction
+        # to the main application smart contract to trigger the reward payout.
+        # We simulate this success response.
+        return jsonify({
+            "isSleepingSurface": True,
+            "reason": "Agent verified a valid sleeping surface image was provided.",
+            "next_step": "Agent can now sign a transaction to call 'withdraw' on the smart contract for the user."
+        })
+    else:
+        return jsonify({
+            "isSleepingSurface": False,
+            "reason": "The provided image data was not a valid data URI.",
+        })
+
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
