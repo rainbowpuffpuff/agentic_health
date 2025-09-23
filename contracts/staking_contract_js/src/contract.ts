@@ -7,18 +7,16 @@ import { AccountId } from 'near-sdk-js/lib/types';
 // This is what we'll store in our UnorderedMap.
 class StakerInfo {
   amount: bigint;
-  bonus_approved: boolean;
 
   constructor(amount: bigint) {
     this.amount = amount;
-    this.bonus_approved = false;
   }
 }
 
 @NearBindgen({ requireInit: true })
 export class BonusStakingContract {
-  // The admin account who can approve bonuses.
-  owner_id: AccountId = "";
+  // The trusted agent account that can trigger withdrawals.
+  trusted_agent_id: AccountId = "";
   // The pool of funds available to pay out as bonuses. Using bigint for large numbers.
   reward_pool_balance: bigint = 0n;
   // A map storing each staker's information.
@@ -26,14 +24,16 @@ export class BonusStakingContract {
   stakers: UnorderedMap<StakerInfo> = new UnorderedMap("s");
 
   @initialize({})
-  init({ owner_id }: { owner_id: AccountId }) {
-    this.owner_id = owner_id;
+  init({ trusted_agent_id }: { trusted_agent_id: AccountId }) {
+    // In a real scenario, you might want to add an owner for administrative tasks
+    // like changing the agent, but for now we keep it simple.
+    this.trusted_agent_id = trusted_agent_id;
   }
 
-  // --- Admin & Funding Functions ---
+  // --- Funding Function ---
 
   /**
-   * Allows anyone (usually the admin) to deposit NEAR into the reward pool.
+   * Allows anyone to deposit NEAR into the reward pool.
    * This function is payable, meaning it accepts attached NEAR tokens.
    */
   @call({ payableFunction: true })
@@ -42,22 +42,6 @@ export class BonusStakingContract {
     assert(attached_amount > 0n, "Must attach NEAR to deposit");
     this.reward_pool_balance += attached_amount;
     near.log(`Deposited ${attached_amount} into reward pool. New balance: ${this.reward_pool_balance}`);
-  }
-
-  /**
-   * Admin-only function to approve a bonus for a specific staker.
-   * This simulates the "check condition" passing.
-   */
-  @call({})
-  approve_bonus({ staker_id }: { staker_id: AccountId }): void {
-    assert(near.predecessorAccountId() === this.owner_id, "Only the owner can approve bonuses");
-    
-    let staker_info = this.stakers.get(staker_id) as StakerInfo | null;
-    assert(staker_info !== null, `Staker '${staker_id}' not found`);
-
-    staker_info.bonus_approved = true;
-    this.stakers.set(staker_id, staker_info);
-    near.log(`Bonus approved for ${staker_id}`);
   }
 
   // --- Staker Functions ---
@@ -86,34 +70,33 @@ export class BonusStakingContract {
   }
 
   /**
-   * Allows a staker to withdraw their funds.
-   * If their bonus is approved, they receive their stake + 10%.
+   * Allows the trusted agent to withdraw funds for a staker.
+   * The staker receives their stake + 10% bonus.
    * The bonus is paid from the reward pool.
    */
   @call({})
-  withdraw(): NearPromise {
-    const staker_id = near.predecessorAccountId();
+  withdraw({ staker_id }: { staker_id: AccountId }): NearPromise {
+    // Assert that the function is called by the trusted agent.
+    assert(near.predecessorAccountId() === this.trusted_agent_id, "Only the trusted agent can call this method");
     
     const staker_info = this.stakers.get(staker_id) as StakerInfo | null;
-    assert(staker_info !== null, "You have no funds to withdraw");
+    assert(staker_info !== null, `Staker '${staker_id}' has no funds to withdraw`);
 
     let amount_to_withdraw = staker_info.amount;
 
-    if (staker_info.bonus_approved) {
-      const bonus = (staker_info.amount * 10n) / 100n; // Using bigint math for safety
-      
-      assert(this.reward_pool_balance >= bonus, `Not enough funds in reward pool for bonus. Pool has ${this.reward_pool_balance}, bonus is ${bonus}`);
-      
-      amount_to_withdraw += bonus;
-      this.reward_pool_balance -= bonus;
-      
-      near.log(`Withdrawing stake of ${staker_info.amount} + bonus of ${bonus} for ${staker_id}`);
-    } else {
-      near.log(`Withdrawing stake of ${staker_info.amount}. No bonus approved.`);
-    }
+    const bonus = (staker_info.amount * 10n) / 100n; // Using bigint math for safety
+    
+    assert(this.reward_pool_balance >= bonus, `Not enough funds in reward pool for bonus. Pool has ${this.reward_pool_balance}, bonus is ${bonus}`);
+    
+    amount_to_withdraw += bonus;
+    this.reward_pool_balance -= bonus;
+    
+    near.log(`Withdrawing stake of ${staker_info.amount} + bonus of ${bonus} for ${staker_id}`);
 
+    // Remove the stake from the map.
     this.stakers.remove(staker_id);
 
+    // Transfer the total amount to the staker.
     return NearPromise.new(staker_id).transfer(amount_to_withdraw);
   }
 
@@ -130,9 +113,7 @@ export class BonusStakingContract {
   }
 
   @view({})
-  get_owner(): AccountId {
-    return this.owner_id;
+  get_trusted_agent(): AccountId {
+    return this.trusted_agent_id;
   }
 }
-
-    

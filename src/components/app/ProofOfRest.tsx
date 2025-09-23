@@ -9,8 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Bed, PiggyBank, Clock, CheckCircle2, BrainCircuit, KeyRound, Zap, Camera, Upload, ShieldCheck, ImageIcon, AlertTriangle, Loader, FileQuestion, Smartphone } from 'lucide-react';
+import { Bed, PiggyBank, BrainCircuit, KeyRound, Zap, Camera, Upload, ShieldCheck, ImageIcon, AlertTriangle, Loader, FileQuestion, Smartphone, Clock, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { utils } from 'near-api-js';
 import type { StakerInfo, GardenFlower } from '@/app/page';
@@ -223,7 +222,7 @@ export default function ProofOfRest({
                                     <AlertDescription>
                                         We use a combination of a photo of your sleeping surface and your phone's motion sensors to prove you were resting.
                                         {isMobile && <span className='flex items-center gap-1 mt-1'><Smartphone size={14}/> Your motion sensor is active.</span>}
-                                        This data is processed on your device to generate a private proof.
+                                        This data is processed on your device to generate a private proof. The contract is then called by a trusted agent to verify and pay out your bonus.
                                     </AlertDescription>
                                 </AccordionContent>
                             </Alert>
@@ -243,27 +242,12 @@ export default function ProofOfRest({
                                 <p className='text-sm font-semibold'>You have <span className="font-bold text-primary">{utils.format.formatNearAmount(stakerInfo.amount, 4)} NEAR</span> committed.</p>
                                 <p className="text-xs text-muted-foreground mt-1">Complete sleep verification to get it back with a bonus.</p>
                             </div>
-                            <div className="flex items-center gap-2 text-sm">
-                                <span>Bonus Status:</span>
-                                {stakerInfo.bonus_approved ? (
-                                    <span className='font-medium text-green-600 flex items-center gap-1'><CheckCircle2 size={16} /> Approved</span>
-                                ) : (
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <span className='font-medium text-muted-foreground flex items-center gap-1 cursor-help'><Clock size={16} /> Pending</span>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Bonus is approved manually by the admin.<br /> It may take a few moments to be verified.</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                )}
-                            </div>
                             <div className="flex flex-col sm:flex-row gap-2">
                                 <Button onClick={handleBeginSleepVerification} disabled={isVerifyingSleep} className="w-full">
                                     Verify Sleep
                                 </Button>
-                                <Button onClick={handleWithdraw} disabled={isVerifyingSleep || !stakerInfo.bonus_approved} className="w-full" variant="outline">
-                                    Withdraw
+                                <Button onClick={handleWithdraw} disabled={isVerifyingSleep} className="w-full" variant="outline">
+                                    Withdraw (Agent Only)
                                 </Button>
                             </div>
                             {isVerifyingSleep && <ProgressDisplay state={appState} />}

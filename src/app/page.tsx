@@ -18,7 +18,6 @@ import type { CodeResult, FinalExecutionOutcome } from "near-api-js/lib/provider
 import { TooltipProvider } from '@/components/ui/tooltip';
 import TutorialDialog from '@/components/TutorialDialog';
 import Header from '@/components/app/Header';
-import AdminDashboard from '@/components/app/AdminDashboard';
 import ProofOfRest from '@/components/app/ProofOfRest';
 import ProofOfAction from '@/components/app/ProofOfAction';
 import DeviceStore from '@/components/app/DeviceStore';
@@ -70,7 +69,6 @@ export type GardenFlower = {
 
 export type StakerInfo = {
     amount: string; // Comes as a string from the contract
-    bonus_approved: boolean;
 };
 
 export type FileInfo = {
@@ -140,7 +138,6 @@ export default function Home() {
   const [stakerInfo, setStakerInfo] = useState<StakerInfo | null>(null);
   const [stakeAmount, setStakeAmount] = useState("0.1"); // In NEAR for sleep
   const [rewardPoolBalance, setRewardPoolBalance] = useState<string | null>(null);
-  const [depositAmount, setDepositAmount] = useState("1");
   const [accountBalance, setAccountBalance] = useState<string | null>(null);
 
 
@@ -180,13 +177,6 @@ export default function Home() {
   const [fnirsInfo, setFnirsInfo] = useState<FileInfo>(null);
   const [glucoseInfo, setGlucoseInfo] = useState<FileInfo>(null);
   const [pairedDataHistory, setPairedDataHistory] = useState<PairedDataEntry[]>([]);
-
-  // Admin state
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [contractOwner, setContractOwner] = useState<string | null>(null);
-  const [stakerIdToApprove, setStakerIdToApprove] = useState('');
-  const [infoForAddress, setInfoForAddress] = useState<StakerInfo | null>(null);
-  const [isCheckingAddress, setIsCheckingAddress] = useState(false);
   
   // Motion Sensor State
   const [motionData, setMotionData] = useState<MotionDataPoint[]>([]);
@@ -218,25 +208,6 @@ export default function Home() {
     startLiveMotionTracking(); // Attempt to start tracking on load
   }, []);
 
-  const getContractOwner = useCallback(async () => {
-    if (!selector) return;
-    const { network } = selector.options;
-    const provider = new providers.JsonRpcProvider({ url: network.nodeUrl });
-
-    try {
-      const res = await provider.query<CodeResult>({
-        request_type: "call_function",
-        finality: "final",
-        account_id: CONTRACT_ID,
-        method_name: "get_owner",
-        args_base64: btoa(JSON.stringify({})),
-      });
-      const owner = JSON.parse(Buffer.from(res.result).toString());
-      setContractOwner(owner);
-    } catch (error) {
-      console.error("Failed to get contract owner:", error);
-    }
-  }, [selector]);
   
   const getStakerInfo = useCallback(async (stakerId: string) => {
     if (!selector) return null;
@@ -299,9 +270,8 @@ export default function Home() {
 
 
   useEffect(() => {
-    getContractOwner();
     getRewardPoolBalance();
-  }, [getContractOwner, getRewardPoolBalance, walletConnected]);
+  }, [getRewardPoolBalance, walletConnected]);
 
   useEffect(() => {
     if (signedAccountId) {
@@ -311,16 +281,6 @@ export default function Home() {
     }
   }, [signedAccountId, getAccountBalance]);
 
-  useEffect(() => {
-    async function checkAdminStatus() {
-        if (walletConnected && signedAccountId && contractOwner) {
-            setIsAdmin(signedAccountId === contractOwner);
-        } else {
-            setIsAdmin(false);
-        }
-    }
-    checkAdminStatus();
-  }, [walletConnected, signedAccountId, contractOwner]);
 
   useEffect(() => {
     async function fetchUserInfo() {
@@ -333,26 +293,6 @@ export default function Home() {
     }
     fetchUserInfo();
   }, [walletConnected, signedAccountId, getStakerInfo]);
-
-  useEffect(() => {
-    const checkAddressInfo = async () => {
-        if(stakerIdToApprove.endsWith('.near') && stakerIdToApprove.length > 5) { // Basic validation
-            setIsCheckingAddress(true);
-            const info = await getStakerInfo(stakerIdToApprove);
-            setInfoForAddress(info);
-            setIsCheckingAddress(false);
-        } else {
-            setInfoForAddress(null);
-        }
-    }
-    
-    const debounceCheck = setTimeout(() => {
-        checkAddressInfo();
-    }, 500);
-
-    return () => clearTimeout(debounceCheck);
-
-  }, [stakerIdToApprove, getStakerInfo]);
   
   const showTransactionToast = (txHash: string, title: string) => {
     toast({
@@ -420,7 +360,7 @@ export default function Home() {
       showTransactionToast(txHash, "Commitment Successful!");
       
       // Optimistically update UI and then refresh from chain
-      setStakerInfo({ amount: utils.format.parseNearAmount(stakeAmount) || '0', bonus_approved: false });
+      setStakerInfo({ amount: utils.format.parseNearAmount(stakeAmount) || '0' });
       await new Promise(resolve => setTimeout(resolve, 1000));
       const updatedInfo = await getStakerInfo(signedAccountId!);
       setStakerInfo(updatedInfo);
@@ -457,6 +397,9 @@ export default function Home() {
         }
 
         try {
+            // NOTE: In a real scenario, this would be called by the trusted agent, not the user.
+            // The agent would pass the user's account ID as an argument.
+            // For this UI demo, the user calls it directly for themselves.
             const result = await wallet.signAndSendTransaction({
                 receiverId: CONTRACT_ID,
                 actions: [
@@ -464,8 +407,10 @@ export default function Home() {
                         type: 'FunctionCall',
                         params: {
                             methodName: 'withdraw',
-                            args: {},
-                            gas: THIRTY_TGAS, // Withdraw might need more gas for transfers
+                            args: {
+                                staker_id: signedAccountId,
+                            },
+                            gas: THIRTY_TGAS, 
                             deposit: "0",
                         },
                     },
@@ -499,93 +444,6 @@ export default function Home() {
             }
         }
     };
-    
-    const handleApproveBonus = async (stakerId: string) => {
-        if (!walletConnected || !selector || !isAdmin) {
-            toast({ variant: "destructive", title: "Permission Denied", description: "Only the admin can approve bonuses." });
-            return;
-        }
-        const wallet = await selector.wallet();
-        if (!wallet) return;
-
-        try {
-            const result = await wallet.signAndSendTransaction({
-                receiverId: CONTRACT_ID,
-                actions: [
-                    {
-                        type: 'FunctionCall',
-                        params: {
-                            methodName: 'approve_bonus',
-                            args: { staker_id: stakerId },
-                            gas: THIRTY_TGAS,
-                            deposit: "0",
-                        },
-                    },
-                ],
-            });
-            const txHash = (result as FinalExecutionOutcome).transaction_outcome.id;
-            showTransactionToast(txHash, "Bonus Approved!");
-            
-            // Refresh the info for the address
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            const info = await getStakerInfo(stakerId);
-            setInfoForAddress(info);
-
-        } catch(error: any) {
-             if (error.message.includes("User closed the window")) {
-                toast({
-                    variant: "default",
-                    title: "Transaction Cancelled",
-                    description: "You cancelled the transaction in your wallet.",
-                });
-            } else {
-                console.error("Approval failed:", error);
-                 toast({ variant: "destructive", title: "Approval Failed", description: (error as Error).message });
-            }
-        }
-    }
-    
-    const handleDepositRewardFunds = async () => {
-        if (!walletConnected || !selector || !isAdmin) {
-            toast({ variant: "destructive", title: "Permission Denied" });
-            return;
-        }
-        const wallet = await selector.wallet();
-        if (!wallet) return;
-
-        try {
-            const result = await wallet.signAndSendTransaction({
-                receiverId: CONTRACT_ID,
-                actions: [
-                    {
-                        type: 'FunctionCall',
-                        params: {
-                            methodName: 'deposit_reward_funds',
-                            args: {},
-                            gas: THIRTY_TGAS,
-                            deposit: utils.format.parseNearAmount(depositAmount) || "0",
-                        },
-                    },
-                ],
-            });
-            const txHash = (result as FinalExecutionOutcome).transaction_outcome.id;
-            showTransactionToast(txHash, "Deposit Successful!");
-            
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            await getRewardPoolBalance(); // Refresh balance
-            await getAccountBalance(signedAccountId!);
-        } catch(error: any) {
-            if (error.message.includes("User closed the window")) {
-                toast({
-                    variant: "default",
-                    title: "Transaction Cancelled",
-                });
-            } else {
-                console.error("Deposit failed:", error);
-                toast({ variant: "destructive", title: "Deposit Failed", description: (error as Error).message });
-            }
-        }
-    }
 
 
   const handleBeginSleepVerification = () => {
@@ -894,10 +752,8 @@ export default function Home() {
 
         if (result.isSleepingSurface) {
             
-            if(walletConnected && signedAccountId && contractOwner === signedAccountId) {
-                // If the admin is testing, approve their own bonus for the demo
-                await handleApproveBonus(signedAccountId);
-            }
+            // In a real scenario, the agent would be called here to verify and then call the contract.
+            // For the demo, we simulate this and call withdraw directly.
             
             setMotionData([]); // Clear previous data
             startMotionTracking();
@@ -1340,20 +1196,6 @@ export default function Home() {
         <div className="grid grid-cols-1 gap-6 lg:gap-8">
             
             <div className="space-y-6">
-
-                {isAdmin && walletConnected && (
-                  <AdminDashboard
-                    rewardPoolBalance={rewardPoolBalance}
-                    stakerIdToApprove={stakerIdToApprove}
-                    setStakerIdToApprove={setStakerIdToApprove}
-                    isCheckingAddress={isCheckingAddress}
-                    infoForAddress={infoForAddress}
-                    handleApproveBonus={handleApproveBonus}
-                    depositAmount={depositAmount}
-                    setDepositAmount={setDepositAmount}
-                    handleDepositRewardFunds={handleDepositRewardFunds}
-                  />
-                )}
 
                 <ProofOfRest
                   appState={appState}
