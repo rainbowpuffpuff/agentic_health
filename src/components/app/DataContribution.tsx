@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,7 +33,7 @@ const getStateDescription = (state: string) => {
     return { icon: null, text: '' };
 };
 
-const ProgressDisplay = ({ state, inCard = true }: { state: string; inCard?: boolean }) => {
+const ProgressDisplay = ({ state, progress }: { state: string; progress: number }) => {
     if (state !== 'uploading_data') return null;
     const { icon, text } = getStateDescription(state);
 
@@ -42,13 +43,10 @@ const ProgressDisplay = ({ state, inCard = true }: { state: string; inCard?: boo
                 {icon}
                 <span>{text}</span>
             </div>
-            <Progress value={0} className="w-full h-2" />
+            <Progress value={progress} className="w-full h-2" />
         </div>
     );
-    if (inCard) {
-        return <div className="mt-4 p-4 bg-secondary/50 rounded-lg">{content}</div>;
-    }
-    return content;
+    return <div className="mt-4 p-4 bg-secondary/50 rounded-lg">{content}</div>;
 };
 
 const FileInfoDisplay = ({ info }: { info: FileInfo }) => {
@@ -150,3 +148,5 @@ export default function DataContribution({
 }
 
 DataContribution.History = DataContributionHistory;
+
+    
