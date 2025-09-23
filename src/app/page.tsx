@@ -9,7 +9,6 @@ import { Wallet, Bed, Loader, KeyRound, Sprout, UploadCloud, Camera, Upload, Tes
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { detectSleepingSurface } from '@/ai/flows/detect-sleeping-surface-flow';
-import { scoreDataContribution } from '@/ai/flows/score-data-contribution-flow';
 import { analyzeEmailStance } from '@/ai/flows/analyze-email-stance-flow';
 import { useWalletSelector } from '@/components/WalletProvider';
 import { CONTRACT_ID } from '@/lib/constants';
@@ -1013,126 +1012,122 @@ export default function Home() {
     setProgress(0);
   
     try {
-      const fnirsReader = new FileReader();
-      fnirsReader.onload = async (event) => {
-        const fnirsData = event.target?.result as string;
+      const fnirsData = await fnirsFile.text();
+      const glucoseData = await glucoseFile.text();
   
-        const glucoseReader = new FileReader();
-        glucoseReader.onload = async (gEvent) => {
-          const glucoseData = gEvent.target?.result as string;
-          
-          try {
-            // Parse CSV
-            const lines = glucoseData.split('\n').filter(line => line.trim() !== '');
-            if (lines.length < 2) throw new Error("Glucose CSV has no data rows.");
-            
-            const headerLine = lines.find(line => line.toLowerCase().includes('historic glucose') || line.toLowerCase().includes('scan glucose'));
-            if (!headerLine) throw new Error("Could not find required glucose headers in the file.");
-
-            const header = headerLine.split(',').map(h => h.trim().toLowerCase());
-            
-            const historicIndex = header.findIndex(h => h.includes('historic glucose'));
-            const scanIndex = header.findIndex(h => h.includes('scan glucose'));
-            
-            if (historicIndex === -1 && scanIndex === -1) {
-              throw new Error("Neither 'Historic Glucose' nor 'Scan Glucose' column found.");
-            }
-
-            let glucoseValues: number[] = [];
-            const dataLines = lines.slice(lines.indexOf(headerLine) + 1);
-
-            dataLines.forEach(line => {
-                const columns = line.split(',');
-                let valueStr = '';
-                if(historicIndex !== -1 && columns.length > historicIndex) {
-                    valueStr = columns[historicIndex]?.trim();
-                }
-                if (!valueStr && scanIndex !== -1 && columns.length > scanIndex) {
-                    valueStr = columns[scanIndex]?.trim();
-                }
-
-                if (valueStr) {
-                    const value = parseFloat(valueStr);
-                    if (!isNaN(value)) {
-                        glucoseValues.push(value);
-                    }
-                }
-            });
-
-            if (glucoseValues.length === 0) {
-              throw new Error("No valid numerical glucose values found in the file.");
-            }
-            
-            // Convert mmol/L to mg/dL for the AI model if needed
-            // 1 mmol/L = 18.0182 mg/dL
-            const glucoseValuesMgDl = glucoseValues.map(val => val * 18.0182);
-
-            const averageGlucose = glucoseValuesMgDl.reduce((sum, val) => sum + val, 0) / glucoseValuesMgDl.length;
-            
-            await runProgress(1000);
-            
-            // Call the local Python agent instead of the Genkit flow
-            const agentResponse = await fetch('http://localhost:8080/score', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    fnirsData: fnirsData,
-                    glucoseLevel: averageGlucose
-                })
-            });
-
-            if (!agentResponse.ok) {
-                throw new Error(`Agent returned an error: ${agentResponse.statusText}`);
-            }
-
-            const result = await agentResponse.json();
-    
-            await runProgress(1000);
-    
-            const newEntry: PairedDataEntry = {
-              id: Date.now(),
-              date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-              fnirsFile: fnirsFile.name,
-              glucoseLevel: parseFloat(averageGlucose.toFixed(2)),
-              contributionScore: result.contributionScore,
-            };
-    
-            setPairedDataHistory(prev => [newEntry, ...prev]);
-            setIntentionPoints(prev => prev + result.reward);
-    
-            toast({
-              title: "Contribution Scored!",
-              description: `${result.reason} You earned ${result.reward} Intention Points.`,
-            });
-    
-            // Reset form
-            setFnirsFile(null);
-            setGlucoseFile(null);
-            setFnirsInfo(null);
-            setGlucoseInfo(null);
-            if (fnirsInputRef.current) fnirsInputRef.current.value = '';
-            if (glucoseInputRef.current) glucoseInputRef.current.value = '';
-            setAppState('idle');
-            setProgress(0);
-
-          } catch (parseError: any) {
-              console.error("Error parsing glucose file:", parseError);
-              toast({ variant: "destructive", title: "Invalid Glucose Data", description: parseError.message || "Could not parse the glucose time-series file." });
-              setAppState('idle');
-              setProgress(0);
-              return;
+      // Parse Glucose Data
+      const lines = glucoseData.split('\n').filter(line => line.trim() !== '');
+      if (lines.length < 2) throw new Error("Glucose CSV has no data rows.");
+      
+      const headerLine = lines.find(line => line.toLowerCase().includes('historic glucose') || line.toLowerCase().includes('scan glucose'));
+      if (!headerLine) throw new Error("Could not find required glucose headers in the file.");
+  
+      const header = headerLine.split(',').map(h => h.trim().toLowerCase());
+      const historicIndex = header.findIndex(h => h.includes('historic glucose'));
+      const scanIndex = header.findIndex(h => h.includes('scan glucose'));
+      
+      if (historicIndex === -1 && scanIndex === -1) {
+        throw new Error("Neither 'Historic Glucose' nor 'Scan Glucose' column found.");
+      }
+  
+      let glucoseValues: number[] = [];
+      const dataLines = lines.slice(lines.indexOf(headerLine) + 1);
+  
+      dataLines.forEach(line => {
+        const columns = line.split(',');
+        let valueStr = '';
+        if (historicIndex !== -1 && columns.length > historicIndex) {
+          valueStr = columns[historicIndex]?.trim();
+        }
+        if (!valueStr && scanIndex !== -1 && columns.length > scanIndex) {
+          valueStr = columns[scanIndex]?.trim();
+        }
+  
+        if (valueStr) {
+          const value = parseFloat(valueStr);
+          if (!isNaN(value)) {
+            glucoseValues.push(value);
           }
-        };
-        glucoseReader.readAsText(glucoseFile);
-      };
-      fnirsReader.readAsText(fnirsFile);
+        }
+      });
   
-    } catch(error) {
+      if (glucoseValues.length === 0) {
+        throw new Error("No valid numerical glucose values found in the file.");
+      }
+      
+      // Convert mmol/L to mg/dL for the AI model if needed
+      // 1 mmol/L = 18.0182 mg/dL
+      const glucoseValuesMgDl = glucoseValues.map(val => val * 18.0182);
+      const averageGlucose = glucoseValuesMgDl.reduce((sum, val) => sum + val, 0) / glucoseValuesMgDl.length;
+      
+      await runProgress(1000);
+      
+      // Call the local Python agent
+      const agentResponse = await fetch('http://localhost:8080/score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fnirsData: fnirsData,
+          glucoseLevel: averageGlucose
+        })
+      });
+  
+      if (!agentResponse.ok) {
+        const errorText = await agentResponse.text();
+        throw new Error(`Agent returned an error: ${agentResponse.status} ${agentResponse.statusText}. ${errorText}`);
+      }
+  
+      const result = await agentResponse.json();
+  
+      await runProgress(1000);
+  
+      const newEntry: PairedDataEntry = {
+        id: Date.now(),
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        fnirsFile: fnirsFile.name,
+        glucoseLevel: parseFloat(averageGlucose.toFixed(2)),
+        contributionScore: result.contributionScore,
+      };
+  
+      setPairedDataHistory(prev => [newEntry, ...prev]);
+      setIntentionPoints(prev => prev + result.reward);
+  
+      toast({
+        title: "Contribution Scored!",
+        description: (
+            <div>
+                <p>{result.reason} You earned {result.reward} Intention Points.</p>
+                <Accordion type="single" collapsible className="w-full text-xs">
+                    <AccordionItem value="logs">
+                        <AccordionTrigger>View Agent Logs</AccordionTrigger>
+                        <AccordionContent>
+                            <pre className="text-xs bg-muted p-2 rounded-md max-h-40 overflow-auto">
+                                <code>{result.logs.join('\n')}</code>
+                            </pre>
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
+            </div>
+        ),
+      });
+  
+      // Reset form
+      setFnirsFile(null);
+      setGlucoseFile(null);
+      setFnirsInfo(null);
+      setGlucoseInfo(null);
+      if (fnirsInputRef.current) fnirsInputRef.current.value = '';
+      if (glucoseInputRef.current) glucoseInputRef.current.value = '';
+      setAppState('idle');
+      setProgress(0);
+  
+    } catch(error: any) {
       console.error("Error scoring data:", error);
       toast({
         variant: "destructive",
         title: "Agent Scoring Error",
         description: "Could not connect to the local scoring agent. Is it running? " + (error.message || "Please try again."),
+        duration: 7000,
       });
       setAppState('idle');
       setProgress(0);
@@ -1315,3 +1310,5 @@ export default function Home() {
     </TooltipProvider>
   );
 }
+
+    

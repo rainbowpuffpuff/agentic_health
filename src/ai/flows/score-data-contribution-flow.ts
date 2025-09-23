@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview An AI agent to score data contributions.
@@ -36,6 +37,7 @@ const prompt = ai.definePrompt({
   name: 'scoreDataContributionPrompt',
   input: {schema: ScoreDataContributionInputSchema},
   output: {schema: ScoreDataContributionOutputSchema},
+  model: 'googleai/gemini-1.5-flash',
   prompt: `You are a data scientist AI for the think2earn project. Your role is to analyze paired fNIRS and glucose data submissions to determine their value for training a predictive model.
 
 You will receive raw fNIRS data (as text) and a glucose level. Your task is to provide a "contributionScore" from 0-100.
@@ -74,3 +76,5 @@ const scoreDataContributionFlow = ai.defineFlow(
     return output!;
   }
 );
+
+    
