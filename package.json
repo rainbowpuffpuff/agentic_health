@@ -9,7 +9,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "docker:build": "docker build --platform linux/amd64 -f agent_logic/Dockerfile -t rainbowpuffpuff/agentic_health:latest .",
+    "docker:push": "docker push rainbowpuffpuff/agentic_health:latest"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.14.1",
