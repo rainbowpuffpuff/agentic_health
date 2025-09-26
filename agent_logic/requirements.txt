@@ -1,4 +1,4 @@
 fastapi
 uvicorn
 python-dotenv
-near-api-py
+py-near

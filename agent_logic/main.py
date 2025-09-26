@@ -1,10 +1,11 @@
 
 import os
-from fastapi import FastAPI, HTTPException
+import base58
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
-from near_api.providers import JsonProvider
-from near_api.signer import Signer, KeyPair
-from near_api.account import Account
+from py_near.account import Account
+from py_near.dapps.core import NEAR
+from py_near_primitives import KeyPair
 
 # --- Pydantic Models for API requests ---
 class ProofOfRestRequest(BaseModel):
@@ -13,27 +14,41 @@ class ProofOfRestRequest(BaseModel):
 
 # --- FastAPI App Initialization ---
 app = FastAPI()
-
-# --- Contract and Agent Configuration ---
-# These are loaded from the TEE's environment variables
-CONTRACT_ID = os.environ.get("NEXT_PUBLIC_contractId", "stake-bonus-js.think2earn.near")
-AGENT_ACCOUNT_ID = os.environ.get("NEAR_ACCOUNT_ID")
-AGENT_SEED_PHRASE = os.environ.get("NEAR_SEED_PHRASE")
-
-# Initialize NEAR connection
-provider = JsonProvider("https://rpc.testnet.near.org")
 agent_account = None
 
-if AGENT_ACCOUNT_ID and AGENT_SEED_PHRASE:
-    try:
-        key_pair = KeyPair.from_seed_phrase(AGENT_SEED_PHRASE)
-        signer = Signer(AGENT_ACCOUNT_ID, key_pair)
-        agent_account = Account(provider, signer, AGENT_ACCOUNT_ID)
-        print(f"Agent account '{AGENT_ACCOUNT_ID}' initialized successfully for contract '{CONTRACT_ID}'.")
-    except Exception as e:
-        print(f"FATAL: Could not initialize NEAR agent account. On-chain transactions will fail. Error: {e}")
-else:
-    print("WARNING: NEAR_ACCOUNT_ID or NEAR_SEED_PHRASE not found. On-chain transactions are disabled.")
+# --- Startup Event to Initialize NEAR Account ---
+# This runs once when the FastAPI server starts.
+@app.on_event("startup")
+async def startup_event():
+    global agent_account
+    
+    # These are loaded from the TEE's environment variables
+    contract_id = os.environ.get("NEXT_PUBLIC_contractId", "stake-bonus-js.think2earn.near")
+    agent_account_id = os.environ.get("NEAR_ACCOUNT_ID")
+    agent_seed_phrase = os.environ.get("NEAR_SEED_PHRASE")
+
+    if agent_account_id and agent_seed_phrase:
+        try:
+            # py-near works with the full private key string (e.g., "ed25519:...")
+            # We derive it from the seed phrase provided in the environment.
+            key_pair = KeyPair.from_seed_phrase(agent_seed_phrase)
+            private_key = key_pair.secret_key
+            
+            # Initialize the Account object
+            agent_account = Account(
+                account_id=agent_account_id,
+                private_key=private_key,
+                rpc_addr="https://rpc.testnet.near.org"
+            )
+            await agent_account.startup()
+            
+            print(f"Agent account '{agent_account_id}' initialized successfully with py-near for contract '{contract_id}'.")
+        except Exception as e:
+            print(f"FATAL: Could not initialize py-near agent account. On-chain transactions will fail. Error: {e}")
+    else:
+        print("WARNING: NEAR_ACCOUNT_ID or NEAR_SEED_PHRASE not found. On-chain transactions are disabled.")
+
+# --- API Endpoints ---
 
 @app.post("/api/verify-rest")
 async def verify_rest(request: ProofOfRestRequest):
@@ -41,29 +56,31 @@ async def verify_rest(request: ProofOfRestRequest):
     Verifies a user's Proof of Rest and automatically calls the 'approve_bonus'
     function on the smart contract if successful.
     """
-    # Step 1: Mock image analysis. In a real app, this would be a CV model.
-    # For now, we assume any valid data URI is a success.
-    is_verified = request.photoDataUri.startswith("data:image/")
+    global agent_account
+    contract_id = os.environ.get("NEXT_PUBLIC_contractId", "stake-bonus-js.think2earn.near")
 
+    # Step 1: Mock image analysis
+    is_verified = request.photoDataUri.startswith("data:image/")
     if not is_verified:
         raise HTTPException(status_code=400, detail="Verification failed: Image is not a valid sleeping surface.")
 
     if not agent_account:
         raise HTTPException(status_code=503, detail="Agent is not configured for on-chain transactions.")
 
-    # Step 2: If verification is successful, call the smart contract to approve the bonus.
+    # Step 2: Call the smart contract to approve the bonus using py-near.
     try:
         print(f"Attempting to call 'approve_bonus' for staker: {request.accountId}")
         
+        # py-near uses a slightly different syntax for function calls
         result = await agent_account.function_call(
-            contract_id=CONTRACT_ID,
-            method_name="approve_bonus", # This is the CORRECT function to call
-            args={"staker_id": request.accountId}, # These are the CORRECT arguments
-            gas=30000000000000  # 30 TGas
+            contract_id=contract_id,
+            method_name="approve_bonus",
+            args={"staker_id": request.accountId},
+            gas=30 * NEAR.TERA,  # 30 TGas in py-near
+            nowait=False # Wait for the transaction to complete
         )
         
-        # This is the CORRECT way to get the transaction hash
-        tx_hash = result['transaction_outcome']['id']
+        tx_hash = result.transaction.hash
         
         print(f"Successfully sent transaction {tx_hash} to approve bonus for {request.accountId}")
 
@@ -74,11 +91,10 @@ async def verify_rest(request: ProofOfRestRequest):
         }
     except Exception as e:
         print(f"Error calling 'approve_bonus' for {request.accountId}: {e}")
+        # py-near exceptions can be detailed, so we pass the string representation
         raise HTTPException(status_code=500, detail=f"Failed to call smart contract: {str(e)}")
 
 # Health check endpoint
 @app.get("/")
 def health_check():
     return {"status": "ok", "agent_configured": agent_account is not None}
-
-# (Other endpoints like /api/score and /api/analyze-email can be added here later)
