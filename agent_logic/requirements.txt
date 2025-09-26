@@ -1,3 +1,6 @@
-Flask==2.2.2
+fastapi
+uvicorn
+python-dotenv
+near-api-py
 pandas==1.5.2
 scikit-learn==1.2.0
