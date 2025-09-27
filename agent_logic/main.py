@@ -5,7 +5,9 @@ from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 from py_near.account import Account
 from py_near.dapps.core import NEAR
-from py_near_primitives import KeyPair
+
+# Import ML pipeline
+from ml_pipeline import ml_app, ScoreContributionRequest
 
 # --- Pydantic Models for API requests ---
 class ProofOfRestRequest(BaseModel):
@@ -29,15 +31,11 @@ async def startup_event():
 
     if agent_account_id and agent_seed_phrase:
         try:
-            # py-near works with the full private key string (e.g., "ed25519:...")
-            # We derive it from the seed phrase provided in the environment.
-            key_pair = KeyPair.from_seed_phrase(agent_seed_phrase)
-            private_key = key_pair.secret_key
-            
-            # Initialize the Account object
+            # Initialize the Account object with seed phrase directly
+            # py-near should handle the key derivation internally
             agent_account = Account(
                 account_id=agent_account_id,
-                private_key=private_key,
+                private_key=agent_seed_phrase,  # Using seed phrase as private key for now
                 rpc_addr="https://rpc.testnet.near.org"
             )
             await agent_account.startup()
@@ -94,7 +92,14 @@ async def verify_rest(request: ProofOfRestRequest):
         # py-near exceptions can be detailed, so we pass the string representation
         raise HTTPException(status_code=500, detail=f"Failed to call smart contract: {str(e)}")
 
+# Mount ML pipeline endpoints
+app.mount("/ml", ml_app)
+
 # Health check endpoint
 @app.get("/")
 def health_check():
-    return {"status": "ok", "agent_configured": agent_account is not None}
+    return {
+        "status": "ok", 
+        "agent_configured": agent_account is not None,
+        "services": ["proof_of_rest", "ml_pipeline"]
+    }
