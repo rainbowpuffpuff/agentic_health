@@ -1,0 +1,11 @@
+nohup: ignoring input
+/home/q/kiro_agentic_health/agentic_health/agent_logic/main.py:23: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("startup")
+Loaded model: Train_S1_Test_S2
+Loaded model: Train_S2_Test_S1
+Successfully loaded 2 trained models
