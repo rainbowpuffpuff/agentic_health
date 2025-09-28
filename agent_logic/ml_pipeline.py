@@ -23,14 +23,8 @@ import io
 import tempfile
 import os
 
-# Import our fNIRS processing functions
-from fnirs_processor import (
-    preprocess_and_feature_engineer, 
-    train_glucose_model,
-    evaluate_model,
-    ProcessingResult,
-    ModelPerformance
-)
+# Import our fNIRS processing functions (now in glucose_ml_processor)
+# These are imported separately where needed
 
 
 # --- Pydantic Models for API Requests and Responses ---
