@@ -2,7 +2,5 @@
 # Format: original_file|file_size_mb|hash|split_files
 
 first_session/first_cgm_log.csv|0.0|fc1c954f31895e5ebf7a8f9326e828da|
-first_session/first_fnirs_log.csv|100.9|93f7cde865681b4fdb7e490e440652c5|first_fnirs_log_part01.csv,first_fnirs_log_part02.csv
 second_session/freelibre_readings_glucose.csv|0.0|abf74239d860ede25a199af48f8dd3eb|
 second_session/second_cgm_log.csv|0.0|1d3d027741a1040ffb74be4f61c0ab1d|
-second_session/second_fnirs_log.csv|132.2|c3742801e1fe58715e15ff901fe63c43|second_fnirs_log_part01.csv,second_fnirs_log_part02.csv
