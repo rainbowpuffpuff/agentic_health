@@ -5,6 +5,7 @@ Simple test script to verify ML pipeline infrastructure is working
 
 import json
 import sys
+import numpy as np
 from ml_pipeline import ScoreContributionRequest, ml_app
 from fastapi.testclient import TestClient
 
@@ -30,9 +31,17 @@ def test_ml_pipeline_infrastructure():
     
     # Test score contribution endpoint with sample data
     print("\nTesting score contribution endpoint...")
+    # Create realistic fNIRS test data with proper column names
+    fnirs_test_data = "Time,S2_D5_740nm_LP,S2_D5_850nm_LP\n"
+    for i in range(100):  # Generate 100 data points for better processing
+        time = i * 0.1  # 10 Hz sampling rate
+        signal_740 = 0.5 + 0.1 * np.sin(time * 0.1) + np.random.normal(0, 0.01)
+        signal_850 = 0.6 + 0.1 * np.cos(time * 0.1) + np.random.normal(0, 0.01)
+        fnirs_test_data += f"{time},{signal_740:.4f},{signal_850:.4f}\n"
+    
     test_request = {
-        "fnirs_data": "timestamp,wavelength_760nm,wavelength_850nm\n1.0,0.5,0.6\n2.0,0.52,0.58\n3.0,0.48,0.62",
-        "glucose_level": 95.5,
+        "fnirs_data": fnirs_test_data,
+        "glucose_level": 5.5,  # Valid glucose level in mmol/L
         "user_id": "test.testnet"
     }
     
