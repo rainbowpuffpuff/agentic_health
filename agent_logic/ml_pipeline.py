@@ -281,6 +281,43 @@ class MLPipeline:
         except Exception as e:
             raise ValueError(f"Error extracting features: {str(e)}")
     
+    def _parse_fnirs_csv_to_array(self, fnirs_csv_data: str) -> np.ndarray:
+        """
+        Parse CSV fNIRS data string to numpy array for Shapley calculation
+        
+        Args:
+            fnirs_csv_data: Raw CSV string with fNIRS data
+            
+        Returns:
+            numpy array with shape (n_samples, 2) for 740nm and 850nm channels
+        """
+        try:
+            # Parse CSV data
+            lines = fnirs_csv_data.strip().split('\n')
+            if len(lines) < 2:
+                raise ValueError("CSV data must have header and at least one data row")
+            
+            # Skip header, parse data rows
+            data_rows = []
+            for line in lines[1:]:
+                parts = line.split(',')
+                if len(parts) >= 3:  # Time, 740nm, 850nm
+                    try:
+                        # Extract 740nm and 850nm values (assuming columns 1 and 2)
+                        val_740 = float(parts[1])
+                        val_850 = float(parts[2])
+                        data_rows.append([val_740, val_850])
+                    except (ValueError, IndexError):
+                        continue  # Skip malformed rows
+            
+            if not data_rows:
+                raise ValueError("No valid data rows found in CSV")
+            
+            return np.array(data_rows)
+            
+        except Exception as e:
+            raise ValueError(f"Error parsing fNIRS CSV data: {str(e)}")
+
     def predict_glucose(self, features: FeatureVector) -> GlucosePrediction:
         """
         Uses regression models to predict glucose from fNIRS features
@@ -354,10 +391,10 @@ pipeline = MLPipeline()
 @ml_app.post("/api/score-contribution", response_model=ScoreContributionResponse)
 async def score_contribution(request: ScoreContributionRequest) -> ScoreContributionResponse:
     """
-    Processes fNIRS and glucose data to generate contribution score
+    Processes fNIRS and glucose data to generate contribution score using real Data Shapley
     
-    Uses the full ML pipeline to process fNIRS data, extract features,
-    predict glucose, and calculate contribution scores.
+    Uses the full ML pipeline with real Data Shapley calculations to fairly assess
+    the contribution value of user's fNIRS data to model performance improvement.
     """
     start_time = datetime.now()
     
@@ -373,21 +410,15 @@ async def score_contribution(request: ScoreContributionRequest) -> ScoreContribu
                 detail="Glucose level must be between 3.0 and 15.0 mmol/L"
             )
         
-        print(f"Processing fNIRS data for user: {request.user_id}")
+        print(f"Processing fNIRS data with real Data Shapley for user: {request.user_id}")
         
-        # Step 1: Preprocess fNIRS data
+        # Step 1: Preprocess fNIRS data using existing pipeline
         processed_data = pipeline.preprocess_fnirs_data(
             request.fnirs_data, 
             request.glucose_level
         )
         
-        # Step 2: Extract features
-        features = pipeline.extract_features(processed_data)
-        
-        # Step 3: Predict glucose (for validation)
-        glucose_prediction = pipeline.predict_glucose(features)
-        
-        # Step 4: Calculate data quality metrics
+        # Step 2: Calculate data quality metrics
         quality_metrics = DataQualityMetrics(
             signal_to_noise_ratio=float(processed_data.quality_score / processed_data.noise_level),
             data_completeness=min(1.0, len(processed_data.data_points) / 100.0),
@@ -396,47 +427,103 @@ async def score_contribution(request: ScoreContributionRequest) -> ScoreContribu
             noise_level=processed_data.noise_level
         )
         
-        # Step 5: Calculate contribution score based on data quality and prediction accuracy
-        # Higher quality data and better predictions get higher scores
+        # Step 3: Calculate real Data Shapley contribution score
+        try:
+            from shapley_scorer import ShapleyScorer
+            
+            # Initialize Shapley scorer with fast settings for API response
+            shapley_scorer = ShapleyScorer(chunk_size_minutes=1.0)  # Small chunks for fast calculation
+            
+            # Convert user data to format expected by Shapley scorer
+            user_fnirs_array = pipeline._parse_fnirs_csv_to_array(request.fnirs_data)
+            user_glucose_array = np.full(len(user_fnirs_array), request.glucose_level)
+            
+            # Create a simulated user chunk for Shapley calculation
+            from shapley_scorer import DataChunk
+            user_chunk = DataChunk(
+                fnirs_data=user_fnirs_array,
+                glucose_data=user_glucose_array,
+                start_time=0.0,
+                duration=len(user_fnirs_array) / 10.0,  # 10 Hz sampling
+                chunk_id=999,  # Special ID for user data
+                session_id="user_contribution"
+            )
+            
+            # Load existing session data for comparison
+            session1_chunks, session2_chunks = shapley_scorer.load_and_chunk_data()
+            
+            # Calculate Shapley value using within-session approach (faster)
+            # Add user chunk to session 1 for comparison
+            extended_session1 = session1_chunks + [user_chunk]
+            user_shapley_value = shapley_scorer.calculate_within_session_shapley(
+                extended_session1, 
+                len(extended_session1) - 1,  # User chunk is last
+                num_coalitions=10  # Fast calculation for API
+            )
+            
+            print(f"Calculated Shapley value for {request.user_id}: {user_shapley_value:.4f}")
+            
+            # Convert Shapley value to contribution score (0-100)
+            # Normalize based on typical Shapley value ranges we observed
+            shapley_normalized = max(-0.1, min(0.2, user_shapley_value))  # Clip to observed range
+            shapley_score = int(((shapley_normalized + 0.1) / 0.3) * 100)  # Scale to 0-100
+            
+            # Combine Shapley score with data quality for final score
+            quality_bonus = int(quality_metrics.data_completeness * 
+                              min(quality_metrics.signal_to_noise_ratio, 10) * 2)
+            quality_bonus = min(20, max(0, quality_bonus))
+            
+            contribution_score = min(100, max(0, shapley_score + quality_bonus))
+            
+            # Generate explanation with Shapley details
+            reason_parts = []
+            reason_parts.append(f"Data Shapley value: {user_shapley_value:.4f}")
+            reason_parts.append(f"Shapley contribution: {shapley_score}/80 points")
+            reason_parts.append(f"Data quality bonus: {quality_bonus}/20 points")
+            reason_parts.append(f"Model improvement: {'Positive' if user_shapley_value > 0 else 'Neutral/Negative'}")
+            
+            shapley_explanation = "Real Data Shapley calculation based on marginal contribution to model performance"
+            
+        except Exception as shapley_error:
+            print(f"Shapley calculation failed, falling back to heuristic scoring: {shapley_error}")
+            
+            # Fallback to original heuristic scoring if Shapley fails
+            features = pipeline.extract_features(processed_data)
+            glucose_prediction = pipeline.predict_glucose(features)
+            
+            # Heuristic scoring as backup
+            quality_score = int(quality_metrics.data_completeness * 
+                               quality_metrics.signal_to_noise_ratio * 5)
+            quality_score = min(50, max(0, quality_score))
+            
+            glucose_error = abs(glucose_prediction.predicted_glucose - request.glucose_level)
+            accuracy_score = int(30 * max(0, 1 - (glucose_error / 3.0)))
+            duration_score = int(min(20, processed_data.duration_seconds / 15))
+            
+            contribution_score = min(100, max(0, quality_score + accuracy_score + duration_score))
+            
+            reason_parts = []
+            reason_parts.append(f"Data quality: {quality_score}/50 points (heuristic)")
+            reason_parts.append(f"Prediction accuracy: {accuracy_score}/30 points")
+            reason_parts.append(f"Duration bonus: {duration_score}/20 points")
+            
+            shapley_explanation = "Heuristic scoring (Shapley calculation unavailable)"
         
-        # Base score from data quality (0-50 points)
-        quality_score = int(quality_metrics.data_completeness * 
-                           quality_metrics.signal_to_noise_ratio * 5)
-        quality_score = min(50, max(0, quality_score))
-        
-        # Prediction accuracy score (0-30 points)
-        # Compare predicted vs actual glucose
-        glucose_error = abs(glucose_prediction.predicted_glucose - request.glucose_level)
-        max_error = 3.0  # mmol/L
-        accuracy_score = int(30 * max(0, 1 - (glucose_error / max_error)))
-        
-        # Duration bonus (0-20 points)
-        duration_score = int(min(20, processed_data.duration_seconds / 15))  # 1 point per 15 seconds, max 20
-        
-        # Total contribution score
-        contribution_score = quality_score + accuracy_score + duration_score
-        contribution_score = min(100, max(0, contribution_score))
-        
-        # Calculate reward points (exponential scaling for high-quality contributions)
+        # Calculate reward points based on contribution score
         if contribution_score >= 80:
-            reward_points = contribution_score * 15  # Bonus for high quality
+            reward_points = contribution_score * 15  # Premium for high-value contributions
         elif contribution_score >= 60:
             reward_points = contribution_score * 12
-        else:
+        elif contribution_score >= 40:
             reward_points = contribution_score * 10
+        else:
+            reward_points = contribution_score * 8  # Lower multiplier for low-value data
         
-        # Generate explanation
-        reason_parts = []
-        reason_parts.append(f"Data quality: {quality_score}/50 points")
-        reason_parts.append(f"Prediction accuracy: {accuracy_score}/30 points") 
-        reason_parts.append(f"Duration bonus: {duration_score}/20 points")
-        reason_parts.append(f"Glucose prediction: {glucose_prediction.predicted_glucose:.1f} mmol/L (actual: {request.glucose_level:.1f})")
-        
-        reason = "; ".join(reason_parts)
+        reason = "; ".join(reason_parts) + f" | {shapley_explanation}"
         
         processing_time = (datetime.now() - start_time).total_seconds()
         
-        print(f"Contribution scoring complete for {request.user_id}: {contribution_score}/100 points")
+        print(f"Real Data Shapley scoring complete for {request.user_id}: {contribution_score}/100 points")
         
         return ScoreContributionResponse(
             contribution_score=contribution_score,
