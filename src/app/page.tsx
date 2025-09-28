@@ -384,6 +384,60 @@ export default function Home() {
     }
   };
 
+  const handleWithdraw = async () => {
+    if (!walletConnected || !selector || !signedAccountId) {
+      toast({ variant: "destructive", title: "Wallet not connected", description: "Please connect your NEAR wallet to withdraw funds." });
+      return;
+    }
+    const wallet = await selector.wallet();
+    if (!wallet) {
+      toast({ variant: "destructive", title: "Wallet not connected" });
+      return;
+    }
+
+    try {
+      const result = await wallet.signAndSendTransaction({
+        receiverId: CONTRACT_ID,
+        actions: [
+          {
+            type: 'FunctionCall',
+            params: {
+              methodName: 'withdraw',
+              args: { staker_id: signedAccountId },
+              gas: THIRTY_TGAS,
+              deposit: "0",
+            },
+          },
+        ],
+      });
+      
+      const txHash = (result as FinalExecutionOutcome).transaction_outcome.id;
+      showTransactionToast(txHash, "Withdrawal Successful!");
+      
+      // Clear staker info and refresh balances
+      setStakerInfo(null);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      getAccountBalance(signedAccountId);
+      getRewardPoolBalance();
+
+    } catch (error: any) {
+       if (error.message.includes("User closed the window")) {
+                toast({
+                    variant: "default",
+                    title: "Transaction Cancelled",
+                    description: "You cancelled the transaction in your wallet.",
+                });
+            } else {
+                console.error("Withdraw failed:", error);
+                toast({
+                    variant: "destructive",
+                    title: "Withdrawal Failed",
+                    description: error.message || "An unknown error occurred.",
+                });
+            }
+    }
+  };
+
 
   const handleBeginSleepVerification = () => {
     setUploadedImage(null);
@@ -686,10 +740,13 @@ export default function Home() {
     await runProgress(1000);
 
     try {
-        const agentResponse = await fetch('http://localhost:8080/verify-rest', {
+        const agentResponse = await fetch('http://localhost:8000/api/verify-rest', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ photoDataUri: photoUrl })
+            body: JSON.stringify({ 
+                photoDataUri: photoUrl,
+                accountId: signedAccountId || 'demo.testnet'
+            })
         });
 
         if (!agentResponse.ok) {
@@ -993,7 +1050,7 @@ export default function Home() {
       await runProgress(1000);
       
       // Call the local Python agent
-      const agentResponse = await fetch('http://localhost:8080/score', {
+      const agentResponse = await fetch('http://localhost:8000/ml/api/score-contribution', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1141,6 +1198,7 @@ export default function Home() {
                   stakeAmount={stakeAmount}
                   setStakeAmount={setStakeAmount}
                   handleStake={handleStake}
+                  handleWithdraw={handleWithdraw}
                   handleBeginSleepVerification={handleBeginSleepVerification}
                   uploadedImage={uploadedImage}
                   videoRef={videoRef}
