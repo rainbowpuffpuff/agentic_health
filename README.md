@@ -1,12 +1,21 @@
-.# think2earn
+# think2earn: A Verifiable AI Platform
 
-This is a Next.js application that gamifies positive actions like sleep and civic engagement through a sovereign identity model on the NEAR blockchain. It was built with Firebase Studio.
+think2earn is a decentralized platform designed to build a fair and transparent AI Ownership Economy. It enables individuals to contribute various types of data (biometric, civic, behavioral) and, in return, receive a verifiable, economic stake in the AI models created from that data.
 
-This project uses a Next.js frontend, Genkit for AI features, and a Rust-based smart contract for on-chain staking on the NEAR protocol.
+This project is built on the NEAR Protocol and utilizes decentralized storage solutions like Swarm. For a complete overview of the project's vision, goals, and technical architecture, please see the **[Project Charter](CHARTER.md)**.
+
+## Project Status & Roadmap
+
+This repository is in active development and is following a phased roadmap. The initial implementation uses a centralized AI service (Google's Genkit) as a temporary placeholder for certain features. This mock implementation will be progressively replaced with a verifiable, decentralized backend.
+
+The full development plan is detailed in the **[Project Charter](CHARTER.md)**, which outlines the following phases:
+1.  **Phase 1: Synthesis & Core Logic Implementation:** Replace the AI mock with a functional Python backend and complete the decentralized storage pipeline.
+2.  **Phase 2: Verifiable Compute & Economic Validation:** Move the Python logic into a Trusted Execution Environment (TEE) and validate the economic model.
+3.  **Phase 3: ZK Integration & Feature Expansion:** Replace remaining mocks with on-device Zero-Knowledge proving systems.
 
 ## Getting Started
 
-Follow these instructions to get the project running on your local machine for development and testing.
+Follow these instructions to get the current version of the project running on your local machine.
 
 ### Prerequisites
 
@@ -23,27 +32,9 @@ First, clone the repository and navigate into the project directory. Then, insta
 npm install
 ```
 
-### 2. Environment Variables
+### 2. Running the Development Server
 
-The AI features in this project use Genkit, which connects to Google's AI services. You will need to set up a `GEMINI_API_KEY`.
-
-1.  Create a `.env.local` file in the root of the project:
-    ```bash
-    touch .env.local
-    ```
-2.  Get your API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
-3.  Add your API key to the `.env.local` file:
-    ```
-    GEMINI_API_KEY="YOUR_API_KEY_HERE"
-    ```
-
-### 3. Running the Development Servers
-
-This project requires two separate development servers to be running simultaneously: one for the Next.js frontend and one for the Genkit AI flows.
-
-**A. Start the Frontend Server:**
-
-Open a terminal and run the following command to start the Next.js application:
+This project uses a Next.js frontend. Run the following command to start the application:
 
 ```bash
 npm run dev
@@ -51,57 +42,31 @@ npm run dev
 
 This will typically start the frontend on `http://localhost:9002`.
 
-**B. Start the Genkit AI Server:**
+**Note on AI Features:** The current version may still contain placeholder AI features that require a `GEMINI_API_KEY` in a `.env.local` file. As development progresses according to the roadmap, this requirement will be removed.
 
-Open a *second* terminal and run the following command to start the Genkit AI service:
+### 3. Smart Contract Deployment
 
-```bash
-npm run genkit:dev
-```
-
-This will start the Genkit development server, allowing the frontend to communicate with the AI models for features like photo analysis.
-
-### 4. Accessing the Application
-
-With both servers running, you can now open your browser and navigate to:
-
-**`http://localhost:9002`**
-
-You should see the application, and all features, including the AI-powered photo analysis, should be functional.
-
-## Smart Contract Deployment (Manual Step)
-
-The application is designed to interact with a custom staking smart contract written in Rust. The code is located in the `contracts/staking_contract` directory.
-
-To make the staking features fully functional, you must compile and deploy this contract to the NEAR testnet yourself.
-
-### Steps:
+The application interacts with a staking smart contract located in the `contracts/staking_contract` directory. To use the staking features, you must compile and deploy this contract to the NEAR testnet.
 
 1.  **Build the Contract:**
-    Navigate to the contract directory and run the build script:
     ```bash
     cd contracts/staking_contract
     ./build.sh
-    # This will compile the contract to a .wasm file
     ```
 
 2.  **Deploy the Contract:**
-    Use the NEAR CLI to create a new testnet account and deploy the contract to it.
+    Use the NEAR CLI to deploy the contract to a testnet account.
     ```bash
-    # Example deployment command
     near deploy --wasmFile res/staking_contract.wasm --accountId your-staking-account.testnet
     ```
 
 3.  **Update the Contract ID:**
-    Once deployed, you need to tell the frontend application where to find your contract.
-    -   Open the file `src/lib/constants.ts`.
-    -   Replace the placeholder contract ID with your new account ID:
-        ```typescript
-        // Before
-        export const CONTRACT_ID = "guest-book.testnet";
+    In `src/lib/constants.ts`, replace the placeholder `CONTRACT_ID` with your deployed contract's account ID.
+    ```typescript
+    // Before
+    export const CONTRACT_ID = "guest-book.testnet";
 
-        // After
-        export const CONTRACT_ID = "your-staking-account.testnet";
-        ```
-
-After completing these steps, the staking and unstaking features in the application will interact directly with your deployed smart contract.
+    // After
+    export const CONTRACT_ID = "your-staking-account.testnet";
+    ```
+This will connect the frontend to your instance of the smart contract.
