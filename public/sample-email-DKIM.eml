@@ -1,0 +1,95 @@
+Delivered-To: bcalincarol@gmail.com
+Received: by 2002:a05:6504:60d6:b0:2b0:eea2:44ab with SMTP id d22csp905134ltt;
+        Fri, 27 Jun 2025 05:18:16 -0700 (PDT)
+X-Forwarded-Encrypted: i=2; AJvYcCUdzYhV/OD6mvNj6ZKJa2MrMTjKax9jhzwk1tIs5HSCSNrRkBwdyIh9QyHZL5nozlIjxVWyYAS2kB2taA==@gmail.com
+X-Received: by 2002:a05:6102:5489:b0:4e7:4f6c:b275 with SMTP id ada2fe7eead31-4ee4f7af5a6mr2030957137.21.1751026695901;
+        Fri, 27 Jun 2025 05:18:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1751026695; cv=none;
+        d=google.com; s=arc-20240605;
+        b=aJJCOvFHrD/tbdAK95oGBH0irTAlcg7eyoE56/zpZYs+Rj+LGd5NKkNd4+VQJzCunZ
+         6ideGq7o8K9eaPjK/gUZ7AICQy/iLJdBQSNIrqiZa17yZq1gOCRQHO6SOzNn/hDSD84J
+         EFEWaZQKz32ujPCXdvjIGTqecSrl3CcW6BxDzFFrex9VlO6YreifsvF7jHLn9KfqgiLF
+         CjLnPrO45PSng+yc1UxrGU0301Kg93cCU4IAiHkBFVdRum0XCWaVTTJTLXRTwo9QLuRb
+         aaL2xadYKL4Z43H1BoEcDH151A8slK+GYyqq9AOVSjNCfJAkjBLauv7T6mqDrrb9JWr6
+         ZeWQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;
+        h=to:subject:message-id:date:from:mime-version:dkim-signature;
+        bh=2/FXNmBbxreB+KhwxKwaq3p/fzqZK45S0wyBV6FP0iI=;
+        fh=SNXsDMF5QSyNEBgBnEj4MQ+IbzyHGb8khwZGki25u4U=;
+        b=YZB3+vjIZsoBJUNlQurGCQducgIqFmVG+lZlc0eAICPYz+fcSlKOuuN/g9Kkj0xyaQ
+         whNu96Pb7xRnVQAnybv7ZN1YXMYAEmsdX6HZ6pl+r7dNiFTfM5CdxfT8UMtGfiIpgjqq
+         q+iE4oLyhdjBdtGxODXv4mRmwu5ifOKp2VXmLJGGlrhVcxvA9Qic171OfeoLzh3F21Cl
+         edtuoUfQYOs3kwDa/uNW5ZQnW1Ovhqc9hR7c/C9trqKU0lSZdg//8JgdFQAi+pkuBfJ8
+         ltUYh/rFDZ5PzcT4q0/safRNo2Tc9FZHKtgbZPjcTfY1OTS47M6SfVX1MHLfy9cv3H0P
+         TYsA==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@gmail.com header.s=20230601 header.b=Y5FkS9QU;
+       spf=pass (google.com: domain of acalincarol@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=acalincarol@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com;
+       dara=pass header.i=@gmail.com
+Return-Path: <acalincarol@gmail.com>
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id ada2fe7eead31-4ee4c88dfdasor16271137.2.2025.06.27.05.18.15
+        for <bcalincarol@gmail.com>
+        (Google Transport Security);
+        Fri, 27 Jun 2025 05:18:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of acalincarol@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@gmail.com header.s=20230601 header.b=Y5FkS9QU;
+       spf=pass (google.com: domain of acalincarol@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=acalincarol@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com;
+       dara=pass header.i=@gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20230601; t=1751026695; x=1751631495; dara=google.com;
+        h=to:subject:message-id:date:from:mime-version:from:to:cc:subject
+         :date:message-id:reply-to;
+        bh=2/FXNmBbxreB+KhwxKwaq3p/fzqZK45S0wyBV6FP0iI=;
+        b=Y5FkS9QUGiCBzAbi0a25TUHecyovB0FZu82pHIfYTUbW1tijRmzdPrUPCR1Rhu3MbL
+         9jNoS6DSKzQQUGzz0pzPc3Yp9vjJsq8tTB2DMRw9bgxDEhnQhMg/zMC8k8JgyjUfp+5o
+         G9WjFk+4nGydfkkU71o2oZ3mbU2MGDxmoQjlak8ZbG1J3QAKXHSfGDoexBBevN12R5xZ
+         KfLvnDY3E57aMkMTdD5DbbGx3m+Xb//2oU9/KAGfX6aYn8/ZhIYQgYiT07HgYkbwmY2+
+         Rd7vWRT+MZCRy3LPoBTWsVJWeVrX+45nw8xQKlcOVVMrty/Ipe2/l9GGb3b0iUR7fB+i
+         9w+g==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20230601; t=1751026695; x=1751631495;
+        h=to:subject:message-id:date:from:mime-version:x-gm-message-state
+         :from:to:cc:subject:date:message-id:reply-to;
+        bh=2/FXNmBbxreB+KhwxKwaq3p/fzqZK45S0wyBV6FP0iI=;
+        b=XFT2iipCv9TxDjNtZapMnj20RWUrSKm7sbAA2iBm6+3lk5drmOAdEvWYnJuHPxZaJe
+         ez4SEMc0Ss4fnunWuR1/IlbYL8NZa4WIE6Byklt71bSWqkK8JZLhlagcBrpwYZqIGT15
+         AgukeSbe14uGqee65yQ3DoGHy+OKE5WcyNgkrAMmWBeuf+ESgGCYg4zfU3s98XFrIukH
+         7Rjr4qYk57TjJytJl+S6+9zy+UMwkrm8Py7k3/2/1A2zAqX+oTRAdGYUiJ6RQ4LBj+yT
+         sGYa2863Lu1U+/TLTLGTCUc1jueAM/OKNjZM0eqO5PFZ4lOVziZRFXy3oKj64kuCKnb3
+         dZ9w==
+X-Forwarded-Encrypted: i=1; AJvYcCW+x/ngw9Ip0h/u8PnHwhTvfW3ItmbhtmJ761vCM/66SfRD7+mSds83cR6X18EXZ2kOqX4U81pfBl2QSg==@gmail.com
+X-Gm-Message-State: AOJu0YwRWqJKVKuxloQ8Rk0rVy3qo+mggwdBvKAQXj/T/vlqBW6Dyk02
+	DhbPkmzbbaaCKIRXqbObtZ4s+0BKol8i86IEPWh1wMiKoH33QBslwGIvbu1exMNjYPz3MSczsQX
+	3bbpEiLihRVLtdxsBi8QEOhOqDFTwtrM=
+X-Gm-Gg: ASbGnctrEXbX4lKnBOYGUO7poxV3PmGktbtNuUT4NyGJLTKhrfQsqgWXE7/DgudJshZ
+	N/cexdTz4vgjzBLItDF/5tVEqAnvO6M8nnv5gRt+0SIt2voxFZJVz8Yuoo+nBe50EhSO7oZpWjR
+	JRNDkNWUKgdT+7lrVtNUT5KGLtKKV4mkO0EfW6SlzJ3H/ufw==
+X-Google-Smtp-Source: AGHT+IH/ANaZ3hs+ZgPPnVWPH7PHKX16MqKVVUOsvzF8PkucLVvyGrlTYvy9vVkN4lNM/eu8q3vO8B3C4o6X2KP9tUA=
+X-Received: by 2002:a05:6102:cc9:b0:4cd:6339:36a1 with SMTP id
+ ada2fe7eead31-4ee4f0b1f6amr769829137.0.1751026695317; Fri, 27 Jun 2025
+ 05:18:15 -0700 (PDT)
+MIME-Version: 1.0
+From: Carol Calin <acalincarol@gmail.com>
+Date: Fri, 27 Jun 2025 14:18:04 +0200
+X-Gm-Features: Ac12FXx4kRTxxh_XivP1sum0u0qabgqbmYS-89ugkOBHbE6bammoFUl5QowIOzw
+Message-ID: <CADXFxifN6LMgQE=rq1cGbA_yAWEQh_GVY7kFQSHgL+Y0FOvRcw@mail.gmail.com>
+Subject: sugar tax
+To: jaak.madison@europarl.europa.eu, bcalincarol@gmail.com
+Content-Type: multipart/alternative; boundary="0000000000002aad3406388cacd8"
+
+--0000000000002aad3406388cacd8
+Content-Type: text/plain; charset="UTF-8"
+
+wdyt of a sugar tax? good for preventing diabetes and saving taxpayer money?
+
+--0000000000002aad3406388cacd8
+Content-Type: text/html; charset="UTF-8"
+
+<div dir="ltr">wdyt of a sugar tax? good for preventing diabetes and saving taxpayer money?</div>
+
+--0000000000002aad3406388cacd8--
