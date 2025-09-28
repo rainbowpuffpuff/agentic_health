@@ -75,3 +75,101 @@ if __name__ == "__main__":
         print_info("API test mode: Testing endpoints only")
     else:
         print_info("Full mode: Complete system validation with ML experiments")
+class Syst
+emTester:
+    """Comprehensive system testing and setup"""
+    
+    def __init__(self, quick_mode: bool = False, setup_only: bool = False, api_test_only: bool = False):
+        self.quick_mode = quick_mode
+        self.setup_only = setup_only
+        self.api_test_only = api_test_only
+        self.results = {}
+        self.start_time = time.time()
+        
+    def run_command(self, command: str, description: str = "", capture_output: bool = True) -> Tuple[bool, str]:
+        """Run a shell command and return success status and output"""
+        try:
+            if capture_output:
+                result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=60)
+                success = result.returncode == 0
+                output = result.stdout + result.stderr
+            else:
+                result = subprocess.run(command, shell=True, timeout=60)
+                success = result.returncode == 0
+                output = ""
+            
+            if success and description:
+                print_success(f"{description}")
+            elif not success and description:
+                print_error(f"{description} - Command failed: {command}")
+                if output:
+                    print(f"Output: {output[:200]}...")
+                    
+            return success, output
+        except subprocess.TimeoutExpired:
+            print_error(f"Command timed out: {command}")
+            return False, "Timeout"
+        except Exception as e:
+            print_error(f"Command failed: {command} - {e}")
+            return False, str(e)
+
+    def run_all_tests(self) -> bool:
+        """Run all tests based on mode"""
+        print_step("Starting System Validation")
+        
+        all_passed = True
+        
+        # Always test dependencies
+        if not self.test_python_imports():
+            all_passed = False
+            
+        # Test data files unless API-only mode
+        if not self.api_test_only:
+            if not self.test_data_files():
+                all_passed = False
+        
+        return all_passed
+    
+    def test_python_imports(self) -> bool:
+        """Test that all required Python modules can be imported"""
+        print_step("Testing Python Dependencies", "Verifying all required modules are available")
+        
+        required_modules = [
+            'fastapi', 'uvicorn', 'pandas', 'numpy', 'sklearn', 
+            'joblib', 'pydantic', 'tempfile', 'pathlib'
+        ]
+        
+        failed_imports = []
+        for module in required_modules:
+            try:
+                __import__(module)
+                print(f"  ✅ {module}")
+            except ImportError:
+                print(f"  ❌ {module}")
+                failed_imports.append(module)
+        
+        if failed_imports:
+            print_error(f"Missing modules: {', '.join(failed_imports)}")
+            print_info("Run: pip install -r requirements.txt")
+            return False
+        
+        print_success("All Python dependencies available")
+        return True
+
+    def test_data_files(self) -> bool:
+        """Test data file availability and management"""
+        print_step("Testing Data File Management", "Verifying split files and reconstruction capability")
+        
+        try:
+            # Test github_data_workflow.py status
+            success, output = self.run_command("python github_data_workflow.py status")
+            if not success:
+                print_error("GitHub data workflow status check failed")
+                return False
+            
+            print_success("Data file management system working")
+            return True
+            
+        except Exception as e:
+            print_error(f"Data file test failed: {e}")
+            return False
