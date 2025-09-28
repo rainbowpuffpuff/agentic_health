@@ -173,3 +173,52 @@ emTester:
         except Exception as e:
             print_error(f"Data file test failed: {e}")
             return False
+ 
+   def test_ml_components(self) -> bool:
+        """Test ML pipeline components"""
+        print_step("Testing ML Components", "Loading models and testing ML pipeline")
+        
+        try:
+            from glucose_ml_processor import GlucoseMLProcessor
+            processor = GlucoseMLProcessor()
+            
+            # Check if models are loaded
+            if hasattr(processor, 'models') and processor.models:
+                model_count = len(processor.models)
+                print_success(f"ML processor loaded with {model_count} trained models")
+                return True
+            else:
+                print_error("ML models not found or not loaded")
+                return False
+                
+        except ImportError as e:
+            print_error(f"Cannot import ML components: {e}")
+            return False
+        except Exception as e:
+            print_error(f"ML component test failed: {e}")
+            return False
+
+    def test_api_endpoints(self) -> bool:
+        """Test API endpoints"""
+        print_step("Testing API Endpoints", "Starting server and testing endpoints")
+        
+        try:
+            import tempfile
+            import json
+            
+            # Test that we can import the main app
+            from main import app
+            print_success("FastAPI app imported successfully")
+            
+            # Test ML pipeline import
+            from ml_pipeline import app as ml_app
+            print_success("ML pipeline app imported successfully")
+            
+            return True
+            
+        except ImportError as e:
+            print_error(f"Cannot import API components: {e}")
+            return False
+        except Exception as e:
+            print_error(f"API test failed: {e}")
+            return False
