@@ -21,6 +21,7 @@ agent_logic/
 │   └── eigen_blood/                 # Research data (split files)
 │
 ├── 🧪 Testing & Validation
+│   ├── setup_and_test.py            # Single-command setup & validation
 │   └── test_ml_complete.py          # Comprehensive test suite
 │
 ├── ⚙️ Configuration
@@ -32,36 +33,197 @@ agent_logic/
     └── eigen_blood/README.md        # Detailed data management guide
 ```
 
-## 🚀 Quick Start
+## 🚀 Quick Start - One Command Setup
 
-### 1. Install Dependencies
+### **Single Command Setup & Test (Recommended)**
 ```bash
 cd agent_logic
 pip install -r requirements.txt
+
+# Run complete system validation (takes 2-5 minutes)
+python setup_and_test.py
+
+# Expected output:
+# 🎯 SYSTEM VALIDATION COMPLETE
+# ✅ PASS Python Dependencies
+# ✅ PASS Data File Management  
+# ✅ PASS ML Components
+# ✅ PASS API Endpoints
+# ✅ PASS ML Scoring
+# 🎉 ALL SYSTEMS OPERATIONAL!
 ```
 
-### 2. Run ML Experiments
+### **Alternative Options**
 ```bash
-# Full cross-session validation experiments
-python -c "from glucose_ml_processor import run_cross_session_experiments; run_cross_session_experiments()"
+# Quick test (skip ML experiments)
+python setup_and_test.py --quick
+
+# Setup verification only
+python setup_and_test.py --setup-only
+
+# API testing only
+python setup_and_test.py --api-test
 ```
 
-### 3. Start Web API
+### **Manual Step-by-Step (If Needed)**
+
+If the single command fails, you can run individual steps:
+
 ```bash
-# Start FastAPI server
+# 1. Check data files
+python github_data_workflow.py status
+
+# 2. Test file reconstruction  
+python github_data_workflow.py test
+
+# 3. Test ML components
+python -c "from ml_pipeline import MLPipeline; pipeline = MLPipeline(); print('✅ Ready with', len(pipeline.glucose_models), 'models')"
+
+# 4. Start production server
 uvicorn main:app --reload --port 8000
 
-# Test API endpoint
+# 5. Test API
 curl -X POST "http://localhost:8000/ml/api/score-contribution" \
   -H "Content-Type: application/json" \
-  -d '{"fnirs_data": "Time,S1_D1_740nm_LP,S1_D1_850nm_LP\n1.0,0.5,0.6", "glucose_level": 6.2, "user_id": "test.testnet"}'
+  -d '{
+    "fnirs_data": "Time,S1_D1_740nm_LP,S1_D1_850nm_LP\n1.0,0.5,0.6\n2.0,0.52,0.58",
+    "glucose_level": 6.2,
+    "user_id": "test.testnet"
+  }'
 ```
 
-### 4. Check System Status
+## 📋 File Execution Order & Purpose
+
+### Core Execution Flow
+```
+1. github_data_workflow.py    → Verify/manage large data files
+2. data_file_manager.py       → Handle file splitting/reconstruction  
+3. glucose_ml_processor.py    → Load ML models and processors
+4. ml_pipeline.py            → Initialize FastAPI ML service
+5. main.py                   → Start complete application
+6. test_ml_complete.py       → Validate entire system
+```
+
+### Individual File Purposes
+
+#### 🔧 **Data Management Files**
+- **`github_data_workflow.py`** - CLI tool for managing 100MB+ research files
+  - Commands: `status`, `test`, `split`, `readme`
+  - Purpose: Ensure GitHub compliance while preserving data access
+  - Run first to verify data availability
+
+- **`data_file_manager.py`** - Core file splitting/merging logic
+  - Auto-reconstructs split files when ML code needs them
+  - Handles temporary file cleanup
+  - Used internally by other components
+
+#### 🧠 **Machine Learning Files**  
+- **`glucose_ml_processor.py`** - Core ML pipeline and model training
+  - Contains trained RandomForest and Ridge models
+  - Handles fNIRS signal processing and feature extraction
+  - Can run standalone experiments with `run_cross_session_experiments()`
+
+- **`ml_pipeline.py`** - FastAPI web service for ML operations
+  - Provides REST API endpoints for fNIRS data processing
+  - Handles contribution scoring (0-100 points)
+  - Can run independently as ML-only service
+
+#### 🌐 **Application Files**
+- **`main.py`** - Complete application entry point
+  - Combines ML pipeline + NEAR blockchain integration
+  - Provides `/api/verify-rest` for sleep verification
+  - Mounts ML endpoints under `/ml/` prefix
+  - Production-ready with proper error handling
+
+#### 🧪 **Testing Files**
+- **`test_ml_complete.py`** - Comprehensive system validation
+  - Tests all components integration
+  - Validates API endpoints and responses
+  - Measures performance benchmarks
+  - Run after setup to ensure everything works
+
+### Troubleshooting Common Issues
+
+#### "File not found" errors
 ```bash
-# Verify data files and system health
+# Check data file status
 python github_data_workflow.py status
+
+# If files missing, they may need to be reconstructed
 python github_data_workflow.py test
+```
+
+#### "Models not loaded" errors  
+```bash
+# Verify model files exist
+ls -la glucose_ml_plots/*.joblib
+
+# Should show: best_model_Train_S1_Test_S2.joblib, best_model_Train_S2_Test_S1.joblib
+```
+
+#### API connection errors
+```bash
+# Check if server is running
+curl http://localhost:8000/
+
+# Check ML service specifically  
+curl http://localhost:8000/ml/api/health
+```
+
+## 🎯 Common Workflows
+
+### For Developers - Setting Up Development Environment
+```bash
+# 1. Verify system integrity
+python github_data_workflow.py status
+python test_ml_complete.py
+
+# 2. Start development server with auto-reload
+uvicorn main:app --reload --port 8000
+
+# 3. Test changes
+curl http://localhost:8000/ml/api/health
+```
+
+### For Researchers - Running ML Experiments  
+```bash
+# 1. Ensure data is available
+python github_data_workflow.py status
+
+# 2. Run full cross-session experiments (takes ~5-10 minutes)
+python -c "from glucose_ml_processor import run_cross_session_experiments; run_cross_session_experiments()"
+
+# 3. Analyze results in glucose_ml_plots/ directory
+ls -la glucose_ml_plots/
+```
+
+### For Production - Deploying the Service
+```bash
+# 1. System validation
+python test_ml_complete.py
+
+# 2. Set environment variables
+export NEAR_ACCOUNT_ID=your-account.testnet
+export NEAR_SEED_PHRASE="your seed phrase"
+
+# 3. Start production server
+uvicorn main:app --host 0.0.0.0 --port 8000
+
+# 4. Verify deployment
+curl http://your-server:8000/
+```
+
+### For Data Scientists - Processing New Data
+```bash
+# 1. Add new data files to eigen_blood/
+# 2. Split large files if needed
+python github_data_workflow.py split
+
+# 3. Test data accessibility
+python -c "from data_file_manager import DataFileManager; dm = DataFileManager('eigen_blood'); dm.ensure_files_available(['your_new_file.csv'])"
+
+# 4. Retrain models with new data
+python -c "from glucose_ml_processor import GlucoseMLProcessor; processor = GlucoseMLProcessor(); processor.train_models()"
 ```
 
 ## 🧠 Machine Learning Pipeline
@@ -239,6 +401,48 @@ The negative R² values indicate that cross-session generalization is challengin
 2. **API Endpoints**: Extend `ml_pipeline.py`
 3. **Data Processing**: Modify `data_file_manager.py`
 4. **Tests**: Update `test_ml_complete.py`
+
+## 🔍 Quick Reference
+
+### Essential Commands
+```bash
+# Complete System Setup & Test (ONE COMMAND)
+python setup_and_test.py
+
+# Quick System Test (skip experiments)
+python setup_and_test.py --quick
+
+# Start Production Server
+uvicorn main:app --host 0.0.0.0 --port 8000
+
+# Test API Health
+curl http://localhost:8000/ml/api/health
+```
+
+### File Dependencies
+```
+github_data_workflow.py  → Manages split data files
+    ↓
+data_file_manager.py     → Reconstructs files for ML use
+    ↓  
+glucose_ml_processor.py  → Loads models and processes data
+    ↓
+ml_pipeline.py          → Provides FastAPI ML endpoints
+    ↓
+main.py                 → Complete application with NEAR integration
+```
+
+### Expected File Sizes
+- Split files: 20-22MB each (11 total files)
+- Reconstructed files: 101MB + 132MB  
+- Model files: ~5MB each (2 models)
+- Total storage: ~500MB
+
+### Performance Expectations
+- File reconstruction: 2-3 seconds
+- ML prediction: <100ms
+- API response: <200ms
+- Full test suite: 30-60 seconds
 
 ---
 
