@@ -18,6 +18,12 @@
   - Update backend to call 'withdraw' instead of 'approve_bonus'
   - Fix function parameters and error handling
   - Add demo mode for when NEAR account not configured
+
+- [ ] 4. Fix withdrawal UI flow after successful verification
+  - Investigate why withdrawal button doesn't appear after successful sleep verification
+  - Ensure frontend properly transitions from verification success to withdrawal state
+  - Fix UI state management to show withdrawal options instead of reverting to verification
+  - _Requirements: 2.4, 3.1_
   - _Requirements: 3.1, 3.2_
 
 ## PR 2: Frontend UX and Manual Withdrawal

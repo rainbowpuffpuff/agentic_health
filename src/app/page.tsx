@@ -1206,7 +1206,7 @@ export default function Home() {
                   stakeAmount={stakeAmount}
                   setStakeAmount={setStakeAmount}
                   handleStake={handleStake}
-                  handleWithdraw={handleWithdraw}
+
                   handleBeginSleepVerification={handleBeginSleepVerification}
                   uploadedImage={uploadedImage}
                   videoRef={videoRef}
