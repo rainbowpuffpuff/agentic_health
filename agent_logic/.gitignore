@@ -11,6 +11,7 @@ agent_logic/temp_merged_files/first_fnirs_log.csv
 
 # Temporary merged files (auto-generated)
 temp_merged_files/
+agent_logic/temp_merged_files/
 
 # ML model outputs (regenerated as needed)
 glucose_ml_plots/
