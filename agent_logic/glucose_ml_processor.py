@@ -20,6 +20,9 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
+# Import our data file manager
+from data_file_manager import DataFileManager
+
 # ==============================================================================
 # --- Master Configuration ---
 # ==============================================================================
@@ -195,11 +198,29 @@ def preprocess_and_feature_engineer(fnirs_path: str, cgm_path: str,
     print(f"Processing fNIRS data from: {fnirs_path}")
     print(f"Processing CGM data from: {cgm_path}")
     
+    # Initialize data file manager to handle split files
+    data_manager = DataFileManager("eigen_blood")
+    
+    # Ensure files are available (merge if needed)
+    try:
+        # Convert absolute paths to relative paths for the manager
+        fnirs_rel_path = os.path.relpath(fnirs_path, "eigen_blood") if fnirs_path.startswith("eigen_blood") else fnirs_path
+        cgm_rel_path = os.path.relpath(cgm_path, "eigen_blood") if cgm_path.startswith("eigen_blood") else cgm_path
+        
+        available_files = data_manager.ensure_files_available([fnirs_rel_path, cgm_rel_path])
+        actual_fnirs_path = available_files[fnirs_rel_path]
+        actual_cgm_path = available_files[cgm_rel_path]
+        
+    except Exception as e:
+        print(f"Warning: Could not use data manager, falling back to direct file access: {e}")
+        actual_fnirs_path = fnirs_path
+        actual_cgm_path = cgm_path
+    
     # Load data
-    df_fnirs = pd.read_csv(fnirs_path)
+    df_fnirs = pd.read_csv(actual_fnirs_path)
     df_fnirs.columns = df_fnirs.columns.str.strip()
     
-    df_cgm = pd.read_csv(cgm_path)
+    df_cgm = pd.read_csv(actual_cgm_path)
     df_cgm.columns = df_cgm.columns.str.strip()
     
     # Process CGM timestamps
