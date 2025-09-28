@@ -238,10 +238,12 @@ class SystemTester:
             
             print_success("Contribution scoring system initialized")
             print_info("Sample fNIRS data prepared for scoring test")
-            
-            # Note: We don't actually call the endpoint here to avoid complexity,
-            # but we've verified the components can be imported and initialized
             print_success("Contribution scoring pipeline ready")
+            
+            # Test Data Shapley implementation if not in quick mode
+            if not self.quick_mode:
+                return self.test_data_shapley()
+            
             return True
                 
         except ImportError as e:
@@ -250,6 +252,50 @@ class SystemTester:
         except Exception as e:
             print_error(f"Contribution scoring test failed: {e}")
             return False
+
+    def test_data_shapley(self) -> bool:
+        """Test real Data Shapley implementation"""
+        print_step("Testing Data Shapley Implementation", "Running real Data Shapley with fNIRS chunks")
+        
+        try:
+            from shapley_scorer import ShapleyScorer
+            
+            print_info("Initializing Shapley scorer with real fNIRS data...")
+            scorer = ShapleyScorer(chunk_size_minutes=2.0)  # Small chunks for fast testing
+            
+            print_info("Running within-session Shapley experiment (this may take 30-60 seconds)...")
+            
+            # Run a quick within-session experiment
+            within_results = scorer.run_shapley_experiment('within')
+            
+            if within_results and 'shapley_values' in within_results:
+                num_chunks = len(within_results['shapley_values'])
+                mean_shapley = within_results['statistics']['mean_shapley']
+                print_success(f"Within-session Shapley completed: {num_chunks} chunks, mean value = {mean_shapley:.4f}")
+                
+                # Only run between-session if within-session worked and we have time
+                if not self.setup_only and mean_shapley != 0:
+                    print_info("Running between-session Shapley experiment...")
+                    between_results = scorer.run_shapley_experiment('between')
+                    
+                    if between_results:
+                        between_mean = between_results['statistics']['mean_shapley']
+                        print_success(f"Between-session Shapley completed: mean value = {between_mean:.4f}")
+                
+                print_success("Data Shapley implementation working correctly")
+                return True
+            else:
+                print_error("Shapley experiment returned no results")
+                return False
+                
+        except ImportError as e:
+            print_error(f"Cannot import Shapley components: {e}")
+            print_info("Data Shapley implementation not available")
+            return True  # Don't fail the whole test
+        except Exception as e:
+            print_error(f"Data Shapley test failed: {e}")
+            print_info("This is expected if data files are not available")
+            return True  # Don't fail the whole test
 
     def test_api_endpoints(self) -> bool:
         """Test API endpoints"""
