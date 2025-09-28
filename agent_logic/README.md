@@ -27,10 +27,16 @@ python setup_and_test.py
 
 **That's it!** This single command will:
 - ✅ Validate all dependencies and data files
-- ✅ Test ML pipeline with real fNIRS data (100MB+ datasets)
-- ✅ Demonstrate Data Shapley fair reward calculation
+- ✅ Test ML pipeline with real fNIRS data
 - ✅ Validate API endpoints and production readiness
-- ✅ Show complete think2earn workflow in action
+- ✅ Show complete system status
+
+### Alternative Modes
+```bash
+python setup_and_test.py --quick      # Skip ML experiments (faster)
+python setup_and_test.py --setup-only # Just verify setup
+python setup_and_test.py --api-test   # Test APIs only
+```
 
 ## 🏗️ System Overview
 
