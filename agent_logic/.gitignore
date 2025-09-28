@@ -1,7 +1,13 @@
-# Large data files - use split versions instead
-# These files are reconstructed from split parts when needed
+# Large original data files (over 100MB - reconstructed from split parts)
 eigen_blood/first_session/first_fnirs_log.csv
 eigen_blood/second_session/second_fnirs_log.csv
+
+# Files over 100MB that block GitHub push
+agent_logic/eigen_blood/second_session/second_fnirs_log.csv
+agent_logic/temp_merged_files/first_fnirs_log.csv
+
+# Keep split files under 25MB - they should be uploaded to GitHub
+# The 20-22MB split parts are fine for GitHub
 
 # Temporary merged files (auto-generated)
 temp_merged_files/
