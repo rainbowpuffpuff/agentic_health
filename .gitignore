@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
@@ -44,7 +43,65 @@ next-env.d.ts
 # firebase
 firebase-debug.log
 firestore-debug.log
-=======
+
+# Kiro IDE (development environment)
+.kiro/
+
+# Python cache and temporary files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ML pipeline temporary files
+agent_logic/temp_merged_files/
+agent_logic/glucose_ml_plots/*.png
+agent_logic/glucose_ml_plots/*.jpg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Virtual environments
 .env
-node_modules
->>>>>>> Stashed changes
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
