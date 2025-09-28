@@ -122,17 +122,17 @@ async def verify_rest(request: ProofOfRestRequest):
             "status": "success",
             "message": f"Mock verification successful for {request.accountId}",
             "transaction_hash": "mock_tx_hash_for_testing",
-            "next_step": "Sleep verification complete! Your bonus has been approved."
+            "next_step": "Sleep verification complete! Your funds with 10% bonus will be automatically withdrawn (agent not configured for demo)."
         }
 
     # Step 2: Call the smart contract to approve the bonus using py-near.
     try:
-        print(f"Attempting to call 'approve_bonus' for staker: {request.accountId}")
+        print(f"Attempting to call 'withdraw' for staker: {request.accountId}")
         
         # py-near uses a slightly different syntax for function calls
         result = await agent_account.function_call(
             contract_id=contract_id,
-            method_name="approve_bonus",
+            method_name="withdraw",
             args={"staker_id": request.accountId},
             gas=30 * NEAR.TERA,  # 30 TGas in py-near
             nowait=False # Wait for the transaction to complete
@@ -147,7 +147,7 @@ async def verify_rest(request: ProofOfRestRequest):
             "status": "success",
             "message": f"Bonus approved for {request.accountId}",
             "transaction_hash": tx_hash,
-            "next_step": "Sleep verification complete! Your bonus has been approved on the blockchain."
+            "next_step": "Sleep verification complete! Your funds with 10% bonus have been automatically withdrawn to your wallet."
         }
     except Exception as e:
         print(f"Error calling 'approve_bonus' for {request.accountId}: {e}")

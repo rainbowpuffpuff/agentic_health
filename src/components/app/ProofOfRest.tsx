@@ -24,7 +24,7 @@ type ProofOfRestProps = {
     stakeAmount?: string;
     setStakeAmount?: (value: string) => void;
     handleStake?: () => void;
-    handleWithdraw?: () => void;
+
     handleBeginSleepVerification: () => void;
     uploadedImage?: { url: string, date: string } | null;
     videoRef?: React.RefObject<HTMLVideoElement>;
@@ -95,7 +95,7 @@ export default function ProofOfRest({
     stakeAmount,
     setStakeAmount,
     handleStake,
-    handleWithdraw,
+
     handleBeginSleepVerification,
     uploadedImage,
     videoRef,
@@ -243,14 +243,14 @@ export default function ProofOfRest({
                                 <p className="text-xs text-muted-foreground mt-1">Complete sleep verification to get it back with a bonus.</p>
                             </div>
                             <div className="flex gap-2">
-                                <Button onClick={handleBeginSleepVerification} disabled={isVerifyingSleep} className="flex-1">
-                                    Verify Sleep
-                                </Button>
-                                <Button onClick={handleWithdraw} disabled={isVerifyingSleep} variant="outline" className="flex-1">
+                                <Button onClick={handleBeginSleepVerification} disabled={isVerifyingSleep} className="w-full">
                                     <PiggyBank className="mr-2 h-4 w-4" />
-                                    Withdraw with Bonus
+                                    Verify Sleep & Withdraw with Bonus
                                 </Button>
                             </div>
+                            <p className="text-xs text-muted-foreground text-center">
+                                Your funds will be automatically returned with 10% bonus after successful verification
+                            </p>
                             {isVerifyingSleep && <ProgressDisplay state={appState} />}
                         </div>
                     ) : (
