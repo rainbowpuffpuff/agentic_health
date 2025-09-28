@@ -44,8 +44,9 @@ next-env.d.ts
 firebase-debug.log
 firestore-debug.log
 
-# Kiro IDE (development environment)
-.kiro/
+# Kiro IDE temporary files (keep specs and main config)
+.kiro/session_notes.md
+.kiro/completed_tasks.md
 
 # Python cache and temporary files
 __pycache__/
