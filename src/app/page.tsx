@@ -384,6 +384,68 @@ export default function Home() {
     }
   };
 
+  const handleWithdraw = async () => {
+    if (!walletConnected || !selector) {
+      toast({ variant: "destructive", title: "Wallet not connected", description: "Please connect your NEAR wallet to withdraw funds." });
+      return;
+    }
+    
+    const wallet = await selector.wallet();
+    if (!wallet) {
+      toast({ variant: "destructive", title: "Wallet not connected" });
+      return;
+    }
+
+    if (!stakerInfo || !stakerInfo.amount || stakerInfo.amount === '0') {
+      toast({ variant: "destructive", title: "No funds to withdraw", description: "You don't have any staked funds to withdraw." });
+      return;
+    }
+
+    try {
+      const result = await wallet.signAndSendTransaction({
+        receiverId: CONTRACT_ID,
+        actions: [
+          {
+            type: 'FunctionCall',
+            params: {
+              methodName: 'unstake',
+              args: {
+                amount: stakerInfo.amount
+              },
+              gas: THIRTY_TGAS,
+              deposit: "0",
+            },
+          },
+        ],
+      });
+      
+      const txHash = (result as FinalExecutionOutcome).transaction_outcome.id;
+      showTransactionToast(txHash, "Withdrawal Successful!");
+      
+      // Update UI - clear staker info since funds are withdrawn
+      setStakerInfo(null);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Refresh account balance
+      getAccountBalance(signedAccountId!);
+      
+    } catch (error: any) {
+      if (error.message.includes("User closed the window")) {
+        toast({
+          variant: "default",
+          title: "Transaction Cancelled",
+          description: "You cancelled the withdrawal in your wallet.",
+        });
+      } else {
+        console.error("Withdrawal failed:", error);
+        toast({
+          variant: "destructive",
+          title: "Withdrawal Failed",
+          description: error.message || "An unknown error occurred during withdrawal.",
+        });
+      }
+    }
+  };
 
   const handleBeginSleepVerification = () => {
     setUploadedImage(null);
@@ -1144,6 +1206,7 @@ export default function Home() {
                   stakeAmount={stakeAmount}
                   setStakeAmount={setStakeAmount}
                   handleStake={handleStake}
+                  handleWithdraw={handleWithdraw}
                   handleBeginSleepVerification={handleBeginSleepVerification}
                   uploadedImage={uploadedImage}
                   videoRef={videoRef}
