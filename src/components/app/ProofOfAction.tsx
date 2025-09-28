@@ -12,6 +12,9 @@ import { Mail, CheckCircle2, Upload, KeyRound, Sprout, FileQuestion, ExternalLin
 import { cn } from '@/lib/utils';
 import type { Campaign, CampaignState, GardenFlower } from '@/app/page';
 import { CAMPAIGN_DETAILS } from '@/app/page';
+import { useZKEmail, useEmailUpload } from '@/hooks/use-zk-email';
+import { generateSampleEmailForCampaign } from '@/lib/zk-email';
+import { ZK_EMAIL_DEV_CONFIG } from '@/lib/zk-email-config';
 
 type ProofOfActionProps = {
     appState: string;
@@ -76,6 +79,53 @@ export default function ProofOfAction({
     emailUploadRef,
     handleUseBoilerplateEmail,
 }: ProofOfActionProps) {
+    // ZK-Email SDK integration
+    const zkEmail = useZKEmail();
+    const emailUpload = useEmailUpload();
+
+    // Handle email file upload and proof generation
+    const handleEmailUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        try {
+            await emailUpload.handleFileUpload(file);
+            
+            if (emailUpload.emlContent) {
+                // Generate ZK proof from uploaded email
+                const proof = await zkEmail.generateProof(emailUpload.emlContent, selectedCampaign);
+                
+                if (proof) {
+                    console.log('Generated civic engagement proof:', proof);
+                    // TODO: Submit proof for verification and reward distribution
+                }
+            }
+        } catch (error) {
+            console.error('Email upload failed:', error);
+        }
+    };
+
+    // Handle sample email generation for testing
+    const handleUseSampleEmail = async (campaign: Campaign) => {
+        if (!ZK_EMAIL_DEV_CONFIG.DEV_MODE) {
+            console.warn('Sample emails only available in development mode');
+            return;
+        }
+
+        try {
+            const sampleEml = generateSampleEmailForCampaign(campaign);
+            
+            // Generate ZK proof from sample email
+            const proof = await zkEmail.generateProof(sampleEml, campaign);
+            
+            if (proof) {
+                console.log('Generated proof from sample email:', proof);
+                // TODO: Submit proof for verification and reward distribution
+            }
+        } catch (error) {
+            console.error('Sample email proof generation failed:', error);
+        }
+    };
     return (
         <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5">
             <CardHeader>
@@ -154,7 +204,7 @@ export default function ProofOfAction({
                                                         <Mail className="mr-2" />
                                                         Send Email
                                                     </Button>
-                                                    <Button onClick={() => handleUseBoilerplateEmail(campaign)} disabled={isVerifyingAction} className="w-full" size="sm" variant="secondary">
+                                                    <Button onClick={() => handleUseSampleEmail(campaign)} disabled={isVerifyingAction || zkEmail.isGeneratingProof} className="w-full" size="sm" variant="secondary">
                                                         <FileQuestion className="mr-2" />
                                                         Use Sample Email
                                                     </Button>
@@ -162,11 +212,11 @@ export default function ProofOfAction({
                                             )}
                                             {campaignState === 'email_pending' && (
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                     <Button onClick={() => emailUploadRef.current?.click()} disabled={isVerifyingAction} className="w-full" size="sm" variant="outline">
+                                                     <Button onClick={() => emailUploadRef.current?.click()} disabled={isVerifyingAction || zkEmail.isGeneratingProof} className="w-full" size="sm" variant="outline">
                                                         <Upload className="mr-2" />
                                                         Upload Signed Email (.eml)
                                                     </Button>
-                                                    <Button onClick={() => handleUseBoilerplateEmail(campaign)} disabled={isVerifyingAction} className="w-full" size="sm" variant="secondary">
+                                                    <Button onClick={() => handleUseSampleEmail(campaign)} disabled={isVerifyingAction || zkEmail.isGeneratingProof} className="w-full" size="sm" variant="secondary">
                                                         <FileQuestion className="mr-2" />
                                                         Use Sample Email
                                                     </Button>
@@ -190,6 +240,39 @@ export default function ProofOfAction({
                         })}
                     </RadioGroup>
                     {isVerifyingAction && <ProgressDisplay state={appState} />}
+                    
+                    {/* ZK-Email SDK Status */}
+                    {zkEmail.error && (
+                        <Alert variant="destructive">
+                            <AlertTitle>ZK-Email Error</AlertTitle>
+                            <AlertDescription>{zkEmail.error}</AlertDescription>
+                        </Alert>
+                    )}
+                    
+                    {zkEmail.isInitializing && (
+                        <Alert>
+                            <KeyRound className="h-4 w-4 animate-spin" />
+                            <AlertTitle>Initializing ZK-Email SDK</AlertTitle>
+                            <AlertDescription>Setting up zero-knowledge proof generation...</AlertDescription>
+                        </Alert>
+                    )}
+                    
+                    {zkEmail.isGeneratingProof && (
+                        <Alert>
+                            <KeyRound className="h-4 w-4 animate-spin" />
+                            <AlertTitle>Generating ZK Proof</AlertTitle>
+                            <AlertDescription>Creating privacy-preserving proof of your civic engagement...</AlertDescription>
+                        </Alert>
+                    )}
+                    
+                    {/* Hidden file input for email upload */}
+                    <input
+                        ref={emailUploadRef}
+                        type="file"
+                        accept=".eml"
+                        onChange={handleEmailUpload}
+                        style={{ display: 'none' }}
+                    />
                 </div>
             </CardContent>
         </Card>
