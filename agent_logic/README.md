@@ -245,6 +245,36 @@ python -c "from data_file_manager import DataFileManager; dm = DataFileManager('
 python -c "from glucose_ml_processor import GlucoseMLProcessor; processor = GlucoseMLProcessor(); processor.train_models()"
 ```
 
+## 🚀 Quick Start
+
+### 1. Install Dependencies
+```bash
+cd agent_logic
+pip install -r requirements.txt
+```
+
+### 2. Run ML Experiments
+```bash
+# Full cross-session validation experiments
+python -c "from glucose_ml_processor import run_cross_session_experiments; run_cross_session_experiments()"
+```
+
+### 3. Start Web API
+```bash
+# Start FastAPI server
+uvicorn main:app --reload --port 8000
+
+# Test API endpoint
+curl -X POST "http://localhost:8000/ml/api/score-contribution" \
+  -H "Content-Type: application/json" \
+  -d '{"fnirs_data": "Time,S1_D1_740nm_LP,S1_D1_850nm_LP\n1.0,0.5,0.6", "glucose_level": 6.2, "user_id": "test.testnet"}'
+```
+
+### 4. Check System Status
+```bash
+# Verify data files and system health
+```
+
 ## 🧠 Machine Learning Pipeline
 
 ### Data Flow
