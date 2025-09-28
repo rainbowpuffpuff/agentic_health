@@ -7,7 +7,7 @@
  * - DetectSleepingSurfaceOutput - The return type for the function.
  */
 
-import {ai} from '@/ai';
+import {ai} from '../init';
 import {z} from 'zod';
 
 const DetectSleepingSurfaceInputSchema = z.object({
