@@ -7,7 +7,7 @@
  * - ScoreDataContributionOutput - The return type for the function.
  */
 
-import {ai} from '@/ai/genkit';
+import {ai} from '@/ai';
 import {z} from 'zod';
 
 const ScoreDataContributionInputSchema = z.object({
