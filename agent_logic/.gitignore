@@ -35,3 +35,14 @@ Thumbs.db
 
 # Large files (anything over 50MB should be split)
 *.csv.large
+
+# Temporary analysis files
+cleanup_analysis.py
+*_analysis.py
+
+# Shell scripts (if any)
+*.sh
+
+# Temporary test files
+test_*.py
+!test_ml_complete.py
