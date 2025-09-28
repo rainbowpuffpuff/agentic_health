@@ -24,6 +24,7 @@ type ProofOfRestProps = {
     stakeAmount?: string;
     setStakeAmount?: (value: string) => void;
     handleStake?: () => void;
+    handleWithdraw?: () => void;
     handleBeginSleepVerification: () => void;
     uploadedImage?: { url: string, date: string } | null;
     videoRef?: React.RefObject<HTMLVideoElement>;
@@ -94,6 +95,7 @@ export default function ProofOfRest({
     stakeAmount,
     setStakeAmount,
     handleStake,
+    handleWithdraw,
     handleBeginSleepVerification,
     uploadedImage,
     videoRef,
@@ -240,9 +242,15 @@ export default function ProofOfRest({
                                 <p className='text-sm font-semibold'>You have <span className="font-bold text-primary">{utils.format.formatNearAmount(stakerInfo.amount, 4)} NEAR</span> committed.</p>
                                 <p className="text-xs text-muted-foreground mt-1">Complete sleep verification to get it back with a bonus.</p>
                             </div>
-                            <Button onClick={handleBeginSleepVerification} disabled={isVerifyingSleep} className="w-full">
-                                Verify Sleep
-                            </Button>
+                            <div className="flex gap-2">
+                                <Button onClick={handleBeginSleepVerification} disabled={isVerifyingSleep} className="flex-1">
+                                    Verify Sleep
+                                </Button>
+                                <Button onClick={handleWithdraw} disabled={isVerifyingSleep} variant="outline" className="flex-1">
+                                    <PiggyBank className="mr-2 h-4 w-4" />
+                                    Withdraw with Bonus
+                                </Button>
+                            </div>
                             {isVerifyingSleep && <ProgressDisplay state={appState} />}
                         </div>
                     ) : (
