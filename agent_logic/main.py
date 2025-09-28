@@ -73,26 +73,47 @@ async def verify_rest(request: ProofOfRestRequest):
     global agent_account
     contract_id = os.environ.get("NEXT_PUBLIC_contractId", "stake-bonus-js.think2earn.near")
 
-    # Step 1: Enhanced image analysis with better logging
-    print(f"Received verification request for account: {request.accountId}")
-    print(f"Photo data URI prefix: {request.photoDataUri[:50]}...")
-    
-    # More lenient verification - accept any data URI or valid image format
-    is_verified = (
-        request.photoDataUri.startswith("data:image/") or 
-        request.photoDataUri.startswith("data:") or
-        len(request.photoDataUri) > 100  # Assume it's a valid image if it's long enough
-    )
-    
-    if not is_verified:
-        print(f"Verification failed for {request.accountId}: Invalid photo format")
-        return {
-            "isSleepingSurface": False,
-            "status": "failed",
-            "reason": "Image is not a valid sleeping surface. Please take a photo of your bed or sleeping area."
-        }
-    
-    print(f"Photo verification successful for {request.accountId}")
+    # Step 1: Computer vision analysis using PaliGemma
+    try:
+        from sleep_vision import verify_sleep_photo
+        
+        print(f"Analyzing sleep photo for user: {request.accountId}")
+        vision_result = verify_sleep_photo(request.photoDataUri)
+        
+        is_verified = vision_result['is_valid_sleep_surface']
+        confidence = vision_result['confidence']
+        analysis = vision_result['analysis']
+        
+        print(f"Vision analysis result: {is_verified} (confidence: {confidence:.2f})")
+        print(f"Analysis: {analysis}")
+        
+        if not is_verified:
+            return {
+                "isSleepingSurface": False,
+                "status": "failed",
+                "reason": f"Sleep verification failed: {vision_result['reason']} (confidence: {confidence:.2f})"
+            }
+        
+        # Require minimum confidence for approval
+        if confidence < 0.4:
+            return {
+                "isSleepingSurface": False,
+                "status": "failed",
+                "reason": f"Sleep verification confidence too low: {confidence:.2f} < 0.4 required"
+            }
+            
+        print(f"Sleep surface verified with {confidence:.2f} confidence: {analysis}")
+        
+    except ImportError:
+        print("WARNING: sleep_vision module not available, using fallback verification")
+        # Fallback to simple verification
+        is_verified = request.photoDataUri.startswith("data:image/")
+        if not is_verified:
+            return {
+                "isSleepingSurface": False,
+                "status": "failed",
+                "reason": "Image is not a valid sleeping surface. Please take a photo of your bed or sleeping area."
+            }
 
     if not agent_account:
         print("WARNING: Agent not configured, returning mock success for testing")
