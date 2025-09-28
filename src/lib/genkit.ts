@@ -3,15 +3,8 @@
  * @fileOverview AI flows for the application, consolidated to prevent module resolution issues.
  */
 
-import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
-
-// Initialize Genkit and the AI model
-export const ai = genkit({
-  plugins: [googleAI()],
-  model: 'googleai/gemini-2.0-flash',
-});
+import { ai } from './ai-client';
 
 //
 // == DETECT SLEEPING SURFACE FLOW ==
