@@ -9,10 +9,20 @@ This directory contains large fNIRS data files that have been split for GitHub c
 - `second_fnirs_log.csv` (132MB) - **REMOVED**
 
 ### Split Files (GitHub Compatible)
-- `first_fnirs_log_part01.csv` (50.5MB)
-- `first_fnirs_log_part02.csv` (50.5MB)
-- `second_fnirs_log_part01.csv` (66.1MB)
-- `second_fnirs_log_part02.csv` (66.1MB)
+**First Session fNIRS (101MB → 5 parts):**
+- `first_fnirs_log_part01.csv` (20.2MB)
+- `first_fnirs_log_part02.csv` (20.2MB)
+- `first_fnirs_log_part03.csv` (20.2MB)
+- `first_fnirs_log_part04.csv` (20.2MB)
+- `first_fnirs_log_part05.csv` (20.2MB)
+
+**Second Session fNIRS (132MB → 6 parts):**
+- `second_fnirs_log_part01.csv` (22.0MB)
+- `second_fnirs_log_part02.csv` (22.0MB)
+- `second_fnirs_log_part03.csv` (22.0MB)
+- `second_fnirs_log_part04.csv` (22.0MB)
+- `second_fnirs_log_part05.csv` (22.0MB)
+- `second_fnirs_log_part06.csv` (22.0MB)
 
 ### Small Files (Unchanged)
 - `first_cgm_log.csv` (228 bytes)
@@ -63,7 +73,7 @@ See `file_manifest.txt` for complete file inventory with checksums.
 
 ## Benefits
 
-✅ **GitHub Compatible**: All files under 100MB limit  
+✅ **GitHub Compatible**: All files under 25MB (well under GitHub's 50MB warning)  
 ✅ **Transparent**: ML code works without changes  
 ✅ **Automatic**: No manual file management needed  
 ✅ **Verified**: Complete ML pipeline tested and working  
