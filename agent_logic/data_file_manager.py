@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import List, Tuple, Dict
 import hashlib
 
-# GitHub file size limit (we'll use 90MB to be safe)
-MAX_FILE_SIZE_MB = 90
+# GitHub file size limit (we'll use 25MB to be well under the 50MB warning)
+MAX_FILE_SIZE_MB = 25
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
 class DataFileManager:
