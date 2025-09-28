@@ -74,7 +74,19 @@ if __name__ == "__main__":
     elif args.api_test:
         print_info("API test mode: Testing endpoints only")
     else:
-        print_info("Full mode: Complete system validation with ML experiments")
+        print_info("Full mode: Complete system validation")
+    
+    # Run the tests
+    tester = SystemTester(
+        quick_mode=args.quick,
+        setup_only=args.setup_only,
+        api_test_only=args.api_test
+    )
+    
+    success = tester.run_all_tests()
+    tester.print_summary(success)
+    
+    sys.exit(0 if success else 1)
 class Syst
 emTester:
     """Comprehensive system testing and setup"""
@@ -128,7 +140,35 @@ emTester:
             if not self.test_data_files():
                 all_passed = False
         
+        # Test ML components unless setup-only mode
+        if not self.setup_only:
+            if not self.test_ml_components():
+                all_passed = False
+                
+        # Test API endpoints
+        if not self.test_api_endpoints():
+            all_passed = False
+        
         return all_passed
+    
+    def print_summary(self, success: bool):
+        """Print final summary"""
+        elapsed = time.time() - self.start_time
+        
+        if success:
+            print_header("🎉 ALL SYSTEMS OPERATIONAL!", "🎯")
+            print_success("System validation completed successfully")
+            print_info(f"Total time: {elapsed:.1f} seconds")
+            print()
+            print_info("Next Steps:")
+            print("  1. Start production server: uvicorn main:app --port 8000")
+            print("  2. Test API: curl http://localhost:8000/ml/api/health")
+        else:
+            print_header("❌ VALIDATION FAILED", "⚠️")
+            print_error("Some components failed validation")
+            print_info("Check the errors above and run:")
+            print("  pip install -r requirements.txt")
+            print("  python github_data_workflow.py status")
     
     def test_python_imports(self) -> bool:
         """Test that all required Python modules can be imported"""
