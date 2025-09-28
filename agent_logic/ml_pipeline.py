@@ -429,17 +429,16 @@ async def score_contribution(request: ScoreContributionRequest) -> ScoreContribu
         
         # Step 3: Calculate real Data Shapley contribution score
         try:
-            from shapley_scorer import ShapleyScorer
+            from shapley_scorer import ShapleyScorer, DataChunk
             
             # Initialize Shapley scorer with fast settings for API response
-            shapley_scorer = ShapleyScorer(chunk_size_minutes=1.0)  # Small chunks for fast calculation
+            shapley_scorer = ShapleyScorer(chunk_size_minutes=2.0)  # Small chunks for fast calculation
             
             # Convert user data to format expected by Shapley scorer
             user_fnirs_array = pipeline._parse_fnirs_csv_to_array(request.fnirs_data)
             user_glucose_array = np.full(len(user_fnirs_array), request.glucose_level)
             
-            # Create a simulated user chunk for Shapley calculation
-            from shapley_scorer import DataChunk
+            # Create user's data chunk for Shapley calculation
             user_chunk = DataChunk(
                 fnirs_data=user_fnirs_array,
                 glucose_data=user_glucose_array,
@@ -452,37 +451,64 @@ async def score_contribution(request: ScoreContributionRequest) -> ScoreContribu
             # Load existing session data for comparison
             session1_chunks, session2_chunks = shapley_scorer.load_and_chunk_data()
             
-            # Calculate Shapley value using within-session approach (faster)
-            # Add user chunk to session 1 for comparison
-            extended_session1 = session1_chunks + [user_chunk]
-            user_shapley_value = shapley_scorer.calculate_within_session_shapley(
-                extended_session1, 
-                len(extended_session1) - 1,  # User chunk is last
-                num_coalitions=10  # Fast calculation for API
-            )
+            print(f"Loaded {len(session1_chunks)} chunks from Session 1, {len(session2_chunks)} chunks from Session 2")
             
-            print(f"Calculated Shapley value for {request.user_id}: {user_shapley_value:.4f}")
+            # Run two separate within-session Shapley simulations
+            shapley_values = []
             
-            # Convert Shapley value to contribution score (0-100)
-            # Normalize based on typical Shapley value ranges we observed
-            shapley_normalized = max(-0.1, min(0.2, user_shapley_value))  # Clip to observed range
-            shapley_score = int(((shapley_normalized + 0.1) / 0.3) * 100)  # Scale to 0-100
+            # Simulation 1: User data vs Session 1 chunks (within-session style)
+            if len(session1_chunks) >= 3:  # Need enough chunks for meaningful coalitions
+                # Simulate user data as if it were a chunk in Session 1
+                sim1_chunks = session1_chunks + [user_chunk]
+                shapley_val_1 = shapley_scorer.calculate_within_session_shapley(
+                    sim1_chunks,
+                    len(sim1_chunks) - 1,  # User chunk is last
+                    num_coalitions=8  # Fast calculation for API
+                )
+                shapley_values.append(shapley_val_1)
+                print(f"Session 1 simulation - User Shapley: {shapley_val_1:.4f}")
             
-            # Combine Shapley score with data quality for final score
-            quality_bonus = int(quality_metrics.data_completeness * 
-                              min(quality_metrics.signal_to_noise_ratio, 10) * 2)
-            quality_bonus = min(20, max(0, quality_bonus))
+            # Simulation 2: User data vs Session 2 chunks (within-session style)  
+            if len(session2_chunks) >= 3:  # Need enough chunks for meaningful coalitions
+                # Simulate user data as if it were a chunk in Session 2
+                sim2_chunks = session2_chunks + [user_chunk]
+                shapley_val_2 = shapley_scorer.calculate_within_session_shapley(
+                    sim2_chunks,
+                    len(sim2_chunks) - 1,  # User chunk is last
+                    num_coalitions=8  # Fast calculation for API
+                )
+                shapley_values.append(shapley_val_2)
+                print(f"Session 2 simulation - User Shapley: {shapley_val_2:.4f}")
             
-            contribution_score = min(100, max(0, shapley_score + quality_bonus))
-            
-            # Generate explanation with Shapley details
-            reason_parts = []
-            reason_parts.append(f"Data Shapley value: {user_shapley_value:.4f}")
-            reason_parts.append(f"Shapley contribution: {shapley_score}/80 points")
-            reason_parts.append(f"Data quality bonus: {quality_bonus}/20 points")
-            reason_parts.append(f"Model improvement: {'Positive' if user_shapley_value > 0 else 'Neutral/Negative'}")
-            
-            shapley_explanation = "Real Data Shapley calculation based on marginal contribution to model performance"
+            # Average the Shapley values from both simulations
+            if shapley_values:
+                user_shapley_value = np.mean(shapley_values)
+                shapley_std = np.std(shapley_values) if len(shapley_values) > 1 else 0.0
+                
+                print(f"Final averaged Shapley value for {request.user_id}: {user_shapley_value:.4f} (±{shapley_std:.4f})")
+                
+                # Convert Shapley value to contribution score (0-100)
+                # Normalize based on typical Shapley value ranges we observed
+                shapley_normalized = max(-0.1, min(0.2, user_shapley_value))  # Clip to observed range
+                shapley_score = int(((shapley_normalized + 0.1) / 0.3) * 80)  # Scale to 0-80 points
+                
+                # Data quality bonus (0-20 points)
+                quality_bonus = int(quality_metrics.data_completeness * 
+                                  min(quality_metrics.signal_to_noise_ratio, 10) * 2)
+                quality_bonus = min(20, max(0, quality_bonus))
+                
+                contribution_score = min(100, max(0, shapley_score + quality_bonus))
+                
+                # Generate explanation with Shapley details
+                reason_parts = []
+                reason_parts.append(f"Avg Shapley value: {user_shapley_value:.4f} (2 simulations)")
+                reason_parts.append(f"Shapley contribution: {shapley_score}/80 points")
+                reason_parts.append(f"Data quality bonus: {quality_bonus}/20 points")
+                reason_parts.append(f"Model improvement: {'Positive' if user_shapley_value > 0 else 'Neutral/Negative'}")
+                
+                shapley_explanation = f"Real Data Shapley from {len(shapley_values)} within-session simulations"
+            else:
+                raise ValueError("Could not calculate Shapley values - insufficient session data")
             
         except Exception as shapley_error:
             print(f"Shapley calculation failed, falling back to heuristic scoring: {shapley_error}")

@@ -298,8 +298,8 @@ class SystemTester:
             return True  # Don't fail the whole test
 
     def test_api_endpoints(self) -> bool:
-        """Test API endpoints"""
-        print_step("Testing API Endpoints", "Starting server and testing endpoints")
+        """Test API endpoints including real Shapley scoring"""
+        print_step("Testing API Endpoints", "Testing imports and real scoring functionality")
         
         try:
             import tempfile
@@ -310,8 +310,12 @@ class SystemTester:
             print_success("FastAPI app imported successfully")
             
             # Test ML pipeline import
-            from ml_pipeline import ml_app
+            from ml_pipeline import ml_app, ScoreContributionRequest
             print_success("ML pipeline app imported successfully")
+            
+            # Test the actual scoring function with sample data
+            if not self.setup_only:
+                return self.test_real_shapley_scoring()
             
             return True
             
@@ -320,6 +324,75 @@ class SystemTester:
             return False
         except Exception as e:
             print_error(f"API test failed: {e}")
+            return False
+
+    def test_real_shapley_scoring(self) -> bool:
+        """Test the real Shapley scoring endpoint with sample fNIRS data"""
+        print_step("Testing Real Shapley Scoring", "Running actual score calculation with sample data")
+        
+        try:
+            from ml_pipeline import score_contribution, ScoreContributionRequest
+            import asyncio
+            
+            # Create sample fNIRS data that mimics real format
+            sample_fnirs_data = """Time,S1_D1_740nm_LP,S1_D1_850nm_LP
+0.1,0.5234,0.6123
+0.2,0.5187,0.6089
+0.3,0.5298,0.6156
+0.4,0.5156,0.6078
+0.5,0.5267,0.6134
+0.6,0.5203,0.6098
+0.7,0.5289,0.6145
+0.8,0.5178,0.6087
+0.9,0.5245,0.6112
+1.0,0.5234,0.6123"""
+            
+            # Create test request
+            test_request = ScoreContributionRequest(
+                fnirs_data=sample_fnirs_data,
+                glucose_level=6.2,
+                user_id="test.testnet"
+            )
+            
+            print_info("Running Shapley scoring calculation...")
+            
+            # Run the scoring function
+            async def run_scoring():
+                return await score_contribution(test_request)
+            
+            # Execute the async function
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                result = loop.run_until_complete(run_scoring())
+                
+                # Validate the result
+                if hasattr(result, 'contribution_score') and hasattr(result, 'reward_points'):
+                    score = result.contribution_score
+                    points = result.reward_points
+                    processing_time = result.processing_time
+                    
+                    print_success(f"Shapley scoring successful: {score}/100 points, {points} reward points")
+                    print_info(f"Processing time: {processing_time:.3f}s")
+                    print_info(f"Explanation: {result.reason[:100]}...")
+                    
+                    # Validate score is in expected range
+                    if 0 <= score <= 100 and points >= 0:
+                        print_success("Score values are within expected ranges")
+                        return True
+                    else:
+                        print_error(f"Score values out of range: score={score}, points={points}")
+                        return False
+                else:
+                    print_error("Response missing required fields")
+                    return False
+                    
+            finally:
+                loop.close()
+                
+        except Exception as e:
+            print_error(f"Real Shapley scoring test failed: {e}")
+            print_info("This may indicate an issue with the Shapley integration")
             return False
 
 if __name__ == "__main__":
