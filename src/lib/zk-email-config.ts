@@ -17,6 +17,10 @@ export const ZK_EMAIL_DEV_CONFIG = {
   
   // Registry settings
   REGISTRY_URL: process.env.ZK_EMAIL_REGISTRY_URL || 'https://registry.zk.email',
+  REGISTRY_API_KEY: process.env.ZK_EMAIL_API_KEY || '',
+  
+  // Blueprint URLs for direct access
+  BLUEPRINT_REGISTRY_URL: `https://registry.zk.email/${process.env.NEXT_PUBLIC_ZK_EMAIL_BLUEPRINT_ID || '0213eb97-8d11-4e69-a35f-e152c311c2d7'}`,
   
   // Timeouts and limits
   PROOF_TIMEOUT: 30000, // 30 seconds
@@ -135,27 +139,80 @@ export function getCampaignConfig(campaign: Campaign) {
 }
 
 /**
+ * Get the blueprint registry URL for direct access
+ */
+export function getBlueprintRegistryUrl(): string {
+  return ZK_EMAIL_DEV_CONFIG.BLUEPRINT_REGISTRY_URL;
+}
+
+/**
+ * Get the full registry API URL for a blueprint
+ */
+export function getBlueprintApiUrl(blueprintId?: string): string {
+  const id = blueprintId || ZK_EMAIL_DEV_CONFIG.BLUEPRINT_ID;
+  return `${ZK_EMAIL_DEV_CONFIG.REGISTRY_URL}/api/blueprints/${id}`;
+}
+
+/**
+ * Log configuration status for debugging
+ */
+export function logConfigurationStatus(): void {
+  console.log('🔧 ZK-Email Configuration Status:');
+  console.log(`   Enabled: ${ZK_EMAIL_DEV_CONFIG.ENABLED}`);
+  console.log(`   Dev Mode: ${ZK_EMAIL_DEV_CONFIG.DEV_MODE}`);
+  console.log(`   Blueprint ID: ${ZK_EMAIL_DEV_CONFIG.BLUEPRINT_ID}`);
+  console.log(`   Blueprint Slug: ${ZK_EMAIL_DEV_CONFIG.BLUEPRINT_SLUG}`);
+  console.log(`   Registry URL: ${ZK_EMAIL_DEV_CONFIG.REGISTRY_URL}`);
+  console.log(`   Blueprint Registry: ${ZK_EMAIL_DEV_CONFIG.BLUEPRINT_REGISTRY_URL}`);
+  console.log(`   Sample Files: ${Object.keys(ZK_EMAIL_DEV_CONFIG.SAMPLE_EMAIL_FILES).join(', ')}`);
+}
+
+/**
  * Validate the entire ZK-Email configuration
  */
 export function validateConfiguration(): boolean {
   try {
     // Check required fields
-    if (!ZK_EMAIL_DEV_CONFIG.BLUEPRINT_ID) return false;
-    if (!ZK_EMAIL_DEV_CONFIG.REGISTRY_URL) return false;
+    if (!ZK_EMAIL_DEV_CONFIG.BLUEPRINT_ID) {
+      console.error('❌ Missing BLUEPRINT_ID');
+      return false;
+    }
+    if (!ZK_EMAIL_DEV_CONFIG.REGISTRY_URL) {
+      console.error('❌ Missing REGISTRY_URL');
+      return false;
+    }
+    
+    // Validate blueprint ID format (should be UUID)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(ZK_EMAIL_DEV_CONFIG.BLUEPRINT_ID)) {
+      console.error('❌ Invalid BLUEPRINT_ID format (should be UUID)');
+      return false;
+    }
     
     // Check campaign configurations
     const campaigns = Object.keys(ZK_EMAIL_DEV_CONFIG.CAMPAIGN_POINTS);
     for (const campaign of campaigns) {
       const config = ZK_EMAIL_DEV_CONFIG.CAMPAIGN_POINTS[campaign as Campaign];
-      if (!config || typeof config.base !== 'number') return false;
+      if (!config || typeof config.base !== 'number') {
+        console.error(`❌ Invalid campaign config for: ${campaign}`);
+        return false;
+      }
     }
     
     // Check sample email files exist
-    if (!ZK_EMAIL_DEV_CONFIG.SAMPLE_EMAIL_FILES.basic) return false;
-    if (!ZK_EMAIL_DEV_CONFIG.SAMPLE_EMAIL_FILES.with_dkim) return false;
+    if (!ZK_EMAIL_DEV_CONFIG.SAMPLE_EMAIL_FILES.basic) {
+      console.error('❌ Missing basic sample email file path');
+      return false;
+    }
+    if (!ZK_EMAIL_DEV_CONFIG.SAMPLE_EMAIL_FILES.with_dkim) {
+      console.error('❌ Missing DKIM sample email file path');
+      return false;
+    }
     
+    console.log('✅ ZK-Email configuration is valid');
     return true;
   } catch (error) {
+    console.error('❌ Configuration validation error:', error);
     return false;
   }
 }
