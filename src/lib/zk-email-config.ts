@@ -177,3 +177,42 @@ export function isGovernmentEmail(email: string): boolean {
 }
 
 export type Campaign = keyof typeof ZK_EMAIL_DEV_CONFIG.SAMPLE_EMAILS;
+
+/**
+ * Get campaign configuration by campaign type
+ */
+export function getCampaignConfig(campaign: Campaign) {
+  const config = ZK_EMAIL_DEV_CONFIG.CAMPAIGN_POINTS[campaign];
+  if (!config) {
+    throw new Error(`Invalid campaign type: ${campaign}`);
+  }
+  return config;
+}
+
+/**
+ * Validate the entire ZK-Email configuration
+ */
+export function validateConfiguration(): boolean {
+  try {
+    // Check required fields
+    if (!ZK_EMAIL_DEV_CONFIG.BLUEPRINT_ID) return false;
+    if (!ZK_EMAIL_DEV_CONFIG.REGISTRY_URL) return false;
+    
+    // Check campaign configurations
+    const campaigns = Object.keys(ZK_EMAIL_DEV_CONFIG.CAMPAIGN_POINTS);
+    for (const campaign of campaigns) {
+      const config = ZK_EMAIL_DEV_CONFIG.CAMPAIGN_POINTS[campaign as Campaign];
+      if (!config || typeof config.base !== 'number') return false;
+    }
+    
+    // Check sample emails
+    for (const campaign of campaigns) {
+      const sample = ZK_EMAIL_DEV_CONFIG.SAMPLE_EMAILS[campaign as Campaign];
+      if (!sample || !sample.sender || !sample.recipient) return false;
+    }
+    
+    return true;
+  } catch (error) {
+    return false;
+  }
+}

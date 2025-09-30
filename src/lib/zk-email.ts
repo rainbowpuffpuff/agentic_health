@@ -318,11 +318,85 @@ export async function verifyCivicEngagementProof(
 /**
  * Generate sample email for testing (development only)
  */
-export function generateSampleEmailForCampaign(campaign: Campaign): string {
+export function generateSampleEmailForCampaign(campaign: Campaign, customRecipient?: string): string {
   if (!ZK_EMAIL_CONFIG.DEV_MODE) {
     throw new Error('Sample email generation only available in development mode');
   }
   
   const { generateSampleEML } = require('./zk-email-config');
   return generateSampleEML(campaign);
+}
+
+/**
+ * Parse email content and extract metadata
+ */
+export function parseEmailContent(emlContent: string): EmailData {
+  if (!emlContent || emlContent.trim() === '') {
+    throw new Error('Email content cannot be empty');
+  }
+
+  const lines = emlContent.split('\n');
+  const headers: Record<string, string> = {};
+  
+  let sender = '';
+  let recipient = '';
+  let subject = '';
+  let messageId = '';
+  let dkimValid = false;
+  let timestamp = new Date();
+
+  // Parse headers
+  for (const line of lines) {
+    if (line.startsWith('From: ')) {
+      sender = line.substring(6).trim();
+      headers['from'] = sender;
+    } else if (line.startsWith('To: ')) {
+      recipient = line.substring(4).trim();
+      headers['to'] = recipient;
+    } else if (line.startsWith('Subject: ')) {
+      subject = line.substring(9).trim();
+      headers['subject'] = subject;
+    } else if (line.startsWith('Message-ID: ')) {
+      messageId = line.substring(12).trim();
+      headers['message-id'] = messageId;
+    } else if (line.startsWith('Date: ')) {
+      timestamp = new Date(line.substring(6).trim());
+      headers['date'] = line.substring(6).trim();
+    } else if (line.startsWith('DKIM-Signature: ')) {
+      dkimValid = true;
+      headers['dkim-signature'] = line.substring(16).trim();
+    }
+  }
+
+  if (!sender || !recipient || !subject) {
+    throw new Error('Invalid email format: missing required headers');
+  }
+
+  return {
+    sender,
+    recipient,
+    subject,
+    timestamp,
+    dkim_valid: dkimValid,
+    message_id: messageId,
+    headers
+  };
+}
+
+/**
+ * Validate email structure and format
+ */
+export function validateEmailStructure(emlContent: string): boolean {
+  try {
+    const emailData = parseEmailContent(emlContent);
+    
+    // Basic validation checks
+    if (!emailData.sender.includes('@')) return false;
+    if (!emailData.recipient.includes('@')) return false;
+    if (!emailData.subject) return false;
+    
+    return true;
+  } catch (error) {
+    return false;
+  }
 }
