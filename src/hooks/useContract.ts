@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { providers, utils } from 'near-api-js';
 import { useWalletSelector } from '@/components/WalletProvider';
 import { 
   contractInterface, 
@@ -163,26 +164,37 @@ export function useDeposit() {
  * Hook for wallet balance information
  */
 export function useWalletBalance() {
-  const { accountId } = useWalletSelector();
+  const { accountId, selector } = useWalletSelector();
   const [balance, setBalance] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchBalance = useCallback(async (account: string) => {
+    if (!selector) return;
+    
     setIsLoading(true);
     setError(null);
     
     try {
-      // This would need to be implemented with NEAR RPC calls
-      // For now, we'll return a placeholder
-      // TODO: Implement actual wallet balance fetching
-      setBalance("0");
+      const { network } = selector.options;
+      const provider = new providers.JsonRpcProvider({ url: network.nodeUrl });
+      const accountData = await provider.query({
+        request_type: "view_account",
+        finality: "final",
+        account_id: account
+      });
+      
+      // @ts-ignore - NEAR RPC response type
+      const balanceYocto = accountData.amount;
+      const balanceFormatted = utils.format.formatNearAmount(balanceYocto, 6);
+      setBalance(balanceFormatted);
+      
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch wallet balance');
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [selector]);
 
   useEffect(() => {
     if (accountId) {
