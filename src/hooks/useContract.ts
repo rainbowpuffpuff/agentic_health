@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { providers, utils } from 'near-api-js';
 import { useWalletSelector } from '@/components/WalletProvider';
 import { 
   contractInterface, 
@@ -94,15 +95,20 @@ export function useStakerInfo(accountId?: string) {
  * Hook for deposit functionality
  */
 export function useDeposit() {
-  const { wallet, accountId } = useWalletSelector();
+  const { selector, signedAccountId } = useWalletSelector(); // Changed to match useWalletBalance
   const [transaction, setTransaction] = useState<DepositTransaction | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const deposit = useCallback(async (amountInNear: string): Promise<boolean> => {
-    if (!wallet || !accountId) {
+    if (!selector || !signedAccountId) { // Updated check
       throw new Error('Wallet not connected');
     }
 
+    const wallet = await selector.wallet();
+    if (!wallet) {
+      throw new Error('Wallet not available');
+    }
+    
     if (!ContractUtils.isValidNearAmount(amountInNear)) {
       throw new Error('Invalid amount format');
     }
@@ -125,7 +131,9 @@ export function useDeposit() {
       const successTransaction: DepositTransaction = {
         ...newTransaction,
         status: 'success',
-        transactionHash: result.transaction.hash
+        // NEAR Wallet Selector v8 returns an array, or a single object.
+        // We handle both cases to be safe.
+        transactionHash: Array.isArray(result) ? result[0].transaction.hash : result.transaction.hash
       };
       
       setTransaction(successTransaction);
@@ -145,7 +153,7 @@ export function useDeposit() {
     } finally {
       setIsLoading(false);
     }
-  }, [wallet, accountId]);
+  }, [selector, signedAccountId]);
 
   const resetTransaction = useCallback(() => {
     setTransaction(null);
@@ -159,30 +167,42 @@ export function useDeposit() {
   };
 }
 
+
 /**
  * Hook for wallet balance information
  */
 export function useWalletBalance() {
-  const { accountId } = useWalletSelector();
+  const { accountId, selector } = useWalletSelector();
   const [balance, setBalance] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchBalance = useCallback(async (account: string) => {
+    if (!selector) return;
+    
     setIsLoading(true);
     setError(null);
     
     try {
-      // This would need to be implemented with NEAR RPC calls
-      // For now, we'll return a placeholder
-      // TODO: Implement actual wallet balance fetching
-      setBalance("0");
+      const { network } = selector.options;
+      const provider = new providers.JsonRpcProvider({ url: network.nodeUrl });
+      const accountData = await provider.query({
+        request_type: "view_account",
+        finality: "final",
+        account_id: account
+      });
+      
+      // @ts-ignore - NEAR RPC response type
+      const balanceYocto = accountData.amount;
+      const balanceFormatted = utils.format.formatNearAmount(balanceYocto, 6);
+      setBalance(balanceFormatted);
+      
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch wallet balance');
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [selector]);
 
   useEffect(() => {
     if (accountId) {
