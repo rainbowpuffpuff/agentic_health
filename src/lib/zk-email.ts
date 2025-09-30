@@ -8,7 +8,7 @@
  */
 
 import { Blueprint, Proof, initZkEmailSdk } from '@zk-email/sdk';
-import { ZK_EMAIL_DEV_CONFIG, isGovernmentEmail } from './zk-email-config';
+import { ZK_EMAIL_DEV_CONFIG, isGovernmentEmail, getBlueprintRegistryUrl, logConfigurationStatus, validateConfiguration } from './zk-email-config';
 
 // Re-export Campaign type
 export type Campaign = 'chat_control' | 'sugar_tax' | 'sleep_compensation';
@@ -49,17 +49,27 @@ export class CivicEngagementProver {
    */
   async initialize(): Promise<void> {
     try {
+      // Validate configuration first
+      if (!validateConfiguration()) {
+        throw new Error('Invalid ZK-Email configuration');
+      }
+      
+      // Log configuration status
+      logConfigurationStatus();
+      
       // Initialize SDK
+      console.log('🚀 Initializing ZK-Email SDK...');
       this.sdk = initZkEmailSdk();
       
       // Get or create civic engagement blueprint
       await this.loadBlueprint();
       
       this.initialized = true;
-      console.log('ZK-Email SDK initialized successfully');
+      console.log('✅ ZK-Email SDK initialized successfully');
+      console.log('🔗 Blueprint Registry:', getBlueprintRegistryUrl());
     } catch (error) {
-      console.error('Failed to initialize ZK-Email SDK:', error);
-      throw new Error('ZK-Email SDK initialization failed');
+      console.error('❌ Failed to initialize ZK-Email SDK:', error);
+      throw new Error(`ZK-Email SDK initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -73,18 +83,25 @@ export class CivicEngagementProver {
 
     try {
       // Try to get existing blueprint by ID first
-      console.log('Loading blueprint with ID:', ZK_EMAIL_CONFIG.BLUEPRINT_ID);
+      console.log('🔍 Loading blueprint with ID:', ZK_EMAIL_CONFIG.BLUEPRINT_ID);
+      console.log('📍 Registry URL:', ZK_EMAIL_CONFIG.REGISTRY_URL);
+      console.log('🔗 Blueprint Registry URL:', ZK_EMAIL_CONFIG.BLUEPRINT_REGISTRY_URL);
+      
       this.blueprint = await this.sdk.getBlueprintById(ZK_EMAIL_CONFIG.BLUEPRINT_ID);
-      console.log('Successfully loaded parliament blueprint');
+      console.log('✅ Successfully loaded parliament blueprint');
     } catch (error) {
-      console.warn('Parliament blueprint not found by ID, trying by slug');
+      console.warn('⚠️  Parliament blueprint not found by ID, trying by slug');
+      console.warn('Error details:', error);
       
       try {
         // Fallback to slug-based lookup
+        console.log('🔍 Trying blueprint slug:', ZK_EMAIL_CONFIG.BLUEPRINT_SLUG);
         this.blueprint = await this.sdk.getBlueprint(ZK_EMAIL_CONFIG.BLUEPRINT_SLUG);
-        console.log('Successfully loaded blueprint by slug');
+        console.log('✅ Successfully loaded blueprint by slug');
       } catch (slugError) {
-        console.warn('Blueprint not found by slug either, using fallback mode');
+        console.warn('⚠️  Blueprint not found by slug either, using fallback mode');
+        console.warn('Slug error details:', slugError);
+        console.log('🔄 Fallback: Will use mock proof generation for development');
         this.blueprint = null;
       }
     }

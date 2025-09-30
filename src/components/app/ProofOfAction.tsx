@@ -108,25 +108,37 @@ export default function ProofOfAction({
     // Handle default email loading for testing (similar to sleep verification)
     const handleUseDefaultEmail = async (campaign: Campaign) => {
         try {
+            console.log('🧪 Loading default email for testing...');
+            
             // Load the sample-email-DKIM.eml file from public directory
             const response = await fetch('/sample-email-DKIM.eml');
             if (!response.ok) {
-                throw new Error(`Failed to load sample email: ${response.status}`);
+                throw new Error(`Failed to load sample email: ${response.status} ${response.statusText}`);
             }
             
             const emlContent = await response.text();
+            console.log('✅ Sample email loaded successfully');
+            console.log('📧 Email preview:', emlContent.substring(0, 200) + '...');
             
             // Generate ZK proof from default email
+            console.log('🔐 Generating ZK proof for campaign:', campaign);
             const proof = await zkEmail.generateProof(emlContent, campaign);
             
             if (proof) {
-                console.log('Generated proof from default email:', proof);
-                // TODO: Submit proof for verification and reward distribution
-                // For now, simulate successful verification
-                console.log('Default email verification successful for campaign:', campaign);
+                console.log('✅ Generated proof from default email:', proof);
+                console.log('🎉 Default email verification successful for campaign:', campaign);
+                
+                // Show success message to user
+                // TODO: Integrate with toast system and state management
+                alert(`✅ Default email verification successful!\n\nCampaign: ${campaign}\nProof generated successfully.\n\nThis is a test using the sample email from /public/sample-email-DKIM.eml`);
+            } else {
+                throw new Error('Proof generation returned null');
             }
         } catch (error) {
-            console.error('Default email proof generation failed:', error);
+            console.error('❌ Default email proof generation failed:', error);
+            
+            // Show error message to user
+            alert(`❌ Default email test failed:\n\n${error instanceof Error ? error.message : 'Unknown error'}\n\nCheck the browser console for more details.`);
         }
     };
 
@@ -174,9 +186,14 @@ export default function ProofOfAction({
                                 <AccordionContent className='pt-2'>
                                     <AlertDescription>
                                         We use a Zero-Knowledge Proof (ZK-Proof) to verify the DKIM signature in your email. This proves you sent the email without revealing its content.
-                                        <a href="https://docs.zk.email/architecture/dkim-verification" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium flex items-center gap-1 mt-1">
-                                            Learn more <ExternalLink size={14}/>
-                                        </a>
+                                        <div className="flex flex-col gap-1 mt-2">
+                                            <a href="https://docs.zk.email/architecture/dkim-verification" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium flex items-center gap-1">
+                                                Learn about ZK-Email <ExternalLink size={14}/>
+                                            </a>
+                                            <a href={`https://registry.zk.email/${ZK_EMAIL_DEV_CONFIG.BLUEPRINT_ID}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium flex items-center gap-1">
+                                                View Parliament Blueprint <ExternalLink size={14}/>
+                                            </a>
+                                        </div>
                                     </AlertDescription>
                                 </AccordionContent>
                             </Alert>
