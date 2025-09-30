@@ -11,6 +11,7 @@ import { useWalletSelector } from '@/components/WalletProvider';
 import { CONTRACT_ID, CAMPAIGN_DETAILS, type Campaign, type CampaignState } from '@/lib/constants';
 import { utils, providers } from 'near-api-js';
 import type { CodeResult, FinalExecutionOutcome } from "near-api-js/lib/providers/provider";
+import { contractInterface, ContractTransactionBuilder } from '@/lib/contract-interface';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import TutorialDialog from '@/components/TutorialDialog';
 import Header from '@/components/app/Header';
@@ -104,29 +105,22 @@ export default function Home() {
   }, []);
 
   const getStakerInfo = useCallback(async (stakerId: string) => {
-    if (!selector) return null;
-    const { network } = selector.options;
-    const provider = new providers.JsonRpcProvider({ url: network.nodeUrl });
     try {
-        const res = await provider.query<CodeResult>({ request_type: "call_function", finality: "final", account_id: CONTRACT_ID, method_name: "get_stake_info", args_base64: btoa(JSON.stringify({ staker_id: stakerId })) });
-        return JSON.parse(Buffer.from(res.result).toString());
+      return await contractInterface.getStakeInfo(stakerId);
     } catch (error) {
       console.error(`Failed to get staker info for ${stakerId}:`, error);
       return null;
     }
-  }, [selector]);
+  }, []);
 
   const getRewardPoolBalance = useCallback(async () => {
-    if (!selector) return;
-    const { network } = selector.options;
-    const provider = new providers.JsonRpcProvider({ url: network.nodeUrl });
     try {
-        const res = await provider.query<CodeResult>({ request_type: "call_function", finality: "final", account_id: CONTRACT_ID, method_name: "get_reward_pool_balance", args_base64: btoa(JSON.stringify({})) });
-        setRewardPoolBalance(JSON.parse(Buffer.from(res.result).toString()));
+      const balance = await contractInterface.getContractBalance();
+      setRewardPoolBalance(balance.balance);
     } catch (error) {
-        console.error("Failed to get reward pool balance:", error);
+      console.error("Failed to get reward pool balance:", error);
     }
-  }, [selector]);
+  }, []);
   
     const getAccountBalance = useCallback(async (accountId: string) => {
     if (!selector) return;
@@ -176,10 +170,8 @@ export default function Home() {
     const wallet = await selector.wallet();
     if (!wallet) { toast({ variant: "destructive", title: "Wallet not connected" }); return; }
     try {
-      const result = await wallet.signAndSendTransaction({
-        receiverId: CONTRACT_ID,
-        actions: [ { type: 'FunctionCall', params: { methodName: 'stake', args: {}, gas: THIRTY_TGAS, deposit: utils.format.parseNearAmount(stakeAmount) || "0" } } ],
-      });
+      const transactionConfig = ContractTransactionBuilder.buildStakeTransaction(stakeAmount);
+      const result = await wallet.signAndSendTransaction(transactionConfig);
       const txHash = (result as FinalExecutionOutcome).transaction_outcome.id;
       showTransactionToast(txHash, "Commitment Successful!");
       setStakerInfo({ amount: utils.format.parseNearAmount(stakeAmount) || '0', bonus_approved: false });
@@ -198,10 +190,8 @@ export default function Home() {
     const wallet = await selector.wallet();
     if (!wallet) { toast({ variant: "destructive", title: "Wallet not connected" }); return; }
     try {
-        const result = await wallet.signAndSendTransaction({
-            receiverId: CONTRACT_ID,
-            actions: [ { type: 'FunctionCall', params: { methodName: 'withdraw', args: {}, gas: THIRTY_TGAS, deposit: "0" } } ],
-        });
+        const transactionConfig = ContractTransactionBuilder.buildWithdrawTransaction();
+        const result = await wallet.signAndSendTransaction(transactionConfig);
         const txHash = (result as FinalExecutionOutcome).transaction_outcome.id;
         showTransactionToast(txHash, "Withdrawal Successful!");
         setStakerInfo(null); 
