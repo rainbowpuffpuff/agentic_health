@@ -17,6 +17,7 @@ import TutorialDialog from '@/components/TutorialDialog';
 import Header from '@/components/app/Header';
 import ProofOfRest from '@/components/app/ProofOfRest';
 import ProofOfAction from '@/components/app/ProofOfAction';
+import AdminDeposit from '@/components/app/AdminDeposit';
 import DeviceStore from '@/components/app/DeviceStore';
 import DataContribution from '@/components/app/DataContribution';
 import SwarmStorage from '@/components/app/SwarmStorage';
@@ -562,6 +563,7 @@ export default function Home() {
                     campaignStates={campaignStates} isVerifyingAction={isVerifyingAction} intentionPoints={intentionPoints} gardenFlowers={gardenFlowers}
                     handleEngageCampaign={handleEngageCampaign} handleSendEmail={handleSendEmail} emailUploadRef={emailUploadRef} handleUseBoilerplateEmail={handleUseBoilerplateEmail}
                 />
+                <AdminDeposit />
                 <DeviceStore intentionPoints={intentionPoints} hasFnirsDevice={hasFnirsDevice} hasAbbottDevice={hasAbbottDevice} handleAcquireDevice={handleAcquireDevice} />
                 {(hasFnirsDevice && hasAbbottDevice) && (
                      <DataContribution
