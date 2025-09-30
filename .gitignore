@@ -62,7 +62,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+agent_logic/lib/
 lib64/
 parts/
 sdist/
