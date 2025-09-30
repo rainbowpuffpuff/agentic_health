@@ -1,13 +1,13 @@
 # Implementation Plan
 
-- [ ] 1. Extend smart contract interface for deposit functionality
+- [x] 1. Extend smart contract interface for deposit functionality
   - Add deposit method to contract TypeScript bindings
   - Add get_contract_balance method to contract interface
   - Update contract types to include balance-related structures
   - _Requirements: 1.3, 2.1_
 
 - [ ] 2. Create ContractBalance component
-  - [ ] 2.1 Implement balance fetching logic
+  - [-] 2.1 Implement balance fetching logic
     - Write function to fetch contract balance from NEAR RPC
     - Add balance formatting utilities (yoctoNEAR to NEAR conversion)
     - Implement error handling for balance fetch failures
