@@ -395,6 +395,77 @@ export default function Home() {
   const processFile = (file: File, setInfo: (info: FileInfo) => void) => { /* ... */ };
   const handleFnirsUpload = (event: React.ChangeEvent<HTMLInputElement>) => { /* ... */ };
   const handleGlucoseUpload = (event: React.ChangeEvent<HTMLInputElement>) => { /* ... */ };
+  const handleWhoopImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      processFile(file, null); // Process file for validation
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const csvContent = e.target?.result as string;
+          const lines = csvContent.split('\n').filter(line => line.trim() !== '');
+          
+          if (lines.length < 2) {
+            toast({ variant: "destructive", title: "Invalid CSV", description: "The CSV file appears to be empty or invalid." });
+            return;
+          }
+
+          // Parse CSV headers and data
+          const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+          const dateIndex = headers.findIndex(h => h.includes('date') || h.includes('day'));
+          const bedTimeIndex = headers.findIndex(h => h.includes('time in bed') || h.includes('bed time'));
+          const sleepTimeIndex = headers.findIndex(h => h.includes('sleep') && h.includes('hours'));
+
+          if (dateIndex === -1 || bedTimeIndex === -1 || sleepTimeIndex === -1) {
+            toast({ 
+              variant: "destructive", 
+              title: "Invalid Whoop CSV Format", 
+              description: "Could not find required columns: Date, Time in Bed (hours), Sleep (hours)" 
+            });
+            return;
+          }
+
+          const whoopEntries: WhoopData = [];
+          for (let i = 1; i < lines.length; i++) {
+            const columns = lines[i].split(',');
+            if (columns.length > Math.max(dateIndex, bedTimeIndex, sleepTimeIndex)) {
+              const date = columns[dateIndex]?.trim();
+              const bedTime = parseFloat(columns[bedTimeIndex]?.trim());
+              const sleepTime = parseFloat(columns[sleepTimeIndex]?.trim());
+
+              if (date && !isNaN(bedTime) && !isNaN(sleepTime)) {
+                whoopEntries.push({
+                  date,
+                  'Time in Bed (hours)': bedTime,
+                  'Sleep (hours)': sleepTime
+                });
+              }
+            }
+          }
+
+          if (whoopEntries.length === 0) {
+            toast({ variant: "destructive", title: "No Valid Data", description: "No valid sleep data found in the CSV file." });
+            return;
+          }
+
+          setWhoopData(whoopEntries);
+          toast({ 
+            title: "Whoop Data Imported!", 
+            description: `Successfully imported ${whoopEntries.length} sleep records.` 
+          });
+
+        } catch (error) {
+          console.error("Error parsing Whoop CSV:", error);
+          toast({ 
+            variant: "destructive", 
+            title: "Import Error", 
+            description: "Failed to parse the Whoop CSV file. Please check the format." 
+          });
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
   const handleDataContribution = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fnirsFile || !glucoseFile) { toast({ variant: "destructive", title: "Missing Information", description: "Please provide both a fNIRS and a glucose data file." }); return; }
