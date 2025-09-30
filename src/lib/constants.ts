@@ -1,1 +1,1 @@
-export const CONTRACT_ID = "stake-bonus-js.think2earn.near";
+export const CONTRACT_ID = "v2.stake-bonus-js.think2earn.near";
