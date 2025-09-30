@@ -8,7 +8,7 @@ import { Wallet, Bed, Loader, KeyRound, Sprout, UploadCloud, Camera, Upload, Tes
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { useWalletSelector } from '@/components/WalletProvider';
-import { CONTRACT_ID } from '@/lib/constants';
+import { CONTRACT_ID, CAMPAIGN_DETAILS, type Campaign, type CampaignState } from '@/lib/constants';
 import { utils, providers } from 'near-api-js';
 import type { CodeResult, FinalExecutionOutcome } from "near-api-js/lib/providers/provider";
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -33,14 +33,7 @@ export type WhoopData = { date: string; 'Time in Bed (hours)': number; 'Sleep (h
 export type GardenFlower = { id: number; Icon: React.ElementType; unlocked: boolean; };
 export type StakerInfo = { amount: string; bonus_approved: boolean; };
 export type FileInfo = { name: string; size: string; rows: number; cols: number; } | null;
-export type Campaign = 'chat_control' | 'sugar_tax' | 'sleep_compensation';
-export type CampaignState = 'idle' | 'taking_action' | 'email_pending' | 'verified';
 
-export const CAMPAIGN_DETAILS: Record<Campaign, { title: string; description: string; subject: string }> = {
-    chat_control: { title: "Stop Chat Control", description: "The EU is working on a law that would monitor all citizens' communications. Voice your opposition to this mass surveillance proposal.", subject: "Regarding the 'Chat Control' Proposal" },
-    sugar_tax: { title: "Should sugar be taxed?", description: "Contribute your opinion to the debate on whether a sugar tax is an effective public health policy for combating obesity and related diseases.", subject: "Opinion on Sugar Taxation Policy" },
-    sleep_compensation: { title: "Should sleep be compensated?", description: "Argue for or against the idea that adequate sleep, which boosts productivity and reduces errors, should be recognized or compensated by employers.", subject: "The Economic Case for Sleep Compensation" }
-};
 
 export const THIRTY_TGAS = "30000000000000";
 export type MotionStatus = 'still' | 'slight' | 'heavy';
@@ -384,9 +377,42 @@ export default function Home() {
     }
   };
 
-  // --- Other handlers (unchanged) ---
-  const handleEngageCampaign = (campaign: Campaign) => { /* ... */ };
-  const handleSendEmail = (campaign: Campaign) => { /* ... */ };
+  // --- Other handlers ---
+  const handleEngageCampaign = (campaign: Campaign) => {
+    // Check if user has enough points
+    if (intentionPoints < 10) {
+      toast({
+        variant: "destructive",
+        title: "Insufficient Points",
+        description: "You need at least 10 Intention Points to take action."
+      });
+      return;
+    }
+
+    // Deduct points and transition to taking_action state
+    setIntentionPoints(prev => prev - 10);
+    setCampaignStates(prev => ({
+      ...prev,
+      [campaign]: 'taking_action'
+    }));
+
+    toast({
+      title: "Action Started!",
+      description: `You've spent 10 points to engage with the ${CAMPAIGN_DETAILS[campaign].title} campaign.`
+    });
+  };
+  const handleSendEmail = (campaign: Campaign) => {
+    // Transition to email_pending state to show upload options
+    setCampaignStates(prev => ({
+      ...prev,
+      [campaign]: 'email_pending'
+    }));
+
+    toast({
+      title: "Email Action Required",
+      description: "Please upload your signed email or use the default email for testing."
+    });
+  };
   const processEmailContent = async (emailContent: string, campaign: Campaign) => { /* ... */ };
   const handleEmailUpload = (e: React.ChangeEvent<HTMLInputElement>, campaign: Campaign) => { /* ... */ };
   const handleUseBoilerplateEmail = async (campaign: Campaign) => { /* ... */ };

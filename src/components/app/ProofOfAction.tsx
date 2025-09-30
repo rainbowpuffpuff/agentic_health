@@ -8,10 +8,10 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Mail, CheckCircle2, Upload, KeyRound, Sprout, FileQuestion, ExternalLink } from 'lucide-react';
+import { Mail, CheckCircle2, Upload, KeyRound, Sprout, FileQuestion, ExternalLink, TestTube } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Campaign, CampaignState, GardenFlower } from '@/app/page';
-import { CAMPAIGN_DETAILS } from '@/app/page';
+import type { GardenFlower } from '@/app/page';
+import { CAMPAIGN_DETAILS, type Campaign, type CampaignState } from '@/lib/constants';
 import { useZKEmail, useEmailUpload } from '@/hooks/use-zk-email';
 import { generateSampleEmailForCampaign } from '@/lib/zk-email';
 import { ZK_EMAIL_DEV_CONFIG } from '@/lib/zk-email-config';
@@ -105,27 +105,33 @@ export default function ProofOfAction({
         }
     };
 
-    // Handle sample email generation for testing
-    const handleUseSampleEmail = async (campaign: Campaign) => {
-        if (!ZK_EMAIL_DEV_CONFIG.DEV_MODE) {
-            console.warn('Sample emails only available in development mode');
-            return;
-        }
-
+    // Handle default email loading for testing (similar to sleep verification)
+    const handleUseDefaultEmail = async (campaign: Campaign) => {
         try {
-            const sampleEml = generateSampleEmailForCampaign(campaign);
+            // Load the sample-email-DKIM.eml file from public directory
+            const response = await fetch('/sample-email-DKIM.eml');
+            if (!response.ok) {
+                throw new Error(`Failed to load sample email: ${response.status}`);
+            }
             
-            // Generate ZK proof from sample email
-            const proof = await zkEmail.generateProof(sampleEml, campaign);
+            const emlContent = await response.text();
+            
+            // Generate ZK proof from default email
+            const proof = await zkEmail.generateProof(emlContent, campaign);
             
             if (proof) {
-                console.log('Generated proof from sample email:', proof);
+                console.log('Generated proof from default email:', proof);
                 // TODO: Submit proof for verification and reward distribution
+                // For now, simulate successful verification
+                console.log('Default email verification successful for campaign:', campaign);
             }
         } catch (error) {
-            console.error('Sample email proof generation failed:', error);
+            console.error('Default email proof generation failed:', error);
         }
     };
+
+    // Keep the original function for backward compatibility
+    const handleUseSampleEmail = handleUseDefaultEmail;
     return (
         <Card className="slide-in-from-bottom transition-all hover:shadow-primary/5">
             <CardHeader>
@@ -200,13 +206,13 @@ export default function ProofOfAction({
                                             )}
                                             {campaignState === 'taking_action' && (
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                    <Button onClick={() => handleSendEmail(campaign)} disabled={isVerifyingAction} className="w-full" size="sm">
-                                                        <Mail className="mr-2" />
-                                                        Send Email
+                                                    <Button onClick={() => emailUploadRef.current?.click()} disabled={isVerifyingAction || zkEmail.isGeneratingProof} className="w-full" size="sm" variant="outline">
+                                                        <Upload className="mr-2" />
+                                                        Upload Your Email (.eml)
                                                     </Button>
-                                                    <Button onClick={() => handleUseSampleEmail(campaign)} disabled={isVerifyingAction || zkEmail.isGeneratingProof} className="w-full" size="sm" variant="secondary">
-                                                        <FileQuestion className="mr-2" />
-                                                        Use Sample Email
+                                                    <Button onClick={() => handleUseDefaultEmail(campaign)} disabled={isVerifyingAction || zkEmail.isGeneratingProof} className="w-full" size="sm" variant="secondary">
+                                                        <TestTube className="mr-2" />
+                                                        Use Default Email (Testing)
                                                     </Button>
                                                 </div>
                                             )}
@@ -214,11 +220,11 @@ export default function ProofOfAction({
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                      <Button onClick={() => emailUploadRef.current?.click()} disabled={isVerifyingAction || zkEmail.isGeneratingProof} className="w-full" size="sm" variant="outline">
                                                         <Upload className="mr-2" />
-                                                        Upload Signed Email (.eml)
+                                                        Upload Your Email (.eml)
                                                     </Button>
-                                                    <Button onClick={() => handleUseSampleEmail(campaign)} disabled={isVerifyingAction || zkEmail.isGeneratingProof} className="w-full" size="sm" variant="secondary">
-                                                        <FileQuestion className="mr-2" />
-                                                        Use Sample Email
+                                                    <Button onClick={() => handleUseDefaultEmail(campaign)} disabled={isVerifyingAction || zkEmail.isGeneratingProof} className="w-full" size="sm" variant="secondary">
+                                                        <TestTube className="mr-2" />
+                                                        Use Default Email (Testing)
                                                     </Button>
                                                 </div>
                                             )}
