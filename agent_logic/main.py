@@ -7,8 +7,7 @@ from pydantic import BaseModel
 from py_near.account import Account
 from py_near.dapps.core import NEAR
 
-# Import ML pipeline
-from ml_pipeline import ml_app, ScoreContributionRequest
+# Note: ML pipeline removed - only sleep verification models loaded
 
 # --- Pydantic Models for API requests ---
 class ProofOfRestRequest(BaseModel):
@@ -154,8 +153,7 @@ async def verify_rest(request: ProofOfRestRequest):
         # py-near exceptions can be detailed, so we pass the string representation
         raise HTTPException(status_code=500, detail=f"Failed to call smart contract: {str(e)}")
 
-# Mount ML pipeline endpoints
-app.mount("/ml", ml_app)
+# ML pipeline endpoints removed - only sleep verification available
 
 # Health check endpoint
 @app.get("/")
@@ -163,5 +161,5 @@ def health_check():
     return {
         "status": "ok", 
         "agent_configured": agent_account is not None,
-        "services": ["proof_of_rest", "ml_pipeline"]
+        "services": ["proof_of_rest"]
     }
