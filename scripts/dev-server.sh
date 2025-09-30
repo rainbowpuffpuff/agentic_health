@@ -66,10 +66,13 @@ kill_port() {
 check_python_health() {
     local retries=0
     while [ $retries -lt $MAX_RETRIES ]; do
-        if curl -s http://localhost:$PYTHON_PORT/ >/dev/null 2>&1; then
+        # Check if the server responds with JSON containing "status": "ok"
+        local response=$(curl -s http://localhost:$PYTHON_PORT/ 2>/dev/null || echo "")
+        if echo "$response" | grep -q '"status".*"ok"'; then
             return 0
         fi
         retries=$((retries + 1))
+        log "Health check attempt $retries/$MAX_RETRIES..."
         sleep $RETRY_DELAY
     done
     return 1
@@ -121,9 +124,9 @@ start_python() {
         python -m pip install -r requirements.txt --quiet
     fi
     
-    # Start the server in background
+    # Start the server in background with uvicorn
     log "Launching Python server on port $PYTHON_PORT..."
-    nohup python $PYTHON_MAIN > /tmp/python_server.log 2>&1 &
+    nohup uvicorn main:app --host 0.0.0.0 --port $PYTHON_PORT > /tmp/python_server.log 2>&1 &
     local python_pid=$!
     echo $python_pid > $PYTHON_PID_FILE
     cd ..
@@ -135,7 +138,14 @@ start_python() {
         return 0
     else
         error "Python server failed to start or health check failed"
-        cat /tmp/python_server.log
+        error "Server logs:"
+        tail -20 /tmp/python_server.log 2>/dev/null || echo "No logs available"
+        error "Checking if process is still running..."
+        if kill -0 $python_pid 2>/dev/null; then
+            warning "Process is running but not responding to health checks"
+        else
+            error "Process has died"
+        fi
         return 1
     fi
 }
@@ -230,10 +240,12 @@ status() {
     
     echo "Frontend Server (port $FRONTEND_PORT):"
     if check_port $FRONTEND_PORT; then
-        if curl -s http://localhost:$FRONTEND_PORT >/dev/null 2>&1; then
+        # Frontend health check - just check if port responds
+        local frontend_response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$FRONTEND_PORT 2>/dev/null || echo "000")
+        if [ "$frontend_response" = "200" ] || [ "$frontend_response" = "404" ]; then
             success "  ✓ Running and accessible"
         else
-            warning "  ⚠ Running but not accessible"
+            warning "  ⚠ Running but not accessible (HTTP $frontend_response)"
         fi
     else
         error "  ✗ Not running"
