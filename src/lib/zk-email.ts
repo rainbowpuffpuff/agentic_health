@@ -318,13 +318,13 @@ export async function verifyCivicEngagementProof(
 /**
  * Generate sample email for testing (development only)
  */
-export function generateSampleEmailForCampaign(campaign: Campaign, customRecipient?: string): string {
+export async function generateSampleEmailForCampaign(campaign?: Campaign, customRecipient?: string): Promise<string> {
   if (!ZK_EMAIL_CONFIG.DEV_MODE) {
     throw new Error('Sample email generation only available in development mode');
   }
   
   const { generateSampleEML } = require('./zk-email-config');
-  return generateSampleEML(campaign);
+  return await generateSampleEML(campaign);
 }
 
 /**
