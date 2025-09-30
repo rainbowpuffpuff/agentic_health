@@ -2,7 +2,7 @@
  * Tests using real sample email files from /public/
  */
 
-import { describe, it, expect } from '@jest/globals';
+// Jest globals are now available via @types/jest
 import { 
   loadSampleEmail,
   generateSampleEML,

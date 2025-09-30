@@ -3,14 +3,13 @@
  * Addresses mikeystever's feedback for robust test coverage
  */
 
-import { describe, it, expect, beforeAll, beforeEach, afterEach, jest } from '@jest/globals';
+// Jest globals are now available via @types/jest
 import { 
   CivicEngagementProver, 
   generateSampleEmailForCampaign,
   parseEmailContent,
   validateEmailStructure,
   type Campaign,
-  type EmailData,
   type CivicProof
 } from '../zk-email';
 import { ZK_EMAIL_DEV_CONFIG, isGovernmentEmail } from '../zk-email-config';
@@ -72,8 +71,8 @@ describe('ZK-Email Integration - Comprehensive Test Suite', () => {
   });
 
   describe('Email Parsing and Validation', () => {
-    it('should parse valid email content correctly', () => {
-      const sampleEmail = generateSampleEmailForCampaign('chat_control');
+    it('should parse valid email content correctly', async () => {
+      const sampleEmail = await generateSampleEmailForCampaign('chat_control');
       const emailData = parseEmailContent(sampleEmail);
 
       expect(emailData.sender).toContain('@');
@@ -83,8 +82,8 @@ describe('ZK-Email Integration - Comprehensive Test Suite', () => {
       expect(emailData.message_id).toBeTruthy();
     });
 
-    it('should validate email structure requirements', () => {
-      const validEmail = generateSampleEmailForCampaign('sugar_tax');
+    it('should validate email structure requirements', async () => {
+      const validEmail = await generateSampleEmailForCampaign('sugar_tax');
       expect(validateEmailStructure(validEmail)).toBe(true);
 
       const invalidEmail = 'Not an email';
@@ -122,7 +121,7 @@ Subject: Missing DKIM`;
       });
 
       for (const campaign of campaigns) {
-        const sampleEmail = generateSampleEmailForCampaign(campaign);
+        const sampleEmail = await generateSampleEmailForCampaign(campaign);
         const proof = await prover.generateCivicProof(sampleEmail, campaign);
 
         expect(proof).toBeDefined();
@@ -138,7 +137,7 @@ Subject: Missing DKIM`;
         publicSignals: ['signal1', 'signal2']
       });
 
-      const govEmail = generateSampleEmailForCampaign('chat_control', 'senator@senate.gov');
+      const govEmail = await generateSampleEmailForCampaign('chat_control', 'senator@senate.gov');
       const proof = await prover.generateCivicProof(govEmail, 'chat_control');
 
       const config = ZK_EMAIL_DEV_CONFIG.CAMPAIGN_POINTS.chat_control;
@@ -152,7 +151,7 @@ Subject: Missing DKIM`;
     it('should handle proof generation failures', async () => {
       mockBlueprint.generateProof.mockRejectedValue(new Error('Proof generation failed'));
 
-      const sampleEmail = generateSampleEmailForCampaign('sugar_tax');
+      const sampleEmail = await generateSampleEmailForCampaign('sugar_tax');
       
       await expect(prover.generateCivicProof(sampleEmail, 'sugar_tax'))
         .rejects.toThrow('Proof generation failed');
@@ -222,7 +221,7 @@ Subject: Missing DKIM`;
       prover = new CivicEngagementProver();
       await prover.initialize();
 
-      const sampleEmail = generateSampleEmailForCampaign('chat_control');
+      const sampleEmail = await generateSampleEmailForCampaign('chat_control');
       
       await expect(prover.generateCivicProof(sampleEmail, 'invalid_campaign' as Campaign))
         .rejects.toThrow('Invalid campaign type');
@@ -250,7 +249,7 @@ Test content`;
       prover = new CivicEngagementProver();
       await prover.initialize();
 
-      const sampleEmail = generateSampleEmailForCampaign('chat_control');
+      const sampleEmail = await generateSampleEmailForCampaign('chat_control');
       const proof = await prover.generateCivicProof(sampleEmail, 'chat_control');
 
       const now = Date.now();
@@ -272,7 +271,7 @@ Test content`;
       await prover.initialize();
 
       // Generate proof
-      const sampleEmail = generateSampleEmailForCampaign('sleep_compensation');
+      const sampleEmail = await generateSampleEmailForCampaign('sleep_compensation');
       const proof = await prover.generateCivicProof(sampleEmail, 'sleep_compensation');
 
       // Verify proof
@@ -295,8 +294,8 @@ Test content`;
       await prover.initialize();
 
       const campaigns: Campaign[] = ['chat_control', 'sugar_tax', 'sleep_compensation'];
-      const proofPromises = campaigns.map(campaign => {
-        const email = generateSampleEmailForCampaign(campaign);
+      const proofPromises = campaigns.map(async campaign => {
+        const email = await generateSampleEmailForCampaign(campaign);
         return prover.generateCivicProof(email, campaign);
       });
 
