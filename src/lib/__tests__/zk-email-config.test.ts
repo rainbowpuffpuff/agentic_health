@@ -2,7 +2,7 @@
  * Tests for ZK-Email Configuration and Utilities
  */
 
-import { describe, it, expect } from '@jest/globals';
+// Jest globals are now available via @types/jest
 import { 
   ZK_EMAIL_DEV_CONFIG, 
   isGovernmentEmail,

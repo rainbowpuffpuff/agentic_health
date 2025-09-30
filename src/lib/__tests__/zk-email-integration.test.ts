@@ -3,7 +3,7 @@
  * Tests the complete flow from email upload to proof verification
  */
 
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+// Jest globals are now available via @types/jest
 import { 
   CivicEngagementProver,
   parseEmailContent,
@@ -30,7 +30,7 @@ describe('ZK-Email Integration Tests', () => {
       if (!ZK_EMAIL_DEV_CONFIG.ENABLED) return;
 
       // Simulate file upload processing
-      const mockEmlContent = generateSampleEmailForCampaign('chat_control');
+      const mockEmlContent = await generateSampleEmailForCampaign('chat_control');
       const emailData = parseEmailContent(mockEmlContent);
 
       expect(emailData.sender).toBeTruthy();
@@ -45,7 +45,7 @@ describe('ZK-Email Integration Tests', () => {
       const campaigns: Campaign[] = ['chat_control', 'sugar_tax', 'sleep_compensation'];
       
       for (const campaign of campaigns) {
-        const emailContent = generateSampleEmailForCampaign(campaign);
+        const emailContent = await generateSampleEmailForCampaign(campaign);
         const emailData = parseEmailContent(emailContent);
         
         expect(emailData.sender).toMatch(/@/);
@@ -57,7 +57,7 @@ describe('ZK-Email Integration Tests', () => {
     it('should generate and verify proofs end-to-end', async () => {
       if (!ZK_EMAIL_DEV_CONFIG.ENABLED || !ZK_EMAIL_DEV_CONFIG.DEV_MODE) return;
 
-      const emailContent = generateSampleEmailForCampaign('sugar_tax');
+      const emailContent = await generateSampleEmailForCampaign('sugar_tax');
       
       // Generate proof
       const proof = await prover.generateCivicProof(emailContent, 'sugar_tax');
@@ -75,7 +75,7 @@ describe('ZK-Email Integration Tests', () => {
       if (!ZK_EMAIL_DEV_CONFIG.ENABLED || !ZK_EMAIL_DEV_CONFIG.DEV_MODE) return;
 
       const startTime = Date.now();
-      const emailContent = generateSampleEmailForCampaign('chat_control');
+      const emailContent = await generateSampleEmailForCampaign('chat_control');
       
       await prover.generateCivicProof(emailContent, 'chat_control');
       
@@ -87,9 +87,9 @@ describe('ZK-Email Integration Tests', () => {
       if (!ZK_EMAIL_DEV_CONFIG.ENABLED || !ZK_EMAIL_DEV_CONFIG.DEV_MODE) return;
 
       const batchSize = 3;
-      const proofPromises = Array.from({ length: batchSize }, (_, i) => {
+      const proofPromises = Array.from({ length: batchSize }, async (_, i) => {
         const campaign: Campaign = ['chat_control', 'sugar_tax', 'sleep_compensation'][i];
-        const email = generateSampleEmailForCampaign(campaign);
+        const email = await generateSampleEmailForCampaign(campaign);
         return prover.generateCivicProof(email, campaign);
       });
 
@@ -107,7 +107,7 @@ describe('ZK-Email Integration Tests', () => {
       if (!ZK_EMAIL_DEV_CONFIG.ENABLED) return;
 
       // Simulate network error and recovery
-      const emailContent = generateSampleEmailForCampaign('sleep_compensation');
+      const emailContent = await generateSampleEmailForCampaign('sleep_compensation');
       
       try {
         await prover.generateCivicProof(emailContent, 'sleep_compensation');
@@ -120,7 +120,7 @@ describe('ZK-Email Integration Tests', () => {
     it('should validate proof integrity after generation', async () => {
       if (!ZK_EMAIL_DEV_CONFIG.ENABLED || !ZK_EMAIL_DEV_CONFIG.DEV_MODE) return;
 
-      const emailContent = generateSampleEmailForCampaign('chat_control');
+      const emailContent = await generateSampleEmailForCampaign('chat_control');
       const proof = await prover.generateCivicProof(emailContent, 'chat_control');
 
       // Verify proof structure
