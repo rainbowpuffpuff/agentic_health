@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom'
+// Jest setup for ZK-Email tests
 
 // Mock environment variables for testing
 process.env.NEXT_PUBLIC_ZK_EMAIL_ENABLED = 'true'

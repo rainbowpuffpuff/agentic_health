@@ -22,56 +22,10 @@ export const ZK_EMAIL_DEV_CONFIG = {
   PROOF_TIMEOUT: 30000, // 30 seconds
   MAX_EMAIL_SIZE: 1024 * 1024, // 1MB
   
-  // Development sample data - formatted for parliament blueprint
-  SAMPLE_EMAILS: {
-    chat_control: {
-      sender: 'carol.calin@gmail.com',
-      recipient: 'bcalincarol@gmail.com, androu.et@europarl.europa.eu',
-      cc: 'bcalincarol@gmail.com',
-      subject: 'Opposition to Chat Control Legislation',
-      template: `Dear MEP,
-
-I am writing to express my strong opposition to the proposed Chat Control legislation. As your constituent, I believe this legislation poses significant risks to privacy and civil liberties.
-
-The mass surveillance of private communications is not compatible with democratic values and fundamental rights. I urge you to vote against this proposal.
-
-Thank you for your consideration.
-
-Sincerely,
-Carol Calin`
-    },
-    sugar_tax: {
-      sender: 'carol.calin@gmail.com',
-      recipient: 'bcalincarol@gmail.com, health.minister@europarl.europa.eu',
-      cc: 'bcalincarol@gmail.com',
-      subject: 'Support for Sugar Tax Implementation',
-      template: `Dear Health Minister,
-
-I am writing to express my support for implementing a comprehensive sugar tax to address the growing obesity crisis.
-
-Evidence from other countries shows that sugar taxes effectively reduce consumption of unhealthy beverages while generating revenue for public health programs.
-
-I encourage you to move forward with this important public health measure.
-
-Best regards,
-Carol Calin`
-    },
-    sleep_compensation: {
-      sender: 'carol.calin@gmail.com',
-      recipient: 'bcalincarol@gmail.com, labor.secretary@europarl.europa.eu',
-      cc: 'bcalincarol@gmail.com',
-      subject: 'Support for Sleep Compensation Legislation',
-      template: `Dear Labor Secretary,
-
-I am writing to advocate for legislation that would provide compensation for workers whose sleep is disrupted by work-related activities.
-
-Sleep is essential for health and productivity. Workers who sacrifice sleep for their jobs deserve fair compensation for this impact on their well-being.
-
-Please consider supporting policies that protect workers' right to adequate rest.
-
-Respectfully,
-Carol Calin`
-    }
+  // Reference sample email files (use actual files from /public/)
+  SAMPLE_EMAIL_FILES: {
+    basic: '/sample-email.eml',           // Basic format example
+    with_dkim: '/sample-email-DKIM.eml'  // Full DKIM signature example
   },
   
   // Government domain patterns for verification
@@ -113,42 +67,33 @@ Carol Calin`
 };
 
 /**
- * Generate a sample .eml file content for testing - formatted for parliament blueprint
+ * Load sample email content from public files
  */
-export function generateSampleEML(campaign: Campaign): string {
-  const sampleData = ZK_EMAIL_DEV_CONFIG.SAMPLE_EMAILS[campaign];
-  const timestamp = new Date().toUTCString();
-  const messageId = `<${Date.now()}.${Math.random().toString(36).substring(2, 9)}@gmail.com>`;
+export async function loadSampleEmail(type: 'basic' | 'with_dkim' = 'with_dkim'): Promise<string> {
+  const filePath = ZK_EMAIL_DEV_CONFIG.SAMPLE_EMAIL_FILES[type];
   
-  // Format similar to the working example from your screenshot
-  return `Return-Path: <${sampleData.sender}>
-Delivered-To: ${sampleData.sender}
-Received: by 2002:a05:6402:1102:b0:4e5:94b3:7245 with SMTP id ada2fe7eead31-4f2f1985d3mr1G7235137.8.1751624470202; Fri, 04 Jul 2025 03:21:10 -0700 (PDT)
-X-Google-Smtp-Source: AGHT+IFMGBtzuistGoCxzwPE0AZSQRMYg+X21GEVpM0NSP7TIYSOSuQ+utoB3s+eFMs1/
-X-Received: by 2002:a05:6402:1102:b0:4e5:94b3:7245 with SMTP id ada2fe7eead31-4f2f1985d3mr1G7235137.8.1751624470202; Fri, 04 Jul 2025 03:21:10 -0700 (PDT)
-MIME-Version: 1.0
-From: ${sampleData.sender}
-Date: ${timestamp}
-Message-ID: ${messageId}
-Subject: ${sampleData.subject}
-To: ${sampleData.recipient}
-Cc: ${sampleData.cc}
-Content-Type: multipart/alternative; boundary="000000000000538e0c063917dae6"
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-	d=gmail.com; s=20230601; t=1751624470; x=1752229270;
-	h=to:subject:message-id:date:from:mime-version:from:to:cc:subject:date:message-id:reply-to;
-	bh=gMXebHFP3BZ7Bi+Y6SdQTbR1mwdixDbAekum9949U8g=;
-	b=1cTXSzGnCnhScP/juKZTNnVNaxdaeznAaCmobotLBLsREyNoAwQYdV
-	/SwpjMCmDw7xKI1QxWuDCaGsxHt+2LtWrWuSSj9gTqDbDX/wSmb3ypRR317I9nXXHEMHyQ2Qw
-	vD7840128XozL7107tLFoKv4dVNaxdaeznAaCmobotLBLsREyNoAwQYdV
+  if (typeof window !== 'undefined') {
+    // Client-side: fetch from public directory
+    const response = await fetch(filePath);
+    if (!response.ok) {
+      throw new Error(`Failed to load sample email: ${response.statusText}`);
+    }
+    return await response.text();
+  } else {
+    // Server-side: read from file system
+    const fs = require('fs');
+    const path = require('path');
+    const fullPath = path.join(process.cwd(), 'public', filePath.replace('/public/', ''));
+    return fs.readFileSync(fullPath, 'utf-8');
+  }
+}
 
---000000000000538e0c063917dae6
-Content-Type: text/plain; charset="UTF-8"
-
-${sampleData.template}
-
---000000000000538e0c063917dae6--
-`;
+/**
+ * Generate sample email for testing (uses real reference files)
+ */
+export async function generateSampleEML(campaign?: Campaign): Promise<string> {
+  // Always use the DKIM sample as it's the most complete
+  return await loadSampleEmail('with_dkim');
 }
 
 /**
@@ -176,7 +121,7 @@ export function isGovernmentEmail(email: string): boolean {
   );
 }
 
-export type Campaign = keyof typeof ZK_EMAIL_DEV_CONFIG.SAMPLE_EMAILS;
+export type Campaign = 'chat_control' | 'sugar_tax' | 'sleep_compensation';
 
 /**
  * Get campaign configuration by campaign type
@@ -205,11 +150,9 @@ export function validateConfiguration(): boolean {
       if (!config || typeof config.base !== 'number') return false;
     }
     
-    // Check sample emails
-    for (const campaign of campaigns) {
-      const sample = ZK_EMAIL_DEV_CONFIG.SAMPLE_EMAILS[campaign as Campaign];
-      if (!sample || !sample.sender || !sample.recipient) return false;
-    }
+    // Check sample email files exist
+    if (!ZK_EMAIL_DEV_CONFIG.SAMPLE_EMAIL_FILES.basic) return false;
+    if (!ZK_EMAIL_DEV_CONFIG.SAMPLE_EMAIL_FILES.with_dkim) return false;
     
     return true;
   } catch (error) {
