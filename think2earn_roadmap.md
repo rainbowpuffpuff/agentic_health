@@ -26,7 +26,7 @@ The focus shifted from solo exploration to building a team and proving the visio
 This phase marked the most critical transition: from a software concept to a deep-tech project with a clear path to proprietary hardware and verifiable ML.
 
 *   **Ocean Protocol Foundation Grant ($8k):** We secured our first major grant. Crucially, this funding was earmarked for **investigating and manufacturing open-hardware devices**, directly de-risking the most ambitious and capital-intensive part of the long-term vision.
-*   **[ZuThailand Fellowship](https://dorahacks.io/buidl/20626):** Backed by the Ocean grant, I executed the research. I authored a **[formal paper on open-hardware fNIRS for investigating hemodynamics](https://github.com/rainbowpuffpuff/ez_think2earn/blob/master/Investigating%20Hemodynamic%20Responses_%20%5Bzuthailand%20draft%5D-1.pdf)** and, more importantly, built a functional **[EZKL pipeline to run verifiable ML inferences on private fNIRS data](https://colab.research.google.com/github/rainbowpuffpuff/ez_think2earn/blob/master/ZuThailand_EZKL_demo.ipynb)**. We won the **EZKL prize ($500)**, proving we could solve for both privacy and output verification on real neural data.
+*   **[ZuThailand Fellowship](https://dorahacks.io/buidl/20626):** Backed by the Ocean grant, I executed the research. I authored a **[formal paper on open-hardware functional-Near-Infrared-Spectroscopy (fNIRS) for investigating hemodynamics](https://github.com/rainbowpuffpuff/ez_think2earn/blob/master/Investigating%20Hemodynamic%20Responses_%20%5Bzuthailand%20draft%5D-1.pdf)** and, more importantly, built a functional **[EZKL pipeline to run verifiable ML inferences on private fNIRS data](https://colab.research.google.com/github/rainbowpuffpuff/ez_think2earn/blob/master/ZuThailand_EZKL_demo.ipynb)**. We won the **EZKL prize ($500)**, proving we could solve for both privacy and output verification on real neural data.
 *   **MegaZu '24 (Invitation-Only):** Being invited to build alongside top developers from EigenLayer and MegaETH was peer validation of the highest order. We used this opportunity to explore more advanced privacy tech, implementing federated ML training with PySyft and TenSEAL, with the **[demo available here](https://drive.google.com/drive/u/0/folders/1Q-wgH5b3u_5xuKc5Oz9ylV0EETTKt9ux)**.
 
 **Narrative Checkpoint:** We successfully transitioned to a deep-tech project, securing non-dilutive funding for hardware R&D and proving we could execute on verifiable and federated machine learning—the technical heart of the ecosystem.
@@ -52,7 +52,7 @@ This documented history of execution directly informs our future roadmap.
 **The Path Forward:**
 
 1.  **Next: Build the Economic Engine.** To pay contributors, we need a trustless system.
-    *   **Action:** Implement an AVS-like consensus on NEAR (using OLAS or Shade Agents) to serve as the "impact evaluator" and payment rail.
+    *   **Action:** Implement an Actively Validated Service (AVS)-like consensus on NEAR (using [OLAS](https://olas.network/) or [Shade Agents](https://docs.near.org/ai/shade-agents/introduction) to serve as the "impact evaluator" and payment rail.
 
 2.  **Then: Solve Data Sovereignty.** Users need secure, decentralized storage they control.
     *   **Action:** Integrate Swarm for storage, using NEAR Intents to abstract the complexity of purchasing postage stamps and managing access control.
@@ -61,4 +61,4 @@ This documented history of execution directly informs our future roadmap.
     *   **Action:** Launch the "Tamagotchi for Wellness" mobile app to generate our first SaaS revenue stream and build the community that will become the first customers for our hardware.
 
 4.  **Finally: Scale Hardware.** To generate the proprietary dataset, we need devices in the wild.
-    *   **Action:** Leverage the Vanderbilt University collaboration to scale manufacturing of the fNIRS device, selling it directly to our most engaged app users.
+    *   **Action:** Leverage the Vanderbilt University collaboration to scale manufacturing of the functional-Near-Infrared-Spectroscopy (fNIRS) device, selling it directly to our most engaged app users.
